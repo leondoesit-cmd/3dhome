@@ -13,7 +13,8 @@ import { fmtLen } from "../display_units.js";
 import { chainSegsOf, dimChain } from "../dim_chain.js";
 import { roomHidden, wallGeom, wallOutline } from "../geometry.js";
 import { roomMeasurements } from "../room_summary.js";
-import { planRotRad, sx, sz } from "../plan_view.js";
+import { planRotRad, rotatePx, sx, sz } from "../plan_view.js";
+import { STAMP_FAINT, dimLabelShift, mepStampObstacles } from "./stamp_slots.js";
 import { S } from "../state.js";
 import { normalizeWallKind } from "../wall_curves.js";
 import { pc } from "../plan2d.js";
@@ -79,12 +80,15 @@ function roomInteriorSize(key) {
    lies on the building's outer bounds. */
 function chainSides(walls) {
   var bb = { minx: Infinity, minz: Infinity, maxx: -Infinity, maxz: -Infinity }, band = 0;
+  // the FIRST wall with each id (as a find over S.walls would give), one pass per call
+  var byId = new Map();
+  (S.walls || []).forEach(function (sw) { if (sw && !byId.has(sw.id)) byId.set(sw.id, sw); });
   walls.forEach(function (w) {
     w.pts.forEach(function (p) {
       bb.minx = Math.min(bb.minx, p.x); bb.maxx = Math.max(bb.maxx, p.x);
       bb.minz = Math.min(bb.minz, p.z); bb.maxz = Math.max(bb.maxz, p.z);
     });
-    var t = (S.walls.find(function (sw) { return sw.id === w.id; }) || {}).thickness;
+    var t = (byId.get(w.id) || {}).thickness;
     if (t > band) band = t;
   });
   band += 2; // a partition reaching a face stops at its inner side
@@ -149,10 +153,25 @@ function chainTextWidth(txt, hot) {
   return w;
 }
 
+/* Where a chain number goes with MEP device badges on the plan (`badges`,
+   true-screen boxes from mepStampObstacles; null outside the Services work
+   set): `at` slid along the chain line, at most `room` px, off any badge, the
+   way room stamps step aside (stamp_slots.js). `shift` is how far it slid;
+   `faint` when no slot is free, so the badge it sits on still reads. */
+function chainLabelPlace(at, w, alongX, room, badges) {
+  if (!badges) return { at: at, shift: 0, faint: false };
+  var a = planRotRad(), ax = alongX ? [Math.cos(a), Math.sin(a)] : [-Math.sin(a), Math.cos(a)];
+  var p = rotatePx(at[0], at[1]);
+  var box = { x: p.x, y: p.y, w: Math.abs(w * ax[0]) + Math.abs(13 * ax[1]), h: Math.abs(w * ax[1]) + Math.abs(13 * ax[0]) };
+  var shift = dimLabelShift(box, badges, ax, Math.max(0, room));
+  if (shift === null) return { at: at, shift: 0, faint: true };
+  return { at: alongX ? [at[0] + shift, at[1]] : [at[0], at[1] + shift], shift: shift, faint: false };
+}
+
 /* One chain: `alongX` = a row along x (top or bottom), else a column (left or
    right); `far` = the bottom / right side. `o` is the outward direction in
    screen px (-1 above / left of the building, +1 below / right). */
-function drawChain(chain, bb, alongX, far, hot) {
+function drawChain(chain, bb, alongX, far, hot, badges) {
   if (!chain || !chain.segs.length) return;
   var o = far ? 1 : -1,
     face = alongX ? sz(far ? bb.maxz : bb.minz) : sx(far ? bb.maxx : bb.minx),
@@ -236,14 +255,16 @@ function drawChain(chain, bb, alongX, far, hot) {
       w = chainTextWidth(txt, isLit),
       full = hot.length ? isLit
         : s.kind === "wall" && s.ids.some(function (id) { return ext[id]; });
-    pc.globalAlpha = full ? 1 : CHAIN_DIM_ALPHA;
+    var alpha = full ? 1 : CHAIN_DIM_ALPHA, room = (hi - lo - w - 2) / 2, put;
     if (w + 2 <= hi - lo || (isLit && mid - w / 2 > outerEnd)) {
-      var at = alongX ? [mid, line + o * 7] : [line + o * 7, mid];
-      chainText(at[0], at[1], txt, alongX, isLit);
-      outerEnd = mid + w / 2;
+      put = chainLabelPlace(alongX ? [mid, line + o * 7] : [line + o * 7, mid], w, alongX, room, badges);
+      pc.globalAlpha = put.faint ? Math.min(alpha, STAMP_FAINT) : alpha;
+      chainText(put.at[0], put.at[1], txt, alongX, isLit);
+      outerEnd = mid + put.shift + w / 2;
     } else if (s.kind === "wall" && mid - w / 2 > innerEnd + 2) {
-      var ai = alongX ? [mid, line - o * 8] : [line - o * 8, mid];
-      chainText(ai[0], ai[1], txt, alongX, isLit);
+      put = chainLabelPlace(alongX ? [mid, line - o * 8] : [line - o * 8, mid], w, alongX, 0, badges);
+      pc.globalAlpha = put.faint ? Math.min(alpha, STAMP_FAINT) : alpha;
+      chainText(put.at[0], put.at[1], txt, alongX, isLit);
       innerEnd = mid + w / 2;
     }
   });
@@ -254,10 +275,11 @@ function drawDimChains(bb) {
   if (!bb || !planChains) return;
   var hot = hotWallIds();
   var c = planChains.chains;
-  drawChain(c.top, bb, true, false, hot);
-  drawChain(c.bottom, bb, true, true, hot);
-  drawChain(c.left, bb, false, false, hot);
-  drawChain(c.right, bb, false, true, hot);
+  var badges = mepStampObstacles(); // null unless Services is the work set
+  drawChain(c.top, bb, true, false, hot, badges);
+  drawChain(c.bottom, bb, true, true, hot, badges);
+  drawChain(c.left, bb, false, false, hot, badges);
+  drawChain(c.right, bb, false, true, hot, badges);
 }
 
 export { OVERALL_DIM_PX, chainCoveredWall, drawDimChains, refreshDimChains, roomInteriorSize };

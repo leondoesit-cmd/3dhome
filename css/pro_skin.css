@@ -99,6 +99,14 @@ body.pro-skin #topbar .brand { display: flex; order: 1; }
 body.pro-skin #topbar .ps-project[data-ps-moved] { display: flex; order: 2; }
 body.pro-skin #topbar .pr-editors[data-ps-moved] { display: flex; order: 3; }
 body.pro-skin #topbar .tb-start > .dropdown:not(.history-dropdown-wrap) { display: block; order: 4; }
+/* development: Clear cache sits right after File · Edit · Export */
+body.pro-skin #topbar .tb-start > #clearCacheBtn {
+  display: flex; order: 4; align-items: center; gap: 5px; height: 28px; padding: 0 8px; border-radius: 7px;
+  border: 1px dashed var(--border-color); background: transparent; box-shadow: none;
+  font-size: 12.5px; font-weight: 500; color: var(--text-muted);
+}
+body.pro-skin #topbar .tb-start > #clearCacheBtn:hover { background: var(--btn-bg); color: var(--text-main); }
+body.pro-skin #topbar .tb-start > #clearCacheBtn i { font-size: 14px; }
 body.pro-skin #topbar #viewModePill { display: flex; order: 5; margin-inline: auto; }
 body.pro-skin #topbar .ps-actions[data-ps-moved] { display: contents; }
 body.pro-skin #topbar .ps-actions .ps-ai { order: 6; }

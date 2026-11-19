@@ -63,7 +63,8 @@ export function groundSampleOk(point, bounds, margin = GROUND_MARGIN) {
    itemDragGrabY: after a press, the height of that plane, or null when the
    press did not start a one-piece drag (0 when nothing was hit). */
 export function itemDragGrabY(state, downHit) {
-  if (!state || state.action !== "item" || !state.sel || state.sel.kind !== "item" || !state.sel.ref) return null;
+  if (state?.action !== "item" || !(state.sel?.kind === "item" && state.sel.ref ||
+      state.sel?.kind === "items" && state.sel.refs?.length)) return null;
   const y = downHit && downHit.point ? Number(downHit.point.y) : 0;
   return Number.isFinite(y) ? y : 0;
 }

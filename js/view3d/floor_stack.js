@@ -8,7 +8,7 @@
 
    Each storey is drawn plainly but recognisably: walls as one merged mesh cut
    around doors and windows, floors with their room finish, and the furniture
-   built by the catalogue (lights stripped). A storey's group is rebuilt only
+   built by the catalogue. Their unshadowed lamps use the storey room mask. A storey's group is rebuilt only
    when its stored scene, level or the cut changes — switching storeys swaps
    which ones are stacked; editing the active one costs nothing here. */
 import { THREE } from "../three_lazy.js";
@@ -21,8 +21,16 @@ import { normalizeWallKind } from "../wall_curves.js";
 import { holesForRoom } from "../slab_openings.js";
 import { floorTexture, polyMesh } from "../primitives.js";
 import { FURN, buildItem as buildFurn, elevOffset } from "../furniture.js";
+import { takeLight, releaseItemLights } from "./wall_build.js";
 import { mergeItemMeshes } from "../view3d/item_merge.js";
-import { cutH } from "../view3d/site_cutaway.js";
+import { fixtureLamp, fixtureOptics } from "../primitives.js";
+import { driveFixture, installFixture } from "./lighting.js";
+import { wallPathRecords } from "../light_loop.js";
+import { roomSurfaceFinishes } from "../room_bounce.js";
+import { exteriorWindow, bindWindowOccluders, trackDaylightDoor, WINDOW_ANGLE, WINDOW_PENUMBRA } from "./backdrop.js";
+import { cutH, frameSpec } from "../view3d/site_cutaway.js";
+import { refitStoreyLights } from "../view3d/lighting.js";
+import { isMepOnlyRebuild, keepActiveBand } from "../view3d/stack_band.js";
 import { boxArrays, carriedTop, openingCut, riseAbove, slabDepth, stackedFloors, wallSolidPieces, withFloorScene } from "../floor_stack.js";
 
 var fsGroup = null;
@@ -118,12 +126,33 @@ function addSlabUndersides(g, rooms, depth) {
   if (!(depth > 0.01)) return;
   rooms.forEach(function (r) {
     var under = polyMesh(r.pts, -depth, 240, slabMat(), holesForRoom(r.pts));
-    if (under) { under.castShadow = true; under.userData.ownGeometry = true; g.add(under); }
+    if (under) { under.castShadow = true; under.userData.ownGeometry = true; under.userData.slabUnder = true; g.add(under); }
   });
 }
 
 function liveRooms() {
   try { return detectRooms(); } catch (e) { return []; }
+}
+
+// Context storeys carry the same escaped flux and aperture data as the
+// active storey. Their diffuse field uses their own finishes and room map.
+function storeyWindows(rooms, group) {
+  const windows = [];
+  for (const o of S.openings || []) {
+    const w = S.walls.find(wall => String(wall.id) === String(o.wall));
+    if (o.type === "door") trackDaylightDoor(o, null);
+    const a = exteriorWindow(o, w, rooms, frameSpec(o));
+    if (!a) continue;
+    bindWindowOccluders(a, THREE, [group], group);
+    const light = takeLight("SpotLight", 0xffffff, 0, a.reach, 2, WINDOW_ANGLE, WINDOW_PENUMBRA);
+    light.position.set(a.x, a.y, a.z);
+    light.target.position.set(a.x + a.nx * 200, a.y - 70, a.z + a.nz * 200);
+    light.userData.sourceRadius = Math.sqrt(a.area / Math.PI);
+    group.add(light, light.target);
+    a.light = light;
+    windows.push(a);
+  }
+  return windows;
 }
 
 function buildStorey(floor, rise, depth) {
@@ -133,10 +162,11 @@ function buildStorey(floor, rise, depth) {
   withFloorScene(S, scene, function () {
     addWallMesh(g, storeyWallBoxes(rise, false), scene.wallColor);
     var rooms = liveRooms();
+    var practicals = [];
     rooms.forEach(function (r) {
       var holes = holesForRoom(r.pts), t = roomFloor(r.key);
       var top = polyMesh(r.pts, 0, TILE[t] || 240, floorMat(t), holes);
-      if (top) { top.receiveShadow = true; top.userData.ownGeometry = true; g.add(top); }
+      if (top) { top.userData.roomKey = r.key; top.userData.role = "floor"; top.receiveShadow = true; top.userData.ownGeometry = true; g.add(top); }
     });
     addSlabUndersides(g, rooms, depth);
     (S.items || []).forEach(function (it) {
@@ -149,31 +179,50 @@ function buildStorey(floor, rise, depth) {
         ig.position.set(it.x, elevOffset(copy), it.z);
         ig.rotation.y = (-(it.rot || 0) * Math.PI) / 180;
         buildFurn(ig, copy);
+        ig.userData.item = it;
+        const lamp = fixtureLamp(FURN[it.type]);
+        const optics = lamp && fixtureOptics(ig, copy, THREE, lamp);
         mergeItemMeshes(ig, THREE);
-        var lights = [];
-        ig.traverse(function (o) {
-          if (o.isLight) lights.push(o);
-          else if (o.isMesh) o.castShadow = o.receiveShadow = true;
-        });
-        lights.forEach(function (l) { if (l.parent) l.parent.remove(l); });
+        if (optics) {
+          installFixture(ig, optics, takeLight);
+          driveFixture(ig, it, lamp);
+          practicals.push(...ig.fixture.lights);
+        }
         g.add(ig);
       } catch (e) { /* skip a piece that cannot build out of its own storey */ }
     });
+    g.userData.storeyLight = { rooms, practicals, windows: storeyWindows(rooms, g), wallPaths: wallPathRecords(rooms, S), finishes: roomSurfaceFinishes(rooms, g, g, S, THREE, storeyWallTop()), wallH: storeyWallTop() || null, place: new THREE.Vector4(0, 0, 0, 0) };
   });
+  // every mesh reads this storey's layer of the room light map
+  var place = g.userData.storeyLight.place;
+  g.traverse(function (o) { if (o.isMesh) o.userData.lightPlace = place; });
   return g;
+}
+
+/* The shown storeys' light, lowest first, for lighting.js: rooms, sources,
+   ceiling, level (dy) and the vector their meshes carry (setRooms fills it). */
+export function stackedLightStoreys() {
+  var list = [];
+  fsEntries.forEach(function (entry) {
+    var info = entry.group.userData.storeyLight;
+    if (info) list.push(Object.assign({ dy: entry.group.position.y }, info));
+  });
+  return list.sort(function (a, b) { return a.dy - b.dy; });
 }
 
 /* Only the geometry made here is disposed: materials are the shared ones above
    or the catalogue's, which the live storey may be using too. */
 function disposeStorey(g) {
   if (!g) return;
+  releaseItemLights(g);
   if (g.parent) g.parent.remove(g);
   g.traverse(function (o) {
-    if (o.isMesh && o.userData.ownGeometry && o.geometry) o.geometry.dispose();
+    if (o.isMesh && (o.userData.ownGeometry || o.userData.itemMerged) && o.geometry) o.geometry.dispose();
   });
 }
 
-var fsActive = null; // the live storey's band and slab (rebuilt every sync)
+var fsActive = null; // the live storey's band and slab (rebuilt every sync but an MEP-only one)
+var fsActiveFor = null; // { rise, depth, wallColor } fsActive was built for
 var fsTops = new WeakMap(); // stored scene -> its tallest full wall
 
 function storedWallTop(scene) {
@@ -181,7 +230,8 @@ function storedWallTop(scene) {
   return fsTops.get(scene);
 }
 
-export function syncFloorStack() {
+// opts.mepOnly: the rebuild swapped the services and nothing else
+export function syncFloorStack(opts) {
   if (!has3D() || !THREE || !THREE.Group) return;
   var main = getMainScene();
   if (!main) return;
@@ -231,17 +281,24 @@ export function syncFloorStack() {
   });
   /* The live storey's share, redone on every rebuild since it is the one
      being edited: its full walls run up to the storey shown above, and its
-     floor gets the slab down to the ceiling of the storey shown below. */
-  if (fsActive) { disposeStorey(fsActive); fsActive = null; changed = true; }
+     floor gets the slab down to the ceiling of the storey shown below. An
+     MEP-only rebuild moved no wall or room: the band built for the same
+     levels is kept (it still counts as changed, so the light and shadow
+     refresh below runs exactly as before). */
   var rise = wanted.length ? riseAbove(wanted.map(function (e) { return e.dy; }).concat(0), 0) : null;
   var activeDepth = wanted.length ? depthUnder(0) : 0;
-  if (rise != null || activeDepth > 0) {
-    fsActive = new THREE.Group();
-    fsActive.name = "floorStack:active";
-    if (rise != null) addWallMesh(fsActive, storeyWallBoxes(rise, true), S.wallColor);
-    addSlabUndersides(fsActive, liveRooms(), activeDepth);
-    fsGroup.add(fsActive);
-    changed = true;
+  if (fsActive && keepActiveBand(fsActiveFor, !!(opts && opts.mepOnly), rise, activeDepth, S.wallColor)) changed = true;
+  else {
+    if (fsActive) { disposeStorey(fsActive); fsActive = null; fsActiveFor = null; changed = true; }
+    if (rise != null || activeDepth > 0) {
+      fsActive = new THREE.Group();
+      fsActive.name = "floorStack:active";
+      if (rise != null) addWallMesh(fsActive, storeyWallBoxes(rise, true), S.wallColor);
+      addSlabUndersides(fsActive, liveRooms(), activeDepth);
+      fsGroup.add(fsActive);
+      fsActiveFor = { rise: rise, depth: activeDepth, wallColor: S.wallColor };
+      changed = true;
+    }
   }
   /* The lawn, the site dressing and the studio floor sit at the active
      storey's level; storeys below it would be buried. They step down to the
@@ -253,7 +310,29 @@ export function syncFloorStack() {
     var y = o.userData.stackBaseY + lowest;
     if (o.position.y !== y) { o.position.y = y; changed = true; }
   });
-  if (changed) requestShadowUpdate();
+  if (changed) { lightSlabUndersides(); requestShadowUpdate(); refitStoreyLights(); }
 }
 
-if (typeof window !== "undefined") window.addEventListener("scene3d:rebuilt", syncFloorStack);
+/* A slab's underside is the ceiling of the storey below: it reads that
+   storey's rooms in the light map, not the rooms standing on the slab. */
+function lightSlabUndersides() {
+  var levels = [{ dy: 0, place: null }];
+  fsEntries.forEach(function (entry) {
+    var info = entry.group.userData.storeyLight;
+    if (info) levels.push({ dy: entry.group.position.y, place: info.place });
+  });
+  function tag(group, dy) {
+    var below = null;
+    levels.forEach(function (l) { if (l.dy < dy - 0.01 && (!below || l.dy > below.dy)) below = l; });
+    group.traverse(function (o) {
+      if (!o.isMesh || !o.userData.slabUnder) return;
+      if (below && below.place) o.userData.lightPlace = below.place;
+      else delete o.userData.lightPlace;
+    });
+  }
+  fsEntries.forEach(function (entry) { tag(entry.group, entry.group.position.y); });
+  if (fsActive) tag(fsActive, 0);
+}
+
+if (typeof window !== "undefined")
+  window.addEventListener("scene3d:rebuilt", function (e) { syncFloorStack({ mepOnly: isMepOnlyRebuild(e) }); });

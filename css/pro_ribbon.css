@@ -929,6 +929,21 @@ body.pro-ribbon-on #center-canvas.max-view-3d #view-3d > .hint { bottom: var(--p
   #cabdes .cb-statusbar > .cb-status-conv { flex-shrink: 20; }
   #cabdes .cb-statusbar > span:not(.ps-ai-status) { flex-shrink: 0; }
 }
+/* Narrower still, segments drop by their data-prio (statusSegments in
+   js/cabinet_chrome_logic.js): the convention first, then the yield; the
+   stock, sheets and parts the shop works from stay. */
+@container cb-status (max-width: 560px) {
+  #cabdes .cb-statusbar > [data-prio="3"] { display: none; }
+  #cabdes .cb-statusbar > [data-prio="3"] + span::before { display: none; }
+}
+@container cb-status (max-width: 420px) {
+  #cabdes .cb-statusbar > [data-prio="2"] { display: none; }
+  #cabdes .cb-statusbar > [data-prio="3"] + [data-prio="2"] + span::before { display: none; }
+}
+/* One home for the partition tools in the ribbon layout: the ribbon's Design ›
+   Interior group (and V / H / X). The second row keeps Select only; the
+   buttons stay in the DOM because the ribbon presses them. */
+#cabdes .cb-context-bar > #cbTools > button[data-tool]:not([data-tool=""]) { display: none; }
 #cabdes.cb-compact .cb-statusbar { display: none; }
 
 /* Cabinet split view: the drawing on the left half, the model on the right.

@@ -375,6 +375,10 @@
               </button>
             </div>
           </div>
+          <button data-act="clearCache" id="clearCacheBtn" class="dev-clear-cache" data-i18n-title="clear_cache_t" title="פיתוח: מחיקת העותקים השמורים של האפליקציה וטעינה מחדש">
+            <i class="ph ph-broom"></i>
+            <span data-i18n="clear_cache">ניקוי מטמון</span>
+          </button>
           <div class="separator"></div>
           <button data-act="workspace" id="workspaceBtn" data-i18n-title="workspace_t" title="Project workspace">
             <i class="ph ph-stack"></i>
@@ -2203,9 +2207,9 @@
               min="0"
               max="24"
               step="0.25"
-              value="13"
+              value="17"
             />
-            <span id="hourval" class="t">13:00</span>
+            <span id="hourval" class="t">17:00</span>
             <span class="t" data-i18n="north_l">🧭 צפון:</span>
             <input
               id="north"
@@ -2219,12 +2223,12 @@
             <label
               ><span data-i18n="backdrop_l">רקע תלת-ממד</span
               ><select id="backdropsel">
+                <option value="studio" data-i18n="backdrop_studio" selected>סטודיו (רקע ניטרלי)</option>
                 <option value="site" data-i18n="backdrop_site">אתר (דשא ושמיים)</option>
-                <option value="studio" data-i18n="backdrop_studio">סטודיו (רקע ניטרלי)</option>
               </select></label
             >
             <label
-              ><input type="checkbox" id="cb_softlight" />
+              ><input type="checkbox" id="cb_softlight" checked />
               <span data-i18n="softlight_l">אור רך</span></label
             >
           </div>

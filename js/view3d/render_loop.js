@@ -1,7 +1,11 @@
 /* The 3D view's animation loop (doors, idle painting, hidden-pane handling) and
    its pointer gestures, lifted out of build3D, split out of js/view3d.js. It
    shares the editor's state through live imports from ../view3d.js. */
-import { holdRebuild } from "./rebuild_hold.js";
+import { syncDoorDaylight } from "./backdrop.js";
+import { holdRebuild, plannerCanvasHidden } from "./rebuild_hold.js";
+import { pbrLoadsPending } from "../pbr_material.js";
+import { currentPicturesPending } from "../plan_sprites.js";
+import { initialPrewarmPending } from "../plan_sprite_prewarm.js";
 import { createSceneRegistry } from "../core/scene_registry.js";
 import { HumanFactory } from "../human.js";
 import { isPhysicsBusy, syncPhysicsToThree } from "../physics_facade.js";
@@ -9,7 +13,7 @@ import { safeDeltaMilliseconds } from "../physics_runtime.js";
 import { S, clamp } from "../state.js";
 import { applyEnv, buildViewGizmo, updateViewGizmo } from "../view3d/gizmo_env.js";
 import { applyItemOps, rebuild3D, rebuildMEP3D } from "../view3d/items_layers.js";
-import { finishPrewarm, prewarmHolds, schedulePrewarm, startPrewarm } from "../view3d/lighting.js";
+import { finishPrewarm, fitBounceLights, prewarmHolds, schedulePrewarm, startPrewarm } from "../view3d/lighting.js";
 import { editMove, editUp, focusAt, navTick } from "../view3d/navigation_edit.js";
 import { cP, panPixels, stepSeeFades, upd, zoomBy } from "../view3d/see_through.js";
 import { moveWalk, walkLook } from "../view3d/walk_mode.js";
@@ -27,7 +31,7 @@ import {
   set_tpDist, set_usePost, set_viewTween, set_yaw, settle, shadowDirtyBox,
   shadowThrottleT, shadowsDirty, shadowsFromRebuild, syncCameraVelocity,
   syncSelectionOutline, syncShadowUpdates, tgt, tgtTween, theta, tpDist,
-  view3dLocals, viewTween, walk, walkView, yaw,
+  view3dLocals, viewTween, walk, walkView, windowLights, yaw,
 } from "../view3d.js";
 
 // lifted out of build3D()
@@ -227,11 +231,13 @@ function wireRenderLoopAndGestures() {
     var el = renderer && renderer.domElement;
     return holdRebuild({
       pending: pending,
-      hidden: !!el && el.getClientRects().length === 0, // display:none up the tree
+      hidden: plannerCanvasHidden(el),
       pressed: editPointers.size > 0,
       sinceInput: time - editInputT,
       onPlan: editOnPlan,
       sinceRebuild: time - lastRebuildT,
+      waitingTextures: firstCompiled && pbrLoadsPending(),
+      waitingPictures: initialPrewarmPending || currentPicturesPending(),
       gestureRebuildMs: gestureRebuildMs,
     });
   };
@@ -246,8 +252,9 @@ function wireRenderLoopAndGestures() {
      frame (and TRAA's settle) from the observer below: whatever changed
      meanwhile, or nothing, the canvas holds a picture from before. */
   var drewOnce = false;
+  var walkStill = 0; // frames with no live animation, for moveWalk's idle skip
   var paneHidden = function () {
-    return drewOnce && renderer.domElement.getClientRects().length === 0;
+    return drewOnce && plannerCanvasHidden(renderer.domElement);
   };
   if (typeof ResizeObserver === "function") {
     new ResizeObserver(function (entries) {
@@ -291,8 +298,7 @@ function wireRenderLoopAndGestures() {
       try {
         schedulePrewarm(); // ends a run before the scene it draws is replaced
         var rebuildT0 = performance.now();
-        rebuild3D();
-        applyEnv();
+        rebuild3D(applyEnv);
         if (editPointers.size) set_gestureRebuildMs(performance.now() - rebuildT0);
         /* compile() issues GPU work, so it too has to wait for the backend.
            It walks the whole scene in a render context of its own — the frame
@@ -358,8 +364,11 @@ function wireRenderLoopAndGestures() {
     }
     // held navigation keys (pan / rise / zoom) — needs a live frame while down
     if (!walk) navTick(delta);
+    // a paint asked for, busy physics or an animation in either of the last two
+    // frames (a door's final snap lands the frame after its last moving one)
+    var walkMoved = walk && (needsRender || walkStill < 2 || isPhysicsBusy());
     syncPhysicsToThree(delta);
-    if (walk) moveWalk(delta / 1000);
+    if (walk) moveWalk(delta / 1000, walkMoved);
     var extLive = false;
     if (extTick) {
       try {
@@ -369,19 +378,21 @@ function wireRenderLoopAndGestures() {
           console.error("external tick failed:", err);
       }
     }
-    // Collect live animations. Each of these mutates the scene, so any of them
-    // being active means we must paint this frame (and the next).
+    // Door apertures admit a changing fraction of sky as their leaves move.
     var doorsMoving = updateDoors();
+    syncDoorDaylight(doorsMoving, time, windowLights, S.windowSkyK, fitBounceLights);
     if (seeFading.size) {
       stepSeeFades(delta);
       set_needsRender(true);
     }
     var humansLive = updateHumans(time);
     var physicsLive = isPhysicsBusy();
+    walkStill = doorsMoving || humansLive || physicsLive || extTick ? 0 : walkStill + 1;
     // Nothing can be painted until the WebGPU/WebGL2 backend has finished its
     // async init; keep the loop alive and pick up on the frame after it lands.
     if (!renderer || !renderer.initialized) return;
     if (compileGate) return; // the first draw waits a frame for #v3dPrep (see the rebuild above)
+    if (!drewOnce && (initialPrewarmPending || currentPicturesPending()) && plannerCanvasHidden(renderer.domElement)) return;
     var live = doorsMoving || humansLive || physicsLive || extLive;
     // nothing to draw on screen (see paneHidden); the idle shadow-set prewarm
     // below may still run meanwhile
@@ -448,7 +459,7 @@ function wireRenderLoopAndGestures() {
         shadowBox = null;
       } else if (shadowBox) set_regionShadowT(time);
       syncCameraVelocity();
-      syncShadowUpdates(shadowPass, shadowBox, shadowHold);
+      syncShadowUpdates(shadowPass, shadowBox, shadowHold, editPointers.size > 0 && S.action === "item");
       syncSelectionOutline();
       try {
         renderScene();

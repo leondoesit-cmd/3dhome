@@ -71,6 +71,29 @@ export function stampSlot(boxes, obstacles, poly, offsets) {
   return null;
 }
 
+/* The outside dimension chains' numbers (js/plan2d/dim_chains.js) meet the
+   same badges where a device sits on or by an outer wall. A number slides
+   along its chain line, `axis` the line's true-screen unit direction, at most
+   `room` px either way (what its segment leaves free), nearest first through
+   stampSlot. Answers the shift in px along the line (0 when nothing covers
+   it), or null when every slot is covered (draw it faint, as a stamp). */
+export function dimLabelShift(box, obstacles, axis, room, step) {
+  if (!obstacles || !obstacles.length) return 0;
+  step = step || 4;
+  var offsets = [[0, 0]], shifts = [0];
+  for (var s = step; s <= room; s += step) {
+    offsets.push([axis[0] * s, axis[1] * s], [-axis[0] * s, -axis[1] * s]);
+    shifts.push(s, -s);
+  }
+  // the reach is limited by `offsets`: the lane polygon only has to hold them all
+  var R = room + box.w + box.h + 4;
+  var lane = [{ x: box.x - R, y: box.y - R }, { x: box.x + R, y: box.y - R }, { x: box.x + R, y: box.y + R }, { x: box.x - R, y: box.y + R }];
+  var pick = stampSlot([box], obstacles, lane, offsets);
+  if (!pick) return null;
+  var at = offsets.indexOf(pick); // stampSlot answers a fresh [0, 0] when already clear
+  return at > 0 ? shifts[at] : 0;
+}
+
 /* The visible device badges as stamp obstacles, or null unless services are
    the work set and the MEP layer is shown. Same filters as drawMEP; a badge's
    box covers its disc and the corner tags (js/mep/drawing.js drawNode). */

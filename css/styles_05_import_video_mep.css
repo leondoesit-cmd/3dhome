@@ -1378,6 +1378,15 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 
 /* 2D plan gizmo: top-end (bottom-end holds the scale bar) */
 .plan-gizmo { top: 54px; inset-inline-end: 14px; inset-inline-start: auto; bottom: auto; width: 76px; height: 76px; }
+/* Plan view: a flat north arrow in place of the axis sphere (js/plan2d/north_indicator.js) */
+.plan-gizmo > .plan-north { cursor: pointer; }
+.plan-gizmo:not(.north-only) > .plan-north,
+.plan-gizmo.north-only > svg:not(.plan-north) { display: none; }
+.plan-north .pn-north-a { fill: #e0564f; }
+.plan-north .pn-north-b { fill: #a8372f; }
+.plan-north .pn-north-n { font: 800 max(13px, var(--fs-floor, 0px)) system-ui, sans-serif; fill: var(--text-main); dominant-baseline: middle; }
+.plan-north:hover .pn-north-a { fill: #ff6b5e; }
+.plan-north:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 50%; }
 
 /* 3D view gizmo: lifted above bottom snapping toggles & status area */
 #view-3d .view-gizmo:not(.plan-gizmo) { bottom: 44px; }

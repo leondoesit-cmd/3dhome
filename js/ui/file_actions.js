@@ -12,7 +12,7 @@ import { loadMEP } from "../mep.js";
 import { getDirtyRevision, markSaved } from "../persist.js";
 import { planStyle } from "../plan_style.js";
 import { fitView, planImageCanvas, render2D, updatePlanGizmo } from "../plan2d.js";
-import { S } from "../state.js";
+import { S, DEFAULT_HOUR } from "../state.js";
 import { normalizeSurvey } from "../survey.js";
 import { renderPanel as refreshMEPPanel } from "../ui_mep.js";
 import { fillProps, wallTakeoffRows } from "../ui_props.js";
@@ -35,7 +35,7 @@ export const RUN_FILE_ACTIONS = new Set([
   "exportWallSchedule", "newPlan", "photo", "reset", "save", "load", "exportjson", "importjson",
   "importBlueprint", "importBlueprintTrace", "roomScan", "png2d", "png3d", "exportgltf",
   "cutPlan", "exportCost", "uploadFloorTex", "uploadWallTex", "clearWallTex", "exportWallTakeoff",
-  "proDrawing",
+  "proDrawing", "clearCache",
 ]);
 
 // split out of runAction()
@@ -45,6 +45,9 @@ async function runFileAction(act, ev) {
   else if (act === "proDrawing") (await import("../ui_pro_drawing.js")).openProDrawing();
   else if (act === "newPlan") {
     if (window.__plannerChrome) window.__plannerChrome.openStartScreen();
+  } else if (act === "clearCache") {
+    // development aid: drop the service worker and its stored copies, reload
+    (await import("../dev_cache.js")).clearAppCache();
   } else if (act === "photo") {
     if (!(await import("../photomode.js")).openPhotoMode())
       flash(t("f_no3d"), "error");
@@ -59,7 +62,7 @@ async function runFileAction(act, ev) {
     S.annotations = [];
     S.surveyFeatures=[];
     S.workspace.survey=normalizeSurvey(null);
-    S.hour = 13;
+    S.hour = DEFAULT_HOUR;
     S.northAngle = 0;
     S.wallColor = 0xefe9dd;
     document.getElementById("wallcol").value = "#efe9dd";

@@ -403,10 +403,11 @@ export function fillInspector() {
       var shelfCount = cornerCell ? defaultShelfCount(s, cornerCell.y1 - cornerCell.y0) : defaultShelfCount(s, s.h, (sp() || {}).space);
       wrap.appendChild(row(T("count"), numInput(shelfCount, function (v) {
         api.act(secLabel(s.t) + " · " + T("count"));
-        s.n = Math.max(0, Math.round(v));
+        // a shoe compartment always has a shelf (shoeShelfCount)
+        s.n = Math.max(s.t === "shoe" ? 1 : 0, Math.round(v));
         api.touch();
         api.changed();
-      }, 0, 20, null)));
+      }, s.t === "shoe" ? 1 : 0, 20, null)));
       wrap.appendChild(row(T("spacing"), numInput(s.space || (s.t === "shoe" ? STD.shoeSpace : STD.shelfSpace), function (v) {
         api.act(T("spacing"));
         s.space = v;

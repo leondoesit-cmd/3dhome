@@ -351,9 +351,10 @@ test("the cabinet designer's status bar reports real production numbers and noth
   assert.doesNotMatch(cab, /Rev [A-Z]/);
   for (const k of ["statusNoConvention", "statusUnits", "statusStock", "statusSheets", "statusYield", "statusParts", "statusNestFailed"])
     assert.ok(src("ui_cabinet_ctx.js").includes(String.fromCharCode(10) + "  " + k + ": ["), k);
-  // The units segment says what it is; the convention segment is a button
-  // that opens the same production setup as the Technical tab.
-  assert.match(cab, /parts\.push\(T\("statusUnits"\)\.replace\("\{u\}", displayUnit\("cabinet"\)\)\)/);
+  // The units segment says what it is (and, a unit with no number, drops out:
+  // statusSegments); the convention segment is a button that opens the same
+  // production setup as the Technical tab.
+  assert.match(cab, /parts\.push\(\{ key: "units", text: T\("statusUnits"\)\.replace\("\{u\}", displayUnit\("cabinet"\)\) \}\)/);
   assert.match(cab, /span\.addEventListener\("click", openProductionSetup\)/);
   assert.match(src("ui_cabinet_inspect.js"), /T\("openProductionSetup"\), openProductionSetup,/);
   // Its priority follows the bar's own width (a docked, half-width designer too).
@@ -364,7 +365,7 @@ test("the cabinet designer's split view keeps the drawing editable beside the li
   const view = src("ui_cabinet_view.js");
   // Split is the drawing (E.mode stays 2D) with the borrowed renderer beside it.
   assert.match(view, /var split = m === "split";\s*m = m === "3d" \? "3d" : "2d";/);
-  assert.match(view, /E\.swapView\(m === "3d" \|\| split, E\.pv\);/);
+  assert.match(view, /E\.swapView\(m === "3d" \|\| split, E\.pv, \{ render: false \}\);/);
   // The drawing takes the left half and keeps clear of the view picker there.
   assert.match(view, /w = E\.split \? Math\.floor\(r\.width \/ 2\) : r\.width;/);
   assert.match(view, /ox = gut \+ \(W - gut\) \/ 2 \+ viewPanX,/);

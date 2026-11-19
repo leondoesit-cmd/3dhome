@@ -5,7 +5,7 @@ import { createCameraSweep } from "../camera_sweep.js";
 import { switchFloorAndWait } from "../floors.js";
 import { contentBounds, detectRooms, usedNodes, wallById, wallPointAt } from "../geometry.js";
 import { isLayerGhosted, isLayerVisible } from "../layers.js";
-import { moveSurveyWalker, navigationFloorTransition, navigationPosition } from "../navigation_geometry.js";
+import { walkStairs, moveSurveyWalker, navigationFloorTransition, navigationPosition } from "../navigation_geometry.js";
 import { cameraRetraction, navigationProfile } from "../navigation_profile.js";
 import { materialById } from "../pbr_material.js";
 import { box, cyl, floorTexture, polyMesh, sph } from "../primitives.js";
@@ -18,6 +18,8 @@ import { layerRoots } from "../view3d/items_layers.js";
 import { fitPracticalLights } from "../view3d/lighting.js";
 import { upd } from "../view3d/see_through.js";
 import { cutH, houseBounds } from "../view3d/site_cutaway.js";
+import { createWalkIdle } from "../view3d/walk_idle.js";
+import { wallXrayOn } from "../wall_xray.js";
 import {
   EYE_H, avatar, camera, cameraAt, cameraBoom, cameraSweep, dyn, freeMove,
   keys, pitch, ready3D, renderer, requestShadowUpdate, scene,
@@ -79,6 +81,18 @@ function buildAvatar() {
   scene.add(avatar);
 }
 
+// third person standing still: skip the look while it would repeat itself
+// (js/view3d/walk_idle.js); any rebuild forgets the last one
+const walkIdle=createWalkIdle();
+if(typeof window!=="undefined")window.addEventListener("scene3d:rebuilt",()=>walkIdle.invalidate());
+// everything walkLook reads, plus what it leaves on the camera/avatar/S, so a
+// change by anyone else also counts
+function walkIdleKey(profile) {
+  const p=camera.position,q=camera.quaternion,a=avatar,w=S.walk2D,roots=layerRoots();
+  return [walk,walkView,walkPos.x,walkPos.y,walkPos.z,yaw,pitch,tpDist,EYE_H,profile.eyeHeight,profile.cameraRadius,
+    freeMove,dyn,camera,p.x,p.y,p.z,q.x,q.y,q.z,q.w,a,a&&a.visible,a&&a.position.x,a&&a.position.y,a&&a.position.z,a&&a.rotation.y,
+    roots.length,...roots.map(e=>e.root),w&&w.x,w&&w.z,w&&w.yaw,w&&w.tp,S.cameraObstructed];
+}
 function walkLook() {
   const profile=navigationProfile(S);
   set_EYE_H(profile.eyeHeight);
@@ -126,13 +140,17 @@ function walkLook() {
     S.cameraObstructed=allowed<desiredDistance-1;
     camera.position.set(cx, cy, cz);
     camera.lookAt(pX, pY, pZ);
+    walkIdle.record(walkIdleKey(profile),cameraBoom,allowed,desiredDistance,now);
   } else {
+    walkIdle.invalidate();
     S.cameraObstructed=false;
     camera.position.set(eyeX, eyeY, eyeZ);
     camera.lookAt(eyeX + dx * lookDist, eyeY + dy * lookDist, eyeZ + dz * lookDist);
   }
 }
-function moveWalk(dt) {
+// sceneMoved: the render loop's word that something in the scene may have
+// moved since the last frame (anything but false counts as moved)
+function moveWalk(dt, sceneMoved) {
   if(document.documentElement.dataset.plannerViewport==='plan'||document.activeElement?.matches('input,textarea,select,[contenteditable="true"]')){for(const key of Object.keys(keys))keys[key]=false;return;}
   const profile=navigationProfile(S);
   set_tpDist(profile.cameraDistance);
@@ -168,11 +186,12 @@ function moveWalk(dt) {
     var dx = (mx / l) * spd;
     var dz = (mz / l) * spd;
     var curX = walkPos.x, curZ = walkPos.z, nx, nz;
-    const next=freeMove?{x:curX+dx,y:walkPos.y,z:curZ+dz}:moveSurveyWalker(S,walkPos,dx,dz,profile,detectRooms());
+    const stairs=freeMove?null:walkStairs(S);
+    const next=freeMove?{x:curX+dx,y:walkPos.y,z:curZ+dz}:moveSurveyWalker(S,walkPos,dx,dz,profile,detectRooms(),stairs);
     nx=next.x;nz=next.z;walkPos.y=next.y;
     walkPos.x = nx;
     walkPos.z = nz;
-    const landing=freeMove?null:navigationFloorTransition(S,walkPos,profile);
+    const landing=freeMove?null:navigationFloorTransition(S,walkPos,profile,stairs);
     if(landing){
       set_walkFloorPending(true);
       switchFloorAndWait(landing.floorId).then(floor=>{
@@ -181,7 +200,11 @@ function moveWalk(dt) {
         .finally(()=>{set_walkFloorPending(false);});
     }
     walkLook();
-  } else if(walkView==='tpv')walkLook();
+  } else if(walkView==='tpv'){
+    const now=performance.now();
+    if(walkIdle.canSkip(walkIdleKey(profile),cameraBoom,sceneMoved,Math.min(.1,(now-cameraAt)/1000)))set_cameraAt(now);
+    else walkLook();
+  }
 }
 // the walker's body stops at the curb, not with its centre over the drop
 function voidBlocked(x, z) {
@@ -274,12 +297,14 @@ export function toggleWalk(on) {
 }
 
 /* MEP X-ray (see-through walls/floor/ceiling) exists to show the services
-   buried in them, so it applies only while the services layer is shown: with
-   the layer hidden it would just leave the floors glass over the lawn. */
+   buried in them, so floor and ceiling X-ray apply only while the services
+   layer is shown: with the layer hidden they would just leave the floors glass
+   over the lawn. See-through WALLS are also a plain display mode (the 3D
+   pane's Display popover, js/build3d_ui.js), so they hold either way. */
 function mepXray(part) {
+  if (part === "walls") return wallXrayOn(S);
   var x = S.mep && S.mep.xray;
   if (!x || !(isLayerVisible("mep") || isLayerGhosted("mep"))) return false;
-  if (part === "walls") return typeof x === "object" ? !!x.walls : !!x;
   return typeof x === "object" && !!x[part];
 }
 

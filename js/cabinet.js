@@ -603,9 +603,17 @@ function sec(t, h, extra) {
    `specSpace` or 36). The layout and the Inspector's Count field both ask
    here, so the field shows what gets built. */
 export function defaultShelfCount(s, clearHeight, specSpace) {
+  if (s && s.t === "shoe" && !(s.n > 0)) return shoeShelfCount(clearHeight, s.space);
   if (s && s.n != null) return Math.max(0, s.n);
   var spacing = (s && s.space) || (s && s.t === "shoe" ? STD.shoeSpace : specSpace || STD.shelfSpace);
   return Math.max(0, Math.round(clearHeight / spacing) - 1);
+}
+/* Shoe shelves are never an empty box: a missing count, or the 0 an older
+   saved cabinet carries, means one shelf per `spacing` of clear inner height
+   (the section's own spacing, else the shoe default 19), and at least one. */
+export function shoeShelfCount(clearHeight, spacing) {
+  var sp = spacing > 0 ? spacing : STD.shoeSpace;
+  return Math.max(1, Math.floor((clearHeight > 0 ? clearHeight : 0) / sp));
 }
 /* `leaves: null` means "as many as the column width calls for" — so widening
    a cabinet turns an over-wide single door into a pair by itself. The designer

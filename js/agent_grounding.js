@@ -86,7 +86,7 @@ export function proposalParts(proposal, scene) {
       var c = view.center || { x: p.x, z: p.z };
       parts.push({
         kind: "item", action: "new", id: null, name: typeName(scene, p.type || view.type), at: { x: num(c.x), z: num(c.z) },
-        footprint: placed(null, p.type || view.type, c, view.width || p.w, view.depth || p.d, view.rotation != null ? view.rotation : p.rot, { h: p.h, elev: 0 }),
+        footprint: placed(null, p.type || view.type, c, view.width || p.w, view.depth || p.d, view.rotation != null ? view.rotation : p.rot, { h: p.h, elev: p.elev ?? 0 }),
       });
     } else if (id === "item.duplicate") {
       (view.items || []).forEach(function (copy) {

@@ -313,10 +313,12 @@ test("the reference-floor note is part of its toggle, not a span beside it", asy
   const { readFile } = await import("node:fs/promises");
   const chrome = await readFile(new URL("../js/planner_chrome.js", import.meta.url), "utf8");
   const tabs = sourceFunctionText(chrome, "renderFloorTabs");
-  assert.match(tabs, /ref\.innerHTML = '<i class="ph ph-stack" aria-hidden="true"><\/i><span class="floor-ref-note" hidden><\/span>';/);
+  assert.match(tabs, /ref\.innerHTML = '<i class="ph ph-eye-slash" aria-hidden="true"><\/i><span class="floor-ref-note" hidden><\/span>';/);
   assert.doesNotMatch(tabs, /note\.className = "floor-ref-note"/);
   const sync = sourceFunctionText(chrome, "syncFloorRefToggle");
   assert.match(sync, /var note = btn\.querySelector\("\.floor-ref-note"\);/);
   assert.match(sync, /btn\.setAttribute\("aria-pressed", pressed\)/);
   assert.match(sync, /btn\.classList\.toggle\("with-note", !!text\);/);
+  // an explicit eye toggle: open while the floor below shows, slashed while not
+  assert.match(sync, /var eyeClass = "ph " \+ \(on \? "ph-eye" : "ph-eye-slash"\);/);
 });

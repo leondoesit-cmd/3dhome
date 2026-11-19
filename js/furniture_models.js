@@ -986,6 +986,7 @@ export const FURN = {
     },
   },
   upper: {
+    taskLamp: { lumens: 400, ratedLength: 80, color: 0xffefd6, dist: 350 },
     label: "ארון עליון",
     w: 80,
     d: 35,
@@ -1489,6 +1490,7 @@ export const FURN = {
     },
   },
   hood: {
+    taskLamp: { lumens: 400, y: 149, color: 0xfff0dc, intensity: 0.5, dist: 400 },
     label: "קולט אדים",
     w: 62,
     d: 50,
@@ -1515,9 +1517,8 @@ export const FURN = {
     h: 70,
     col: "#7fb8c9",
     lamp: {
-      y: function (it) {
-        return it.h - 6;
-      },
+      lumens: 350,
+      y: it => it.h - 6,
       color: 0x9fd8e8,
       intensity: 0.45,
       dist: 300,
@@ -1619,7 +1620,7 @@ export const FURN = {
     d: 42,
     h: 115,
     col: "#6e6a66",
-    lamp: { y: 35, color: 0xff9a3c, intensity: 1.1, dist: 430 },
+    lamp: { lumens: 400, y: 35, color: 0xff9a3c, intensity: 1.1, dist: 430 },
     build: function (g, it) {
       /* Fireplace: a stone surround with a raised hearth and a mantel shelf,
          a sooted firebox with log grate, logs and flames. */
@@ -1692,13 +1693,13 @@ export const FURN = {
     d: 46,
     h: 10,
     col: "#fff4cf",
-    lamp: { y: MOUNTH - 9, color: 0xffe7bb, intensity: 0.95, dist: 680 },
+    lamp: { lumens: 1500, y: MOUNTH - 9, color: 0xffe7bb, intensity: 0.95, dist: 680 },
     build: function (g, it) {
       /* Flush ceiling light: a slim trim ring on the ceiling and a frosted
          opal dome diffuser glowing from within. */
       var r = it.w / 2;
       cyl(g, 0, MOUNTH - 1.2, 0, r, 2.4, 0xeef0ee, { rough: 0.4, metal: 0.2, seg: 48 });
-      var dome = sph(g, 0, MOUNTH - 2.4, 0, r * 0.88, 0xfff3d2, { emis: 0xffe6a8, rough: 0.3, cast: false, seg: 40, segV: 10, thetaLen: Math.PI / 2 });
+      var dome = sph(g, 0, MOUNTH - 2.4, 0, r * 0.88, 0xfff3d2, { lampShade: "opalCap", emis: 0xffe6a8, rough: 0.3, cast: false, seg: 40, segV: 10, thetaLen: Math.PI / 2 });
       if (dome) { dome.rotation.x = Math.PI; dome.scale.y = 7 / (r * 0.88); }
       cyl(g, 0, MOUNTH - 2.6, 0, r * 0.9, 0.5, 0xeef0ee, { rough: 0.4, metal: 0.2, seg: 48, open: true });
     },
@@ -1709,7 +1710,7 @@ export const FURN = {
     d: 34,
     h: 10,
     col: "#caa15e",
-    lamp: { y: MOUNTH - 58, color: 0xffd99a, intensity: 1.0, dist: 620 },
+    lamp: { lumens: 1000, y: MOUNTH - 58, color: 0xffd99a, intensity: 1.0, dist: 620 },
     build: function (g, it) {
       /* Pendant: a ceiling canopy, a fabric flex and socket, and a spun shade —
          cone, dome, glass globe, fabric drum or wire cage — with a white reflector
@@ -1720,14 +1721,14 @@ export const FURN = {
         sh = V.shape || "cone",
         W = it.w,
         cy = MOUNTH - drop,
-        so = { rough: V.shadeRough != null ? V.shadeRough : 0.45, metal: V.shadeMetal != null ? V.shadeMetal : 0.5, seg: 40 };
+        so = { lampShade: "metal", rough: V.shadeRough != null ? V.shadeRough : 0.45, metal: V.shadeMetal != null ? V.shadeMetal : 0.5, seg: 40 };
       lathe(g, 0, MOUNTH - 3, 0, [[0, 0], [5, 0], [5.6, 0.6], [5.6, 3], [0, 3]], 0x2b2f33, { metal: 0.4, rough: 0.4, seg: 28 }); // canopy
       cyl(g, 0, (MOUNTH - 3 + cy) / 2, 0, 0.35, MOUNTH - 3 - cy, 0x33383c, { rough: 0.8, seg: 8, cast: false }); // flex
       lathe(g, 0, cy - 5, 0, [[0, 0], [1.7, 0], [1.9, 1], [1.9, 5], [0, 5]], 0x2b2f33, { metal: 0.5, rough: 0.35, seg: 16 }); // socket
       var bulbY = cy - 9;
       if (sh === "globe") {
         var R = W * 0.42;
-        sph(g, 0, cy - 5 - R, 0, R, 0xfdf6e6, { trans: true, opacity: 0.5, rough: 0.08, metal: 0.05, seg: 32, segV: 20, cast: false });
+        sph(g, 0, cy - 5 - R, 0, R, 0xfdf6e6, { lampShade: "opal", trans: true, opacity: 0.94, rough: 0.42, metal: 0.05, seg: 32, segV: 20, cast: false });
         bulbY = cy - 5 - R;
       } else if (sh === "dome") {
         var dp = [[2, 0], [W * 0.16, -1.2], [W * 0.3, -4], [W * 0.42, -9], [W * 0.49, -14], [W * 0.5, -15.2]];
@@ -1747,10 +1748,10 @@ export const FURN = {
         return;
       } else if (sh === "drum") {
         var dc = V.shadeCol != null ? V.shadeCol : 0xe9dcc1;
-        lathe(g, 0, cy - 26, 0, [[W * 0.5, 0], [W * 0.5, 22]], dc, { rough: 0.7, trans: true, opacity: 0.94, seg: 48 });
+        lathe(g, 0, cy - 26, 0, [[W * 0.5, 0], [W * 0.5, 22]], dc, { lampShade: "linen", rough: 0.7, trans: true, opacity: 0.94, seg: 48 });
         torus(g, 0, cy - 4, 0, W * 0.5, 0.3, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 48, segR: 5 });
         torus(g, 0, cy - 26, 0, W * 0.5, 0.3, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 48, segR: 5 });
-        cyl(g, 0, cy - 25.6, 0, W * 0.49, 0.3, 0xf6efe0, { rough: 0.6, trans: true, opacity: 0.85, seg: 48, cast: false }); // diffuser
+        cyl(g, 0, cy - 25.6, 0, W * 0.49, 0.3, 0xf6efe0, { lampShade: "opalPanel", rough: 0.6, trans: true, opacity: 0.94, seg: 48, cast: false }); // diffuser
         bulbY = cy - 14;
       } else {
         var cp = [[1.9, 0], [2.6, -1], [4.2, -3], [W * 0.5, -17], [W * 0.5 + 0.2, -17.6]];
@@ -1768,9 +1769,8 @@ export const FURN = {
     h: 160,
     col: "#b9b29e",
     lamp: {
-      y: function (it) {
-        return it.h - 18;
-      },
+      lumens: 1000,
+      y: it => it.h - 18,
       color: 0xffe6b4,
       intensity: 0.85,
       dist: 520,
@@ -1786,7 +1786,7 @@ export const FURN = {
         W = it.w,
         rim = { metal: 0.8, rough: 0.3, seg: 40, segR: 5 };
       function drumShade(x, y0, rb, rt, H) {
-        lathe(g, x, y0, 0, [[rb, 0], [rt, H]], shade, { rough: 0.7, trans: true, opacity: 0.93, seg: 44 });
+        lathe(g, x, y0, 0, [[rb, 0], [rt, H]], shade, { lampShade: "linen", rough: 0.7, trans: true, opacity: 0.93, seg: 44 });
         torus(g, x, y0, 0, rb, 0.28, 0x8a857c, rim);
         torus(g, x, y0 + H, 0, rt, 0.28, 0x8a857c, rim);
         sph(g, x, y0 + H * 0.4, 0, 4, 0xfff2cc, { emis: 0xffe2a0, cast: false, seg: 18, segV: 12 });
@@ -1814,7 +1814,7 @@ export const FURN = {
         pts.push([xc + R, yc - 4, 0]);
         tube(g, pts, 1.5, stem, { metal: 0.6, rough: 0.35, seg: 10, steps: 64 });
         var ap = [[1.6, 0], [W * 0.12, -1.2], [W * 0.26, -5], [W * 0.34, -12], [W * 0.36, -16]];
-        lathe(g, xc + R, yc - 4, 0, ap, 0x2d3338, { metal: 0.55, rough: 0.35, seg: 36 });
+        lathe(g, xc + R, yc - 4, 0, ap, 0x2d3338, { lampShade: "darkMetal", metal: 0.55, rough: 0.35, seg: 36 });
         sph(g, xc + R, yc - 12, 0, 4, 0xfff2cc, { emis: 0xffe2a0, cast: false, seg: 18, segV: 12 });
         return;
       }
@@ -1823,7 +1823,7 @@ export const FURN = {
       cyl(g, 0, it.h * 0.45, 0, 1.6, 3, stem, { metal: 0.6, rough: 0.3, seg: 14 }); // collar
       if (style === "globe") {
         cyl(g, 0, sTop + 1, 0, 3, 3, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 16 });
-        sph(g, 0, it.h - 16, 0, W * 0.36, 0xfdf6e6, { trans: true, opacity: 0.5, rough: 0.08, seg: 32, segV: 20, cast: false });
+        sph(g, 0, it.h - 16, 0, W * 0.36, 0xfdf6e6, { lampShade: "opal", trans: true, opacity: 0.94, rough: 0.42, seg: 32, segV: 20, cast: false });
         sph(g, 0, it.h - 16, 0, 4, 0xfff2cc, { emis: 0xffe2a0, cast: false, seg: 18, segV: 12 });
         return;
       }
@@ -1837,9 +1837,8 @@ export const FURN = {
     h: 48,
     col: "#cdbf9a",
     lamp: {
-      y: function (it) {
-        return it.h - 10;
-      },
+      lumens: 470,
+      y: it => it.h - 10,
       color: 0xffe1ac,
       intensity: 0.6,
       dist: 360,
@@ -1853,7 +1852,7 @@ export const FURN = {
       if (body) body.scale.y = 0.9;
       cyl(g, 0, 20, 0, r * 0.22, 4, 0xd9d1c2, { rough: 0.25, seg: 20, r2: r * 0.14 });
       cyl(g, 0, (22 + sh0 + 6) / 2, 0, 0.9, sh0 + 6 - 22, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 10 });
-      cyl(g, 0, (sh0 + sh1) / 2, 0, r, sh1 - sh0, 0xefe4cb, { rough: 0.7, seg: 36, r2: r * 0.8, open: true, trans: true, opacity: 0.9 });
+      cyl(g, 0, (sh0 + sh1) / 2, 0, r, sh1 - sh0, 0xefe4cb, { lampShade: "linen", rough: 0.7, seg: 36, r2: r * 0.8, open: true, trans: true, opacity: 0.9 });
       cyl(g, 0, sh0 + 0.3, 0, r + 0.1, 0.6, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 36, open: true });
       cyl(g, 0, sh1 - 0.3, 0, r * 0.8 + 0.1, 0.6, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 36, open: true });
       sph(g, 0, sh0 + 5, 0, 3, 0xfff2cc, { emis: 0xffe2a0, cast: false });
@@ -1866,9 +1865,8 @@ export const FURN = {
     h: 2,
     col: "#dddddd",
     lamp: {
-      y: function (it) {
-        return it.h - 1;
-      },
+      lumens: 900, ratedLength: 100,
+      y: it => it.h - 1,
       color: 0xffffff,
       intensity: 1.0,
       dist: 500,
@@ -2135,7 +2133,7 @@ export const FURN = {
   led_grow_light: {
     label: "מנורת גידול לד",
     w: 60, d: 60, h: 5, col: "#b0b3b5",
-    lamp: { type: "omni", color: "#ff88ff", it: 1.5 },
+    lamp: { lumens: 2400, y: it => it.h - 3.5, color: 0xff88ff, intensity: 1.5, dist: 500 },
     build: function (g, it) {
       /* Bar-style LED grow light: parallel aluminium heat-sink bars each with a
          glowing diode strip underneath, joined by end rails, a driver box on

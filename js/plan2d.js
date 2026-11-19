@@ -47,7 +47,8 @@ import { beginPlanLabels, conHitTargets, keepModelPlanLabels, label, pickCon } f
 import { drawLiveJointAngles } from "./plan2d/joint_angles.js";
 import { OVERALL_DIM_PX, drawDimChains, refreshDimChains } from "./plan2d/dim_chains.js";
 import { drawRoomLabels } from "./plan2d/room_labels.js";
-import { drawPlanWalls } from "./plan2d/wall_ink_draw.js";
+import { drawHUDWalls, drawPlanWalls } from "./plan2d/wall_ink_draw.js";
+import { rememberModelHover } from "./plan2d/select_hover.js";
 import {
   doorsGlyph, drawCabinetPlanSwings, drawItem, drawPresentationRoomLabels,
   drawStairsUp, drawSymbolPrims, drawWallCons, gCirc, gStroke, warnLabel,
@@ -62,7 +63,7 @@ import {
   drawAngleArc, drawFreeAnnotations, drawGhostWall, drawLen, drawMarkers,
   drawMeasureOverlay, drawOverallDims, drawPlanCursors, drawPreviewDims,
   drawRank, drawScale, drawSize, drawSlabOpenings, drawSnapMark,
-  drawTouchGuide, drawWalker, drawWall, markerCard, nodeCard, onAfterRender,
+  drawTouchGuide, drawWalker, markerCard, nodeCard, onAfterRender,
   planLen, segBearing, touchLensDistanceMap,
 } from "./plan2d/overlays.js";
 export { onAfterRender, segBearing, touchLensDistanceMap };
@@ -121,7 +122,8 @@ function planViewReady() {
    exists — so an idle or all-dead scene costs nothing. */
 let mepFlowPhase = 0;
 let mepAnimOn = false;
-let mepLastFrame = 0;
+// mepOnModel: the last model pass put the overlay on the model canvas (mepModelPass), so a start must repaint it off
+let mepLastFrame = 0, mepOnModel = false;
 const FLOW_SPEED = 0.027; // dash units per millisecond
 function prefersReducedMotion() {
   try {
@@ -137,6 +139,7 @@ function mepShouldAnimate() {
     S.mep.animate !== false &&
     !prefersReducedMotion() && // WCAG 2.3.3 — a static arrow still shows direction
     !isElevation() && // MEP flow only animates in the top-down plan
+    bandAlpha("mep") > 0 && // a hidden MEP layer (its alive count is from its last draw); ghosted still flows
     mepAliveCount() > 0 &&
     plan.offsetParent !== null // plan pane actually visible (not maximized away)
   );
@@ -164,6 +167,10 @@ function mepAnimStep(time) {
 export function ensureMEPAnim() {
   if (!mepAnimOn && mepShouldAnimate()) {
     mepAnimOn = true;
+    /* The paint that started it (the first one, or the one that showed the layer
+       again) left a static copy on the model canvas; the HUD takes the overlay
+       now, so one full paint clears that copy (which then draws it on the HUD only). */
+    if (mepOnModel) { mepOnModel = false; requestRender2D(); }
     requestAnimationFrame(mepAnimStep);
   }
 }
@@ -176,15 +183,17 @@ export function ensureMEPAnim() {
 let warnPhase = 0;
 let warnAnimOn = false;
 let warnLastFrame = 0;
-function warnShouldAnimate() {
+// `due` false: a tick that paints nothing need not recount the warnings
+function warnShouldAnimate(due) {
   return (
     !isElevation() &&
     plan.offsetParent !== null &&
-    activeWarnings().length > 0
+    bandAlpha("annotations") > 0 && // the glow's band; ghosted still breathes
+    (due === false || activeWarnings().length > 0)
   );
 }
 function warnAnimStep(time) {
-  if (!warnShouldAnimate()) {
+  if (!warnShouldAnimate(!warnLastFrame || time - warnLastFrame >= 45)) {
     warnAnimOn = false;
     warnLastFrame = 0;
     return;
@@ -549,18 +558,10 @@ export function render2DNow() {
    bracket the gesture with the two paints that take the object off the model
    image and put it back. */
 var paintLevel = 0, paintQueued = false;
-/* Invalidating the shared spatial index (js/spatial_index.js) hangs off the
-   paint request, because "the plan needs redrawing" is the one signal every
-   model mutation in the app already sends, from every module, without this file
-   having to know any of them. Marking stale costs a single store, the rebuild is
-   deferred to the next query, and a query only ever comes from a pointer path —
-   so a HUD-only frame invalidating nothing of substance costs nothing: an
-   animation loop at 22 Hz with no pointer on the canvas never triggers a build.
-   It over-invalidates by design. Under-
-   invalidating would hand a hit test a corner that is no longer there, which is
-   a wrong answer rather than a slow one. */
-function schedulePaint(level) {
-  planIndex.invalidate();
+/* Model mutations request a paint, even when the plan is hidden. Invalidate
+   the spatial index at request time so the next pointer query sees the edit. */
+function schedulePaint(level, modelSame) {
+  if (!modelSame) planIndex.invalidate();
   if (level > paintLevel) paintLevel = level;
   if (paintQueued) return;
   paintQueued = true;
@@ -568,8 +569,11 @@ function schedulePaint(level) {
     paintQueued = false;
     var lv = paintLevel;
     paintLevel = 0;
-    if (lv >= 3 || (lv >= 2 && !dragProxy)) renderModel();
-    renderHUD();
+    // Showing the pane requests a full paint in syncSurfaces. Exports use render2DNow.
+    if (plan && plan.offsetParent !== null) {
+      if (lv >= 3 || (lv >= 2 && !dragProxy)) renderModel();
+      renderHUD();
+    }
     for (var ei = 0; ei < afterRender.length; ei++) afterRender[ei]();
   };
   if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
@@ -589,6 +593,11 @@ export function requestRender2D() {
 // used to redraw every room, wall and item of the plan on each of those frames.
 export function requestRenderHUD() {
   schedulePaint(1);
+}
+// A HUD frame for a change the model canvas does not draw (a drafting rubber
+// band: S.previewPt, snap marks, the wall probe): the spatial index stays valid.
+export function requestRenderHUDVisual() {
+  schedulePaint(1, true);
 }
 /* Model + HUD flattened into one offscreen canvas, for the callers that read
    the plan's pixels back (the 2D PNG export, the video studio's frame grabs).
@@ -716,6 +725,10 @@ export function clearDragProxy() {
 function mepOnHud() {
   return mepAnimOn && mepShouldAnimate();
 }
+// the model pass: true when it draws the overlay (remembered for ensureMEPAnim)
+function mepModelPass() {
+  return (mepOnModel = !mepOnHud());
+}
 // for an MEP drag (js/interaction/plan_move.js): nothing it moves is on the model canvas
 export function mepOverlayOnHud() {
   return mepOnHud();
@@ -723,6 +736,7 @@ export function mepOverlayOnHud() {
 
 /* ---- the model pass ---- */
 function renderModel() {
+  rememberModelHover(null);
   if (!mc || !plan) return;
   pc = mc;
   pc.clearRect(0, 0, S.CW, S.CH);
@@ -796,24 +810,26 @@ function renderModel() {
     });
     if (!isPresentation()) drawNodes(hid);
   });
-  if (!mepOnHud())
+  if (mepModelPass())
     band("mep", function () {
       drawMEP(pc, sx, sz, label, mepFlowPhase, planRotRad());
     });
+  var focused;
   band("annotations", function () {
     // placeholder points sit above everything they are measured against
     drawMarkers();
     drawFreeAnnotations();
     drawWallCons();
     // room name + area labels
-    if (isPresentation()) drawPresentationRoomLabels(roomPass.rooms);
-    else drawRoomLabels(roomPass.rooms);
+    if (isPresentation()) { drawPresentationRoomLabels(roomPass.rooms); focused = null; }
+    else focused = drawRoomLabels(roomPass.rooms);
     if (S.showDims) {
       var wb = wallBounds();
       if (wb) { drawDimChains(wb); drawOverallDims(wb); }
     }
   });
   keepModelPlanLabels();
+  rememberModelHover(roomPass.rooms, focused);
   if (rotated) pc.restore(); // end plan rotation
   pc.restore(); // end screen-space clip
 }
@@ -947,9 +963,7 @@ function renderHUD() {
     });
   if (sel.wall.length || sel.opening.length || sel.node.length)
     band("structure", function () {
-      sel.wall.forEach(function (w) {
-        if (S.walls.indexOf(w) !== -1 && !hid.walls[w.id]) drawWall(w);
-      });
+      drawHUDWalls(sel.wall, hid.walls);
       sel.opening.forEach(function (o) {
         if (!hid.walls[o.wall]) drawOpening(o);
       });

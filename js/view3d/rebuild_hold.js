@@ -19,6 +19,13 @@ export const HIDDEN_QUIET_MS = 1500;
 export const VISIBLE_EDIT_IDLE_MS = 300;
 export const VISIBLE_PLAN_DRAG_REBUILD_MS = 120;
 
+// The maximise rule hides this entire subtree. Matching the actual ancestry
+// also handles Split moving the pane into the inspector, or a game reparenting
+// the canvas. Other ways of hiding the pane still use its rendered bounds.
+export function plannerCanvasHidden(canvas) {
+  return !!canvas && (!!canvas.closest("#center-canvas.max-view-2d #view-3d") || canvas.getClientRects().length === 0);
+}
+
 /**
  * @param {object} s
  * @param {boolean} s.pending        a rebuild of any kind is waiting
@@ -32,7 +39,8 @@ export const VISIBLE_PLAN_DRAG_REBUILD_MS = 120;
  */
 export function holdRebuild(s) {
   if (!s.pending) return false;
-  if (s.hidden) return s.pressed || s.sinceInput < HIDDEN_QUIET_MS;
+  if (s.hidden) return !!s.waitingPictures || s.pressed || s.sinceInput < HIDDEN_QUIET_MS ||
+    (!!s.waitingTextures && s.sinceRebuild < HIDDEN_QUIET_MS);
   if (!s.pressed && s.sinceInput >= VISIBLE_EDIT_IDLE_MS) return false;
   /* A slow rebuild stretches the interval: on a ~200-wall plan one takes
      ~600 ms, and at a fixed 120 ms nearly every move paid it. Only this

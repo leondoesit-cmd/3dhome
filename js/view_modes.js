@@ -34,14 +34,18 @@ export function currentViewMode() {
 }
 
 /* The tab title names the view: "<brand> · <view>"; the brand alone when no
-   view label is known. */
-export function pageTitle(brand, viewLabel) {
+   view label is known. A named project leads: "<project> — <view> · <brand>",
+   so tabs of several projects tell apart. */
+export function pageTitle(brand, viewLabel, projectName) {
+  const project = String(projectName || "").trim();
+  if (project) return (viewLabel ? project + " — " + viewLabel : project) + " · " + brand;
   return viewLabel ? brand + " · " + viewLabel : brand;
 }
 
 export function syncPageTitle() {
   const mode = VIEW_MODES.find((m) => m.id === currentViewMode());
-  const next = pageTitle(t("brand"), mode ? mode.label() : "");
+  const project = S.workspace && S.workspace.name;
+  const next = pageTitle(t("brand"), mode ? mode.label() : "", project);
   if (document.title !== next) document.title = next;
 }
 

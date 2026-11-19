@@ -22,9 +22,11 @@ import { updatePreview } from "../modeler/library_panel.js";
 import { applyTrackedUpdates, brokenMateCount, countLabel, mirrorLibraryToDisk, pruneAssemblyMates, signalLibraryChange, topologyEntriesForPart, writeAssemblyIndex, writeLibraryIndex } from "../modeler/library_store.js";
 import { contextPartTopology, refreshComponents } from "../modeler/tree_assembly.js";
 import { decorationWorldPerPixel, overlayEntriesForPart, registerCustomModel, topologyHovered, topologySelected } from "../modeler/viewport_decorations.js";
+import { canRestylePickEdges, forgetPickEdges, pickEdgeOrderSafe, pickEdgePointsMatch, pickEdgeRecord, pickEdgeSettings, pickEdgeSignature, pickEdgeStyle, rememberPickEdges, updatePickEdgeSignature } from "../modeler/edge_retain.js";
+import { clearGroup } from "../primitives.js";
 import { THREE } from "../three_lazy.js";
 import {
-  E, LS_ASSEMBLIES, LS_MODELS, assemblyLibraryCache, assemblyPreviewSolved,
+  E, LS_ASSEMBLIES, LS_MODELS, assemblyLibraryCache, assemblyPreviewSolved, decoGroups,
   documentSaveTasks, mateSolveCount, modelLibraryCache, modelerDraftCache,
   modelerDraftOwnerId, motionPlaybackCancel, root, set_assemblyLibraryCache,
   set_assemblyPreviewSolved, set_assemblySolveFresh,
@@ -191,76 +193,147 @@ function solveAssembly(options) {
 
 
 
-function addTopologyPickEdges(parent, part, explicitMesh) {
-  if (!part || (E.docType !== "part" && E.docType !== "assembly")) return;
+function pickEdgeMesh(parent, part, explicitMesh) {
   var mesh = explicitMesh || null;
   if (!mesh) {
     parent.traverse(function (object) {
       if (!mesh && object.isMesh && object.userData && object.userData.cadPart === part.id) mesh = object;
     });
   }
+  return mesh;
+}
+
+function pickEdgeColors() {
+  return { selected: hexNum(E.selectedEdgeColor), hover: hexNum(E.hoverColor), edge: hexNum(E.edgeColor) };
+}
+
+/* `retain` comes only from refreshDecorations() on a hover-only refresh, which
+   leaves the group uncleared: the kept edge lines are restyled in place when
+   that is exact (see edge_retain.js), and otherwise the group is cleared and
+   rebuilt here exactly as before. */
+function addTopologyPickEdges(parent, part, explicitMesh, retain) {
+  if (retain) {
+    if (restyleTopologyPickEdges(parent, part, explicitMesh, retain)) return;
+    clearGroup(parent);
+  }
+  if (!part || (E.docType !== "part" && E.docType !== "assembly")) { forgetPickEdges(parent); return; }
+  var mesh = pickEdgeMesh(parent, part, explicitMesh);
   var bounds = partBounds(part);
   var span = Math.max(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0, bounds.z1 - bounds.z0, 1);
   var show = E.showModelEdges !== false;
   var finish = finishCommandActive();
+  var colors = pickEdgeColors(), lines = [], styles = [];
   overlayEntriesForPart(part, mesh).forEach(function (entry) {
     var points = entry.displayPoints || edgePoints(entry.descriptor);
     if (points.length < 2) return;
     var selected = topologySelected(entry.persistentId, entry), hovered = topologyHovered(entry.persistentId, entry);
-    var visible = show || finish || selected || hovered;
+    var style = pickEdgeStyle(selected, hovered, finish, show, colors);
     var geometry = new THREE.BufferGeometry().setFromPoints(points.map(function (p) { return new THREE.Vector3(p.x, p.y, p.z); }));
     var material = new THREE.LineBasicMaterial({
-      color: selected ? hexNum(E.selectedEdgeColor) : hovered ? hexNum(E.hoverColor) : finish ? 0xf2d27a : hexNum(E.edgeColor),
+      color: style.color,
       transparent: true,
-      opacity: selected || hovered ? .98 : finish ? .9 : .95,
+      opacity: style.opacity,
       depthTest: true,
       depthWrite: false,
     });
     var line = new THREE.Line(geometry, material);
-    line.visible = visible;
-    line.renderOrder = selected || hovered ? 22 : 20;
+    line.visible = style.visible;
+    line.renderOrder = style.renderOrder;
     line.userData.cadPart = part.id;
     line.userData.cadFeatureId = entry.ownerFeatureId;
     line.userData.cadTopology = entry;
-    line.userData.cadPickVisible = visible;
+    line.userData.cadPickVisible = style.visible;
     parent.add(line);
-
-    if (selected || hovered || finish) {
-      var vectors = points.map(function (point) { return new THREE.Vector3(point.x, point.y, point.z); });
-      var closed = !!(entry.descriptor && entry.descriptor.curve === "circle" && !entry.descriptor.endpoints);
-      if (closed && vectors.length > 2 && vectors[0].distanceToSquared(vectors[vectors.length - 1]) < 1e-8) vectors = vectors.slice(0, -1);
-      var path = vectors.length === 2 ? new THREE.LineCurve3(vectors[0], vectors[1]) : new THREE.CatmullRomCurve3(vectors, closed, "centripetal");
-      /* Screen-space, like the pick band it is supposed to advertise. Sizing
-         the highlight off the MODEL span made it a constant in world units:
-         zoomed in it drew a pipe over the edge, zoomed out it thinned to
-         nothing while still being pickable at 5-8 px. Falls back to the old
-         span-relative numbers when the view cannot say what a pixel is
-         worth — a decoration built before the first render. */
-      var perPixel = decorationWorldPerPixel();
-      /* Stamped HERE, where the width is actually baked into geometry, rather
-         than in refreshDecorations(): decorations are also built by the
-         preview rebuild, and recording the scale only on one of those paths
-         left the stamp at zero, which read as "nothing to compare" and meant
-         the re-bake below never fired at all. */
-      if (perPixel > 0) set_decoratedWorldPerPixel(perPixel);
-      var radius = perPixel > 0
-        ? perPixel * (selected ? 2.2 : hovered ? 1.7 : 1.1)
-        : selected ? Math.max(.38, span * .0055) : hovered ? Math.max(.26, span * .004) : Math.max(.14, span * .0024);
-      var glow = new THREE.Mesh(
-        new THREE.TubeGeometry(path, Math.max(8, vectors.length * 2), radius, 6, closed),
-        new THREE.MeshBasicMaterial({
-          color: selected ? hexNum(E.selectedEdgeColor) : hovered ? hexNum(E.hoverColor) : 0xe7c56a,
-          transparent: true,
-          opacity: selected ? .95 : hovered ? .8 : .45,
-          depthTest: true,
-          depthWrite: false,
-        })
-      );
-      glow.renderOrder = selected || hovered ? 24 : 19;
-      glow.raycast = function () {};
-      parent.add(glow);
-    }
+    lines.push(line);
+    styles.push(style);
+    if (selected || hovered || finish) addPickEdgeGlow(parent, entry, points, selected, hovered, span);
   });
+  rememberPickEdges(parent, lines, styles, pickEdgeSettings(show, finish, colors, E.docType));
+}
+
+/* The hover-only path. Validates everything first and returns false without
+   touching the group when keeping the lines would not match a rebuild; on
+   success the group holds the same children in the same order a rebuild
+   makes (line, its glow, next line, ...), the kept lines restyled. */
+function restyleTopologyPickEdges(parent, part, explicitMesh, retain) {
+  if (!part || (E.docType !== "part" && E.docType !== "assembly")) return false;
+  var show = E.showModelEdges !== false, finish = finishCommandActive(), colors = pickEdgeColors();
+  var record = pickEdgeRecord(parent);
+  var lines = parent.children.filter(function (child) { return !!(child.userData && child.userData.cadTopology); });
+  if (!canRestylePickEdges(record, lines, pickEdgeSettings(show, finish, colors, E.docType))) return false;
+  var mesh = pickEdgeMesh(parent, part, explicitMesh), items = [], kept = 0, exact = true;
+  overlayEntriesForPart(part, mesh).forEach(function (entry) {
+    if (!exact) return;
+    var points = entry.displayPoints || edgePoints(entry.descriptor);
+    if (points.length < 2) return;
+    var line = lines[kept++], position = line && line.geometry && line.geometry.attributes && line.geometry.attributes.position;
+    if (!position || line.geometry.index || !pickEdgePointsMatch(position.array, points)) { exact = false; return; }
+    var selected = topologySelected(entry.persistentId, entry), hovered = topologyHovered(entry.persistentId, entry);
+    items.push({ line: line, entry: entry, points: points, selected: selected, hovered: hovered, style: pickEdgeStyle(selected, hovered, finish, show, colors) });
+  });
+  if (!exact || kept !== lines.length) return false;
+  var styles = items.map(function (item) { return item.style; });
+  var pending = retain && retain.pending, others = [];
+  decoGroups.forEach(function (other) {
+    if (other.group !== parent && !(pending && pending.has(other.group))) others.push(pickEdgeRecord(other.group));
+  });
+  if (!pickEdgeOrderSafe(record, pickEdgeSignature(styles), others)) return false;
+  // Same disposal a rebuild does for glows, face highlights and axes; the lines sit out of it.
+  lines.forEach(function (line) { parent.remove(line); });
+  clearGroup(parent);
+  var bounds = partBounds(part);
+  var span = Math.max(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0, bounds.z1 - bounds.z0, 1);
+  items.forEach(function (item) {
+    var line = item.line, style = item.style;
+    line.material.color.setHex(style.color);
+    line.material.opacity = style.opacity;
+    line.visible = style.visible;
+    line.renderOrder = style.renderOrder;
+    line.userData.cadPart = part.id;
+    line.userData.cadFeatureId = item.entry.ownerFeatureId;
+    line.userData.cadTopology = item.entry;
+    line.userData.cadPickVisible = style.visible;
+    parent.add(line);
+    if (item.selected || item.hovered || finish) addPickEdgeGlow(parent, item.entry, item.points, item.selected, item.hovered, span);
+  });
+  updatePickEdgeSignature(record, styles);
+  return true;
+}
+
+function addPickEdgeGlow(parent, entry, points, selected, hovered, span) {
+  var vectors = points.map(function (point) { return new THREE.Vector3(point.x, point.y, point.z); });
+  var closed = !!(entry.descriptor && entry.descriptor.curve === "circle" && !entry.descriptor.endpoints);
+  if (closed && vectors.length > 2 && vectors[0].distanceToSquared(vectors[vectors.length - 1]) < 1e-8) vectors = vectors.slice(0, -1);
+  var path = vectors.length === 2 ? new THREE.LineCurve3(vectors[0], vectors[1]) : new THREE.CatmullRomCurve3(vectors, closed, "centripetal");
+  /* Screen-space, like the pick band it is supposed to advertise. Sizing
+     the highlight off the MODEL span made it a constant in world units:
+     zoomed in it drew a pipe over the edge, zoomed out it thinned to
+     nothing while still being pickable at 5-8 px. Falls back to the old
+     span-relative numbers when the view cannot say what a pixel is
+     worth — a decoration built before the first render. */
+  var perPixel = decorationWorldPerPixel();
+  /* Stamped HERE, where the width is actually baked into geometry, rather
+     than in refreshDecorations(): decorations are also built by the
+     preview rebuild, and recording the scale only on one of those paths
+     left the stamp at zero, which read as "nothing to compare" and meant
+     the re-bake below never fired at all. */
+  if (perPixel > 0) set_decoratedWorldPerPixel(perPixel);
+  var radius = perPixel > 0
+    ? perPixel * (selected ? 2.2 : hovered ? 1.7 : 1.1)
+    : selected ? Math.max(.38, span * .0055) : hovered ? Math.max(.26, span * .004) : Math.max(.14, span * .0024);
+  var glow = new THREE.Mesh(
+    new THREE.TubeGeometry(path, Math.max(8, vectors.length * 2), radius, 6, closed),
+    new THREE.MeshBasicMaterial({
+      color: selected ? hexNum(E.selectedEdgeColor) : hovered ? hexNum(E.hoverColor) : 0xe7c56a,
+      transparent: true,
+      opacity: selected ? .95 : hovered ? .8 : .45,
+      depthTest: true,
+      depthWrite: false,
+    })
+  );
+  glow.renderOrder = selected || hovered ? 24 : 19;
+  glow.raycast = function () {};
+  parent.add(glow);
 }
 
 

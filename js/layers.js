@@ -137,6 +137,40 @@ export function workSetForNewFloor() {
   saveLayers();
 }
 
+/* The status tag every row of the Layers list carries: "edit" for the layer
+   being worked on, otherwise its visibility ("show" / "ghost" / "hide"). With
+   the work set on every layer ("all") no single row is the editing one. */
+export function layerTagKind(id, workSet, vis) {
+  if (id && workSet === id) return "edit";
+  return vis === "ghost" || vis === "hide" ? vis : "show";
+}
+
+/* Is a storey's scene empty — nothing on any layer? Takes the live S or a
+   stored floor scene (sceneObject(false)), which share the field names. */
+export function floorSceneEmpty(scene) {
+  if (!scene || typeof scene !== "object") return true;
+  var n = function (a) { return Array.isArray(a) ? a.length : 0; };
+  var mep = scene.mep && typeof scene.mep === "object" ? scene.mep : {};
+  return !(
+    n(scene.walls) || n(scene.items) || n(scene.openings) || n(scene.markers) ||
+    n(scene.annotations) || n(scene.slabOpenings) || n(mep.nodes) || n(mep.runs)
+  );
+}
+
+/* Arriving on a storey (switched to or just added): an empty one starts with
+   its walls, so the work set resets to Structure whatever the storey before
+   was being worked on, pinned or not. A storey with content keeps it. */
+export function workSetOnFloorEntry(empty) {
+  return empty ? "structure" : null;
+}
+
+// Apply the decision above to S. True when the work set was reset.
+export function enterFloorWorkSet(scene) {
+  if (!workSetOnFloorEntry(floorSceneEmpty(scene))) return false;
+  workSetForNewFloor();
+  return true;
+}
+
 /* What is left of a selection once its layer may have been hidden: null when
    it lives on a hidden layer, the selection itself otherwise. Only "hide"
    drops it; a faded layer stays selectable by design. A multi-selection is one

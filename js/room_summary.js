@@ -1,6 +1,13 @@
 import { wallCurveGeom, normalizeWallKind } from './wall_curves.js';
 import { wallLayerBands } from './wall_types.js';
 
+// A private copy of a wall for the normalizers below, without its uploaded
+// image data (wall.tex can be a data URL of hundreds of KB): nothing here
+// reads it, and this runs for every room on every model paint.
+function withoutImages(key,value){
+  return typeof value==='string' && value.startsWith('data:') ? undefined : value;
+}
+
 // Face-to-face dimensions only when all four inner faces form a rectangle.
 // Keep reference-line bounds separate; neither value is a usable-area claim.
 export function roomMeasurements(state, room) {
@@ -14,7 +21,7 @@ export function roomMeasurements(state, room) {
   const catalog=JSON.parse(JSON.stringify({wallTypes:state.wallTypes||[],walls:[]}));
   const sides={left:[],right:[],top:[],bottom:[]};
   for(const original of walls){
-    const w=JSON.parse(JSON.stringify(original)),g=wallCurveGeom(w,state.nodes);
+    const w=JSON.parse(JSON.stringify(original,withoutImages)),g=wallCurveGeom(w,state.nodes);
     if(!g || g.kind!=='line' || ['roomDivider','railing','half'].includes(normalizeWallKind(w)) || ['demolition','demolish'].includes(w.phase)) return result;
     const bands=wallLayerBands(w,catalog);
     const low=Math.min(...bands.map(b=>b.start)),high=Math.max(...bands.map(b=>b.end));

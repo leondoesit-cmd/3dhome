@@ -1,6 +1,7 @@
 /* The 3D view's WebGPURenderer creation, backend fallback and shadow setup,
    lifted out of build3D, split out of js/view3d.js. It shares the editor's
    state through live imports from ../view3d.js. */
+import { configurePlannerOutput } from "./backdrop.js";
 import { LUX, createRenderer } from "../gpu.js";
 import { createLightLoop } from "../light_loop.js";
 import { UNMASKED, createRoomBounce, roomInspectionFill } from "../room_bounce.js";
@@ -18,6 +19,63 @@ import {
   velUniforms, walk,
 } from "../view3d.js";
 
+// Three's disk PCF compares all five neighbours to the centre depth. On a
+// long wall at a grazing angle the receiver itself changes depth across the
+// disk. Compare each tap at its point on that plane, keeping the Soft light
+// radius and the same number of depth samples.
+export function plannerPlanePCF(tsl) {
+  return tsl.Fn(function ({ depthTexture, shadowCoord, shadow, depthLayer }) {
+    var dx = shadowCoord.dFdx(), dy = shadowCoord.dFdy();
+    var det = dx.x.mul(dy.y).sub(dx.y.mul(dy.x));
+    var slope = tsl.vec2(dx.z.mul(dy.y).sub(dy.z.mul(dx.y)),
+      dx.x.mul(dy.z).sub(dy.x.mul(dx.z)));
+    var inverse = det.sign().div(det.abs().max(1e-12));
+    var gradient = slope.mul(inverse).toVar();
+    var radius = tsl.reference("radius", "float", shadow).setGroup(tsl.renderGroup);
+    var size = tsl.reference("mapSize", "vec2", shadow).setGroup(tsl.renderGroup);
+    var phi = tsl.interleavedGradientNoise(tsl.screenCoordinate.xy).mul(2 * Math.PI).toVar();
+    var sum = tsl.float(0).toVar();
+    tsl.Loop(5, ({ i }) => {
+      var offset = tsl.vogelDiskSample(i, 5, phi).mul(radius).div(size);
+      var sample = tsl.texture(depthTexture, shadowCoord.xy.add(offset));
+      if (depthTexture.isArrayTexture) sample = sample.depth(depthLayer);
+      sum.addAssign(sample.compare(shadowCoord.z.add(gradient.dot(offset))));
+    });
+    return sum.mul(0.2);
+  });
+}
+
+// A cube shadow stores perspective depth along the dominant face axis. At
+// each offset, intersect that ray with the receiver plane and convert its
+// face-axis distance back to the comparison depth. This also handles taps
+// crossing a cube edge, where even a flat receiver changes depth basis.
+export function plannerCubePCF(tsl) {
+  return tsl.Fn(function ({ depthTexture, bd3D, dp, shadow }, builder) {
+    const normal = tsl.normalFlat.transformNormalByInverseViewMatrix(tsl.cameraViewMatrix).toVar();
+    const facing = normal.dot(bd3D).toVar();
+    const major = v => v.x.abs().max(v.y.abs()).max(v.z.abs());
+    const up = tsl.select(bd3D.y.abs().greaterThan(0.9), tsl.vec3(1, 0, 0), tsl.vec3(0, 1, 0));
+    const tangent = bd3D.cross(up).normalize().toVar(), bitangent = bd3D.cross(tangent).toVar();
+    const faceExtent = major(bd3D).toVar();
+    const radius = tsl.reference("radius", "float", shadow).setGroup(tsl.renderGroup);
+    const size = tsl.reference("mapSize", "vec2", shadow).setGroup(tsl.renderGroup);
+    const near = tsl.reference("near", "float", shadow.camera).setGroup(tsl.renderGroup);
+    const far = tsl.reference("far", "float", shadow.camera).setGroup(tsl.renderGroup);
+    const limit = (builder.renderer.reversedDepthBuffer ? near.negate() : far).div(far.sub(near)).toVar();
+    const phi = tsl.interleavedGradientNoise(tsl.screenCoordinate.xy).mul(2 * Math.PI).toVar();
+    const sum = tsl.float(0).toVar();
+    tsl.Loop(5, ({ i }) => {
+      const offset = tsl.vogelDiskSample(i, 5, phi).mul(radius).div(size.x);
+      const ray = bd3D.add(tangent.mul(offset.x)).add(bitangent.mul(offset.y));
+      const invScale = normal.dot(ray).mul(faceExtent).mul(facing.sign())
+        .div(facing.abs().max(1e-6).mul(major(ray)));
+      const comparison = tsl.select(invScale.greaterThan(0), limit.add(dp.sub(limit).mul(invScale)), dp);
+      sum.addAssign(tsl.cubeTexture(depthTexture, ray).compare(comparison));
+    });
+    return sum.mul(0.2);
+  });
+}
+
 // lifted out of build3D()
 function setupRendererAndShadows() {
   set_scene(new THREE.Scene());
@@ -30,7 +88,7 @@ function setupRendererAndShadows() {
   set_lightLoop(createLightLoop(THREE, TSL, {
     on: lightLoopWanted(),
     maskRoom: function (l, r) { return roomBounce ? roomBounce.loopMasks.maskRoom(l, r) : UNMASKED; },
-    lightOpen: function (m) { return roomBounce ? roomBounce.loopMasks.lightOpen(m) : TSL.float(1); },
+    lightOpen: function (m, p) { return roomBounce ? roomBounce.loopMasks.lightOpen(m, p) : TSL.float(1); },
     hoist: function () { return roomBounce ? roomBounce.loopMasks.hoist() : []; },
   }));
   set_renderer(createRenderer({
@@ -57,9 +115,7 @@ function setupRendererAndShadows() {
   // shadow map every frame while the user just orbits. They update on demand —
   // only when geometry or the sun actually moved (see shadowsDirty) — per light,
   // through syncShadowUpdates: WebGPURenderer has no renderer-wide switch.
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  configurePlannerOutput(renderer, THREE);
   // Image-based lighting: prefilter the gradient sky into an environment map so
   // every PBR material gets sky-directional ambient + real reflections (kills the flat look).
   set_pmrem(new THREE.PMREMGenerator(renderer));
@@ -78,12 +134,15 @@ function setupRendererAndShadows() {
   sun.castShadow = true;
   sun.shadow.mapSize.set(4096, 4096);
   sun.shadow.camera.near = 1;
-  sun.shadow.bias = -0.0005;
-  // scene units are centimeters; normalBias must be large enough to clear a
-  // shadow texel (~1cm) or walls self-shadow into zigzag acne along edges —
-  // the proud baseboard/door-frame trim (0.8–1.3cm) needs extra clearance.
-  sun.shadow.normalBias = 3.5;
-  sun.shadow.radius = 6; // penumbra width; needs PCFSoftShadowMap to have any effect
+  sun.shadow.filterNode = plannerPlanePCF(TSL);
+  // scene units are centimeters. The plane-aware filter above biases each tap
+  // along the receiver's own depth slope, so the old 3.5 cm normalBias (which
+  // cleared ~1 cm texels and the proud baseboard/door-frame trim, but lifted
+  // small contact shadows off the floor) is down to 0.4. Acne would show as
+  // zigzags along wall edges and trim: check those first if it comes back.
+  sun.shadow.bias = -0.00004;
+  sun.shadow.normalBias = 0.4;
+  sun.shadow.radius = 6; // penumbra width; needs PCFShadowMap to have any effect
   // the sun also sees what the view hides (see shadowRoot); a mask beyond
   // layer 0 stops the shadow camera inheriting the view camera's layers
   sun.shadow.camera.layers.enable(SHADOW_ONLY_LAYER);
@@ -100,7 +159,8 @@ function setupRendererAndShadows() {
     inspection: function () {
       return roomInspectionFill({
         walk, showCeiling: S.showCeiling, covered: !!S.roof && !S.invisibleRoof,
-        daylight: S.dayK, physicalMode: gameRendererLock || relightHooks.length > 0,
+        daylight: S.dayK,
+        physicalMode: gameRendererLock || relightHooks.length > 0,
       });
     },
   }));

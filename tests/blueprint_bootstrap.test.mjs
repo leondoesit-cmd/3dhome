@@ -50,7 +50,7 @@ test('import overview refits on fold/unfold until the user takes camera control'
   let fits=0,sizes=0;
   const pane={clientWidth:344,clientHeight:780};
   const scope={blueprintOverviewActive:true,throttle:fn=>fn,maybeInit3D:()=>{},has3D:()=>true,
-    document:{getElementById:()=>pane},setSize:()=>sizes++,frameDollhouse:()=>fits++,sizeCanvas:()=>{},render2D:()=>{}};
+    document:{getElementById:()=>pane},setSize:()=>sizes++,frameDollhouse:()=>fits++,sizeCanvas:()=>{},render2D:()=>{},paintPlanForLayout:()=>{}};
   runInNewContext(resizeSource,scope);scope.resizeAll();
   pane.clientWidth=720;scope.resizeAll();assert.equal(fits,2);assert.equal(sizes,2);
   scope.blueprintOverviewActive=false;scope.resizeAll();assert.equal(fits,2);assert.equal(sizes,3);

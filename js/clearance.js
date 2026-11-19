@@ -121,8 +121,10 @@ export function wallPolygon(w) {
 
 /** wallGap(poly, wall) -> { gap, from, to, nx, nz } or null: the face toward
  *  the outline, the outline's support point toward that face, and the foot of
- *  the perpendicular on it. null when that point is not beside the wall. */
-export function wallGap(poly, w) {
+ *  the perpendicular on it. null when that point is not beside the wall.
+ *  `toward` {x, z} (optional): of several equally near points, the one
+ *  furthest that way. */
+export function wallGap(poly, w, toward) {
   if (!poly || !poly.length || !w || !w.a || !w.b) return null;
   var dx = w.b.x - w.a.x, dz = w.b.z - w.a.z, L = Math.hypot(dx, dz);
   if (!(L > EPS)) return null;
@@ -138,6 +140,24 @@ export function wallGap(poly, w) {
   var s = (best.x - w.a.x) * ux + (best.z - w.a.z) * uz;
   if (s < -half - 0.01 || s > L + half + 0.01) return null;
   var gap = Math.max(0, bd - half);
+  /* A side parallel to the face (a bed along a wall) has two support corners.
+     With `toward` (the piece's back), measure from the end of the stretch
+     beside the wall that lies toward it: a bed's walls left and right of it
+     are both read at its head, not one at the head and one at the foot. */
+  if (toward) {
+    var pick = null, pv = -Infinity;
+    poly.forEach(function (p) {
+      if ((p.x - w.a.x) * nx + (p.z - w.a.z) * nz > bd + 0.5) return;
+      var sp = (p.x - w.a.x) * ux + (p.z - w.a.z) * uz;
+      if (sp < -half - 0.01 || sp > L + half + 0.01) return;
+      var v = p.x * toward.x + p.z * toward.z;
+      if (v > pv + 1e-6) { pv = v; pick = p; }
+    });
+    if (pick) {
+      var off = (pick.x - w.a.x) * nx + (pick.z - w.a.z) * nz - bd; // up to 0.5 cm proud of the nearest: onto its line
+      best = { x: pick.x - nx * off, z: pick.z - nz * off };
+    }
+  }
   return { gap: gap, from: best, to: { x: best.x - nx * gap, z: best.z - nz * gap }, nx: nx, nz: nz };
 }
 
@@ -249,10 +269,14 @@ function spanAlong(P, ux, uz) {
 // the band an outline sweeps along d: its extent across d, and where it starts along d
 function sweepBand(A, d) { return { across: spanAlong(A, -d.z, d.x), along: spanAlong(A, d.x, d.z) }; }
 /* B cannot be met sweeping along d: wholly to one side of the band, or wholly
-   behind the outline (0.01 cm slack, far above raySeg's own tolerance). */
+   behind the outline (0.01 cm slack, far above raySeg's own tolerance). One
+   that only grazes the band's edge (a nightstand flush against a bed's long
+   side, swept toward the foot) is beside it too: within 0.5 cm, the rays
+   would slide along the shared line and report a contact that is not there. */
+var GRAZE = 0.5;
 function outOfBand(band, B, d) {
   var c = spanAlong(B, -d.z, d.x);
-  if (c.hi < band.across.lo - 0.01 || c.lo > band.across.hi + 0.01) return true;
+  if (c.hi < band.across.lo + GRAZE || c.lo > band.across.hi - GRAZE) return true;
   return spanAlong(B, d.x, d.z).hi < band.along.lo - 0.01;
 }
 
@@ -279,7 +303,9 @@ function boundCircle(poly) {
  *  skipped before the exact (quadratic) closest-points search.
  *  A piece the outline already overlaps (a rug under it, a pendant over it
  *  that the caller did not filter) is not in the way on any side: it drops out
- *  alone. A wall it overlaps closes only the sides heading into that wall. */
+ *  alone. A wall it overlaps closes only the sides heading into that wall.
+ *  `behind` (true): a side whose first obstacle is a piece also reports the
+ *  nearest wall past it (kind "wall", `behind: true`), after the piece's hit. */
 export function floorClearances(o) {
   var poly = o.poly, max = o.max == null ? 600 : o.max, near = o.near == null ? 200 : o.near,
     nearCount = o.nearCount == null ? 4 : o.nearCount,
@@ -302,26 +328,35 @@ export function floorClearances(o) {
   /* Speed, same answers: what is known apart sweeps without the overlap test
      (sweepApart), and an obstacle wholly beside the swept band or behind the
      piece (it could not return a hit) is not swept at all. */
+  // side walls are read at the piece's back end (a bed's head), see wallGap
+  var back = (o.dirs || []).filter(function (d) { return d.key === "back"; })[0] || null;
+  function wallHit(d, f, behind) {
+    var p = wallGap(poly, f.wall.w, back);
+    var use = p && p.gap >= 0.5 ? p : f.g;
+    var h = { dir: d.key, kind: "wall", gap: use.gap, from: use.from, to: use.to, id: f.wall.w.id };
+    if (behind) h.behind = true;
+    return h;
+  }
   (o.dirs || []).forEach(function (d) {
-    var first = null, band = sweepBand(poly, d);
+    var first = null, wallFirst = null, band = sweepBand(poly, d);
     walls.forEach(function (w) {
       if (w.into && d.x * w.into.x + d.z * w.into.z <= 1e-6) return; // overlapped, not ahead
       var g = w.into ? { gap: 0 } : outOfBand(band, w.poly, d) ? null : sweepApart(poly, w.poly, d);
-      if (g && (!first || g.gap < first.g.gap)) first = { g: g, wall: w };
+      if (g && (!wallFirst || g.gap < wallFirst.g.gap)) wallFirst = { g: g, wall: w };
     });
+    first = wallFirst;
     others.forEach(function (x) {
       var g = outOfBand(band, x.poly, d) ? null : sweepApart(poly, x.poly, d);
+      // a piece touching this side's flank or back (a nightstand at a bed's head) is not ahead of it: it blocks nothing
+      if (g && g.gap < 0.5 && !(spanAlong(x.poly, d.x, d.z).hi > band.along.hi + 0.5)) return;
       if (g && (!first || g.gap < first.g.gap)) first = { g: g, item: x };
     });
-    if (!first || first.g.gap < 0.5 || first.g.gap > max) return;
-    if (first.wall) {
-      var p = wallGap(poly, first.wall.w);
-      var use = p && p.gap >= 0.5 ? p : first.g;
-      out.push({ dir: d.key, kind: "wall", gap: use.gap, from: use.from, to: use.to, id: first.wall.w.id });
-    } else {
-      hitIds.push(first.item);
-      out.push({ dir: d.key, kind: "item", gap: first.g.gap, from: first.g.from, to: first.g.to, id: first.item.id });
-    }
+    if (!first || first.g.gap > max) return;
+    if (first.wall) { if (first.g.gap >= 0.5) out.push(wallHit(d, first, false)); return; }
+    hitIds.push(first.item);
+    if (first.g.gap >= 0.5) out.push({ dir: d.key, kind: "item", gap: first.g.gap, from: first.g.from, to: first.g.to, id: first.item.id });
+    // `behind`: the wall past that piece too, so a side blocked by a chair still says how far the wall is
+    if (o.behind && wallFirst && wallFirst.g.gap >= 0.5 && wallFirst.g.gap <= max) out.push(wallHit(d, wallFirst, true));
   });
   if (near > 0 && nearCount > 0 && others.length) {
     var me = boundCircle(poly), nbs = [];

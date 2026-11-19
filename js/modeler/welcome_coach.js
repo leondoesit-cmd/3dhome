@@ -20,6 +20,7 @@ import { assemblyWorkflowState, beginSketchWorkflow, chooseSketchReference, curr
 import { insertAssemblyComponent } from "../modeler/tree_assembly.js";
 import { ensureSketch } from "../sketch_solver.js";
 import { stopSpeaking } from "../speech.js";
+import { sketchPromptOwner } from "./sketch_prompt.js";
 import {
   E, WELCOME_STARTS, openParametricFeature, refreshAll, requestDocumentType,
   root,
@@ -322,12 +323,24 @@ export function findVisibleEnabledCoachTarget(scope, selector) {
   }
   return null;
 }
+function coachAvailable() {
+  return !!(E.open && E.coachEnabled && !E.coachDismissed && !E.tour.active && !E.welcomeOpen && E.mode !== "drawing");
+}
+/* One instruction at a time inside a sketch (js/modeler/sketch_prompt.js):
+   syncCoach and syncHint both ask this, and syncHint re-syncs the coach when
+   the answer changes with the armed tool. */
+function sketchPromptSpeaker() {
+  var sketchStep = !E.facePick && E.docType !== "assembly" && isCanonicalAuthoring() && currentWorkflowStep() === "sketch";
+  return sketchPromptOwner({ sketchStep: sketchStep, tool: E.tool, coachShown: coachAvailable() });
+}
 function syncCoach() {
   var bar = root && root.querySelector("#mdCoach");
   if (!bar) return;
   clearCoachTarget();
   E._coachSug = null;
-  var show = E.open && E.coachEnabled && !E.coachDismissed && !E.tour.active && !E.welcomeOpen && E.mode !== "drawing";
+  var speaker = sketchPromptSpeaker();
+  E._sketchPromptSpeaker = speaker;
+  var show = coachAvailable() && speaker !== "hint";
   var sug = show ? coachSuggestion() : null;
   bar.hidden = !sug;
   bar.classList.toggle("md-coach-fix", !!(sug && sug.rebuild));
@@ -400,5 +413,5 @@ function coachTourProgress() {
 
 export {
   closeWelcome, coachSuggestion, coachTourStep as goTourStep, openWelcome,
-  startSketchOnDefaultPlane, syncCoach, coachTourProgress as updateTourProgress, welcomeGuideCards,
+  sketchPromptSpeaker, startSketchOnDefaultPlane, syncCoach, coachTourProgress as updateTourProgress, welcomeGuideCards,
 };

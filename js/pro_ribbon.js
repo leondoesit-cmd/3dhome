@@ -803,8 +803,8 @@ function buildRibbon() {
   });
   // ...and so does the work set when it follows the tool (ribbonTabForWorkSet)
   var seenWorkSet = null;
-  function followWorkSet() {
-    if (!ribbon || S.workSet === seenWorkSet) return;
+  function followWorkSet(e) {
+    if (!ribbon || (S.workSet === seenWorkSet && !(e && e.detail && e.detail.resync))) return;
     seenWorkSet = S.workSet;
     var on = ribbon.querySelector(".pr-tab.on"), cur = on ? tabs[+on.dataset.proTab] : null;
     var next = ribbonTabForWorkSet(S.workSet, cur && cur[0]);

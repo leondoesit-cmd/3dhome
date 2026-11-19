@@ -39,7 +39,17 @@ export { materialById };
 
 var texCache = new Map(); // url → THREE.Texture (shared, never disposed)
 var failedIds = new Set();
-var inFlight = new Set(); // one promise per load still on the wire
+var inFlight = new Map(); // URL -> pending decode
+var pictureLoads;
+
+// Capture dependencies during the synchronous build, including bitmaps
+// another renderer requested first. The wait belongs to just this model.
+export function pictureMaterialLoads(build) {
+  const previous = pictureLoads, loads = new Set();
+  pictureLoads = loads;
+  try { build(); } finally { pictureLoads = previous; }
+  return loads.size ? Promise.all(loads) : null;
+}
 var quiet = 0;
 /* How many times a build asked for a bitmap that had not arrived yet (and
    so drew a stand-in). The planner compares it around each piece it builds:
@@ -80,21 +90,29 @@ export function pbrDeferFallback(entry) {
 /** Settles once every texture load in flight right now has finished (or
  *  failed); null when nothing is loading. */
 export function pbrLoading() {
-  return inFlight.size ? Promise.all(Array.from(inFlight)) : null;
+  return inFlight.size ? Promise.all(inFlight.values()) : null;
 }
 
-function loadTexture(url, srgb, id) {
+export function pbrLoadsPending() { return inFlight.size > 0; }
+
+function loadTexture(url, srgb, id, tier) {
   var tx = texCache.get(url);
   if (tx) {
+    if (pictureLoads && inFlight.has(url)) pictureLoads.add(inFlight.get(url));
     if (!quiet && !tx.image) tx.userData.announce = true;
     return tx;
   }
   var settle;
-  var wait = new Promise(function (resolve) { settle = function () { inFlight.delete(wait); resolve(); }; });
-  inFlight.add(wait);
+  var wait = new Promise(function (resolve) { settle = function () { inFlight.delete(url); resolve(); }; });
+  inFlight.set(url, wait);
+  if (pictureLoads) pictureLoads.add(wait);
   var done = function (t) {
     settle();
-    if (t.userData.announce) onLoaded();
+    // A material cannot use any of the three bitmaps until the last one
+    // arrives. Rebuilding the fallback after color or normal alone only
+    // starts another round of identical meshes and sprite invalidations.
+    if (t.userData.announce && ["color", "normal", "orm"].every(channel =>
+      texCache.get(materialUrl(id, channel, tier))?.image)) onLoaded();
   };
   var fail = function () {
     failedIds.add(id);
@@ -141,9 +159,9 @@ export function pbrTextures(entry) {
   if (!entry || failedIds.has(entry.id) || !THREE.TextureLoader || typeof document === "undefined") return null;
   if (!materialLibraryEnabled()) return null;
   var tier = materialTier();
-  var map = loadTexture(materialUrl(entry.id, "color", tier), true, entry.id);
-  var normalMap = loadTexture(materialUrl(entry.id, "normal", tier), false, entry.id);
-  var ormMap = loadTexture(materialUrl(entry.id, "orm", tier), false, entry.id);
+  var map = loadTexture(materialUrl(entry.id, "color", tier), true, entry.id, tier);
+  var normalMap = loadTexture(materialUrl(entry.id, "normal", tier), false, entry.id, tier);
+  var ormMap = loadTexture(materialUrl(entry.id, "orm", tier), false, entry.id, tier);
   // Same wait-for-bitmap rule as applyTextureToMaterial: a texture handed to
   // a material before its image exists kills the render pass on upload.
   if (!map.image || !normalMap.image || !ormMap.image) {
@@ -392,6 +410,12 @@ export function pbrSurfaceMaterial(entry, o) {
   var mat = physical ? new THREE.MeshPhysicalNodeMaterial() : new THREE.MeshStandardNodeMaterial();
   var tint = T.uniform(new THREE.Color(o.tint != null ? o.tint : 0xffffff));
   mat.colorNode = color.rgb.mul(tint);
+  // The node shader owns these inputs; .map and .color would describe a
+  // plain white material to the room's CPU-side diffuse interreflection.
+  mat.plannerFragmentMaps = [t.map, t.normalMap, t.ormMap];
+  mat.bounceMap = t.map;
+  mat.bounceTint = tint.value;
+  mat.bounceMetalMap = entry.metal > 0 ? t.ormMap : null;
   mat.normalNode = T.normalMap(normal.rgb);
   mat.roughnessNode = orm.g;
   mat.metalnessNode = entry.metal > 0 ? orm.b : T.float(0);

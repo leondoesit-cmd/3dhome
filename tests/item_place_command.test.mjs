@@ -18,6 +18,20 @@ function fixture() {
   return { items: [], idc: 30, sel: { kind: "wall" }, tool: "furn" };
 }
 
+test("item.place seats a lamp on a rotated raised nightstand and refuses an occupied top", () => {
+  const host = { id: 4, type: "nightstand", x: 100, z: 100, rot: 36, w: 45, d: 40, h: 55, elev: 9 };
+  const env = { state: { items: [host], idc: 5 }, itemCatalog: { tableLamp: { w: 28, d: 28, h: 48 } } };
+  const params = { type: "tableLamp", x: 100, z: 100 };
+  const first = prepareItemPlace(params, env);
+  const preview = previewItemPlace(first.plan);
+  assert.equal(preview.elev, 64);
+  assert.equal(preview.rotation, 36);
+  assert.equal(applyItemPlace(first.plan, env).ok, true);
+  assert.equal(env.state.items[1].on, 4);
+  assert.equal(env.state.items[1].elev, 64);
+  assert.equal(prepareItemPlace(params, env).ok, false);
+});
+
 test("item.place prepares a snapped serializable plan from catalog dimensions", () => {
   const state = fixture();
   const result = prepareItemPlace(

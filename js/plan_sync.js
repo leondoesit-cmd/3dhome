@@ -470,7 +470,8 @@ function onData(ev) {
   if (d.k === "plan_cursor") {
     if (from === NET.code) return;
     cursors[from] = { x: d.x, z: d.z, name: peerName(from), at: Date.now() };
-    import("./plan2d.js").then(function (p) { p.render2D(); });
+    // cursors live on the HUD (drawPlanCursors in renderHUD): no model repaint
+    import("./plan2d.js").then(function (p) { p.requestRenderHUD(); });
     return;
   }
 
@@ -541,6 +542,7 @@ export function initPlanSync() {
   const triggers = createPlanSyncTriggers({ guestRoom: function() { return NET.joined && !isHome() ? NET.room : null; },
     owner: roomOwner, request: requestResync, changed: function() { follower.reset(); } });
   on("room", triggers.room);
+  on("status", function (connected) { if (connected) rebaseStructure(); });
   /* Imported lazily, and only here: plan2d pulls in most of the planner, and
      this module is loaded by anything that touches a plan op. */
   import("./plan2d.js").then(function (p) { p.onAfterRender(syncStructureIfChanged); });
@@ -591,6 +593,14 @@ export function broadcastPlanOp(op) {
    the live corner, and re-sending the whole structure sixty times a second to
    describe one wall sliding would be indefensible. */
 var lastStructure = "", lastRedesign = "";
+var baselineStale = false;
+/* The plan as it stands is what peers already have: taken when the socket
+   opens, and on the first connected paint if that came first. */
+export function rebaseStructure() {
+  lastStructure = structureSignature();
+  lastRedesign = redesignSignature();
+  baselineStale = false;
+}
 function redesignSignature() {
   const w = S.workspace || {};
   return JSON.stringify([w.documentKey, (w.baselines || []).map(b => b.id), w.redesign]);
@@ -645,12 +655,14 @@ export function structurePlanOp() {
 export function syncStructureIfChanged() {
   if (applyingRemote) return false;
   if (!NET.connected) {
-    // stay current while alone, so joining a room later does not look like an
-    // edit that never happened
-    lastStructure = structureSignature();
-    lastRedesign = redesignSignature();
+    // Alone: nobody to tell, so do not build the signatures on every paint
+    // (they serialize the survey). Connecting re-bases (rebaseStructure, on
+    // "status"), so joining a room later does not look like an edit that
+    // never happened.
+    baselineStale = true;
     return false;
   }
+  if (baselineStale) rebaseStructure();
   if (S.action) return false; // mid-gesture; the release will render again
   const redesignNow = redesignSignature();
   const redesignChanged = redesignNow !== lastRedesign;

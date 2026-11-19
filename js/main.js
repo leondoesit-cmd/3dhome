@@ -12,6 +12,8 @@ import { FURN, flabel, clabel } from "./furniture.js";
 import { defaultApartment } from "./demo_house.js";
 import { init3D, has3D, frameView, frameDollhouse, setSize } from "./view3d.js";
 import { fitView, render2D, sizeCanvas, initPlanGizmo } from "./plan2d.js";
+import { paintPlanForLayout } from "./plan_pane_paint.js";
+import { initNorthIndicator } from "./plan2d/north_indicator.js";
 import {
   fillProps,
   initUI,
@@ -371,6 +373,7 @@ initAgent(); // separate AI tutor/command host; Friends chat remains person-to-p
 initTutorRuntime();
 initExternalAgentBridge();
 initPlanGizmo();
+initNorthIndicator(); // Plan view: a flat north arrow in the gizmo's place
 initCadHud(); // plan status bar + typed length/angle entry
 /* After initCadHud, and after initUI: the chips sync the plan toolbar's
    padlock button, which initUI() binds, and they publish `layers:changed`,
@@ -441,8 +444,7 @@ const resizeAll = throttle(() => {
       if (blueprintOverviewActive && L.clientWidth && L.clientHeight) frameDollhouse();
     }
   }
-  sizeCanvas();
-  render2D();
+  paintPlanForLayout(document.getElementById("view-2d"), sizeCanvas, render2D);
 });
 /* The vertical-span probe (furniture_api.baseVSpan) answers "floor-standing"
    while three is still on the way and asks us back once it can measure the
@@ -498,8 +500,7 @@ var SPLIT_KEY = "home3d_viewsplit", // persisted 3D pane share %
 function syncSurfaces() {
   maybeInit3D();
   if (has3D() && view3d) setSize(view3d.clientWidth, view3d.clientHeight);
-  sizeCanvas();
-  render2D();
+  paintPlanForLayout(view2d, sizeCanvas, render2D);
 }
 var curSplit = 50; // last-applied top-pane %, persisted on drag end
 /* A share is not a size. 88% of a 1165px canvas is a 140px plan — wide enough

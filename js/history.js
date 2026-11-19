@@ -194,7 +194,7 @@ function snap() {
     smarthome: snapshotSmart(),
   }, texPack);
 }
-function apply(str) {
+function apply(str, selection) {
   var s;
   try {
     s = JSON.parse(str, texUnpack);
@@ -238,7 +238,12 @@ function apply(str) {
   m.route = null; // an in-progress polyline can't survive a state swap
   m.place = null;
   loadSmart(s.smarthome);
-  S.sel = null;
+  S.sel = selection ? checkpointSelection(selection.sel, true) : null;
+  if (selection) {
+    S.warnSel = selection.warnSel;
+    S.wallOpenFocus = selection.wallOpenFocus;
+    S.wallEditEnd = selection.wallEditEnd;
+  }
   /* Undo can run while the wall tool is continuing from an existing endpoint,
      and every transient reference in S points into the model this swap has just
      replaced. One list, shared with the floor switch, which replaces the model
@@ -728,7 +733,8 @@ export function beginHistory() {
 // deferred until commitPending (which callers invoke BEFORE changing geometry).
 let gestureCapture = null, gestureBegin = false;
 export function armHistoryGesture(capture) {
-  gestureCapture = capture;
+  const before = gestureSelection();
+  gestureCapture = capture && (() => capture(before));
   gestureBegin = false;
 }
 export function disarmHistoryGesture() {
@@ -788,16 +794,42 @@ export function canRedo() {
   return H.canRedo();
 }
 
-// In-memory checkpoints are used for cancelled drags and isolated practice.
-export function captureHistorySession(portable=false) {
+function gestureSelection() {
+  return {sel:S.sel, warnSel:S.warnSel, wallOpenFocus:S.wallOpenFocus, wallEditEnd:S.wallEditEnd};
+}
+
+// Object selections point into arrays replaced by apply(). Their positions in
+// the snapshot preserve even duplicate ids and the order of a multi-selection.
+function checkpointSelection(selection, restoring) {
+  if (!selection) return null;
+  const {kind} = selection;
+  const list = {wall: S.walls, walls: S.walls, item: S.items, items: S.items,
+    opening: S.openings, marker: S.markers, con: S.wallCons, slabvoid: S.slabOpenings,
+    mepNode: S.mep?.nodes, mepRun: S.mep?.runs}[kind];
+  if (!list) return selection.refs ? {...selection, refs: selection.refs.slice()} : {...selection};
+  const result = {...selection};
+  if ('ref' in selection) {
+    result.ref = restoring ? list[selection.ref] : list.indexOf(selection.ref);
+    if (result.ref == null || result.ref === -1) return null;
+  }
+  if (selection.refs) {
+    const positions = restoring ? null : new Map(list.map((ref, i) => [ref, i]));
+    result.refs = selection.refs.map(ref => restoring ? list[ref] : positions.get(ref));
+  }
+  return result;
+}
+
+export function captureHistorySession(portable=false, selection) {
   requireNoCommandTransaction("capture session");
-  const model=snap(),history=H.saveSession();
-  // All checkpoints own their reachable pool entries, including in-memory
-  // gesture checkpoints. Cleanup of the active tree cannot invalidate them.
-  const roots=historyPoolRoots([model,history.lastFull,...[...history.nodes.values()].map(node=>node.snap)]);
-  const select=pool=>[...pool].filter(([token])=>roots.has(token));
+  const model=snap(),history=H.saveSession(portable, model);
+  // During a gesture keep references to current pool entries. This can also
+  // pin a recently orphaned entry until pointerup, but requires no snapshot scan.
+  const roots=portable && historyPoolRoots([model,history.lastFull,...[...history.nodes.values()].map(node=>node.snap)]);
+  const select=pool=>roots ? [...pool].filter(([token])=>roots.has(token)) : [...pool];
   const pools={tex:select(texById),floors:select(floorById),baselines:select(baselinePool),vectors:select(vectorById),definitions:definitionPool.entries(roots),texSeq,floorSeq,baselineSeq,vectorSeq};
-  return {model,history,pools:portable?structuredClone(pools):pools};
+  if (portable) return {model,history,pools:structuredClone(pools)};
+  selection ||= gestureSelection();
+  return {model,history,pools,selection:{...selection, sel:checkpointSelection(selection.sel, false)}};
 }
 export function restoreHistorySession(saved) {
   requireNoCommandTransaction("restore session");
@@ -818,7 +850,7 @@ export function restoreHistorySession(saved) {
     texSeq=Math.max(texSeq,saved.pools.texSeq);floorSeq=Math.max(floorSeq,saved.pools.floorSeq);baselineSeq=Math.max(baselineSeq,saved.pools.baselineSeq);
   }
   rollingBackBaseline = true;
-  try { apply(saved.model); H.loadSession(saved.history); }
+  try { apply(saved.model, saved.selection); H.loadSession(saved.history, !("selection" in saved)); }
   finally { rollingBackBaseline = false; }
   return true;
 }

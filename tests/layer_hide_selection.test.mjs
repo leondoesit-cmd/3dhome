@@ -11,6 +11,10 @@ import {
   setWorkLayer,
   selectionAfterHide,
   workSetForNewFloor,
+  floorSceneEmpty,
+  workSetOnFloorEntry,
+  enterFloorWorkSet,
+  layerTagKind,
 } from "../js/layers.js";
 import { sourceFunctionText } from "./helpers/source_function.mjs";
 
@@ -166,10 +170,58 @@ test("A4: a new floor clears the pin and works on Structure", () => {
   assert.equal(layerState("structure").vis, "show");
 });
 
-test("A4: only adding a floor resets the work set, not switching floors", () => {
-  assert.match(sourceFunctionText(chromeSrc, "addFloorFromUI"), /workSetForNewFloor\(\)/);
+test("A4: adding a floor resets the work set; switching does only onto an empty floor", () => {
+  assert.match(sourceFunctionText(chromeSrc, "addFloorFromUI"), /workSetForNewFloor\(\);\s*syncWorkSetUI\(\);/);
   const callers = chromeSrc.split("workSetForNewFloor(").length - 1;
   assert.equal(callers, 1, "called once, from addFloorFromUI only");
+  // the floor strip's switch goes through the empty-floor decision
+  assert.match(sourceFunctionText(chromeSrc, "renderFloorTabs"), /switchFloor\(floor\.id\);\s*\/\/[^\n]*\n\s*if \(enterFloorWorkSet\(S\)\) syncWorkSetUI\(\);/);
+  // ...and the ribbon is told to resync even when the work set did not change
+  assert.match(sourceFunctionText(chromeSrc, "syncWorkSetUI"), /new CustomEvent\("layers:changed", \{ detail: \{ resync: true \} \}\)/);
   const floors = readFileSync(new URL("../js/floors.js", import.meta.url), "utf8");
   assert.doesNotMatch(floors, /workSetForNewFloor/);
+});
+
+test("A4: an empty floor is one with nothing on any layer", () => {
+  assert.equal(floorSceneEmpty(null), true);
+  assert.equal(floorSceneEmpty({}), true);
+  assert.equal(floorSceneEmpty({ nodes: [], walls: [], openings: [], items: [], markers: [], slabOpenings: [], roomMeta: {}, idc: 1 }), true, "addFloor's blank scene");
+  assert.equal(floorSceneEmpty({ nodes: [{ x: 0, z: 0 }], walls: [] }), true, "a stray node is not content");
+  for (const [key, val] of [
+    ["walls", [{}]], ["items", [{}]], ["openings", [{}]], ["markers", [{}]],
+    ["annotations", [{}]], ["slabOpenings", [{}]], ["mep", { nodes: [{}] }], ["mep", { runs: [{}] }],
+  ])
+    assert.equal(floorSceneEmpty({ [key]: val }), false, key);
+});
+
+test("A4: arriving on an empty floor resets to Structure; a furnished one keeps its layer", () => {
+  assert.equal(workSetOnFloorEntry(true), "structure");
+  assert.equal(workSetOnFloorEntry(false), null);
+
+  fresh();
+  S.workSet = "furniture";
+  S.workSetPinned = true;
+  assert.equal(enterFloorWorkSet({ walls: [], items: [] }), true);
+  assert.equal(S.workSet, "structure");
+  assert.equal(S.workSetPinned, false, "the pin goes, as on a new floor");
+
+  fresh();
+  S.workSet = "mep";
+  assert.equal(enterFloorWorkSet({ walls: [{}], items: [] }), false);
+  assert.equal(S.workSet, "mep", "a floor with walls keeps the layer");
+});
+
+test("every Layers row carries a status tag: Editing, else its visibility", () => {
+  assert.equal(layerTagKind("structure", "structure", "show"), "edit");
+  assert.equal(layerTagKind("structure", "structure", "ghost"), "edit", "the work layer says Editing even when faded");
+  assert.equal(layerTagKind("furniture", "structure", "show"), "show");
+  assert.equal(layerTagKind("mep", "structure", "ghost"), "ghost");
+  assert.equal(layerTagKind("annotations", "structure", "hide"), "hide");
+  assert.equal(layerTagKind("structure", "all", "show"), "show", "All layers: no single row is the editing one");
+  assert.equal(layerTagKind(null, null, "bogus"), "show");
+  // the rows render it: the work layer's tag is "lay_tag_edit", the rest "lay_vis_<kind>"
+  const sync = sourceFunctionText(uiSrc, "sync");
+  assert.match(sync, /var kind = layerTagKind\(id, S\.workSet, L\.vis\);/);
+  assert.match(sync, /r\.tag\.textContent = t\(kind === "edit" \? "lay_tag_edit" : "lay_vis_" \+ kind\);/);
+  assert.match(sync, /r\.tag\.setAttribute\("data-kind", kind\);/);
 });

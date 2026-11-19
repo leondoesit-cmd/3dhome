@@ -723,7 +723,7 @@ Object.assign(FURN, {
     d: 60,
     h: 55,
     col: "#c9a15e",
-    lamp: { y: MOUNTH - 40, color: 0xffe2a0, intensity: 1.15, dist: 700 },
+    lamp: { lumens: 2400, y: MOUNTH - 40, color: 0xffe2a0, intensity: 1.15, dist: 700 },
     build: function (g, it) {
       /* Candle chandelier: a ceiling cup and chain, a turned baluster column,
          six S-scroll arms bent from one tube each, bobeches with candle sleeves
@@ -787,7 +787,7 @@ Object.assign(FURN, {
     d: 18,
     h: 26,
     col: "#e9dcc1",
-    lamp: { y: 176, color: 0xffe2a0, intensity: 0.5, dist: 380 },
+    lamp: { lumens: 470, y: 176, color: 0xffe2a0, intensity: 0.5, dist: 380 },
     build: function (g, it) {
       /* Wall sconce: a round back plate, a bent arm reaching out and up, and a
          tapered shade with wire rims round a warm bulb. */
@@ -795,7 +795,7 @@ Object.assign(FURN, {
       cyl(g, 0, y0 + 6, -hd + 0.8, 4.4, 1.6, 0x42474a, { rough: 0.45, metal: 0.4, seg: 28, rx: Math.PI / 2 });
       tube(g, [[0, y0 + 6, -hd + 1.6], [0, y0 + 6, -hd + 6], [0, y0 + 7.5, sz - 1], [0, y0 + 10, sz]], 0.9, 0x6e7478, { metal: 0.55, rough: 0.35, seg: 10 });
       cyl(g, 0, y0 + 11, sz, 1.4, 2.4, 0x6e7478, { metal: 0.55, rough: 0.35, seg: 14 });
-      lathe(g, 0, y0 + 4, sz, [[W * 0.5, 0], [W * 0.34, 13]], 0xe9dcc1, { rough: 0.65, trans: true, opacity: 0.92, seg: 36 });
+      lathe(g, 0, y0 + 4, sz, [[W * 0.5, 0], [W * 0.34, 13]], 0xe9dcc1, { lampShade: "linen", rough: 0.65, trans: true, opacity: 0.92, seg: 36 });
       torus(g, 0, y0 + 4, sz, W * 0.5, 0.22, 0x6e7478, { metal: 0.6, rough: 0.35, seg: 36, segR: 4 });
       torus(g, 0, y0 + 17, sz, W * 0.34, 0.22, 0x6e7478, { metal: 0.6, rough: 0.35, seg: 36, segR: 4 });
       sph(g, 0, y0 + 10, sz, 3, 0xfff2cc, { emis: 0xffe2a0, cast: false, seg: 16, segV: 12 });
@@ -807,7 +807,7 @@ Object.assign(FURN, {
     d: 8,
     h: 12,
     col: "#42474a",
-    lamp: { y: MOUNTH - 14, color: 0xffe6b4, intensity: 0.8, dist: 560 },
+    lamp: { lumens: 1500, y: MOUNTH - 14, color: 0xffe6b4, intensity: 0.8, dist: 560 },
     build: function (g, it) {
       /* Track lighting: a three-circuit rail with end caps and a live feed,
          three adaptors each carrying a cylindrical spot on a stem, tilted to
@@ -835,7 +835,7 @@ Object.assign(FURN, {
     d: 120,
     h: 35,
     col: "#b9b29e",
-    lamp: { y: MOUNTH - 34, color: 0xffe6b4, intensity: 0.9, dist: 620 },
+    lamp: { lumens: 1100, y: MOUNTH - 34, color: 0xffe6b4, intensity: 0.9, dist: 620 },
     build: function (g, it) {
       /* Ceiling fan: a canopy and downrod, a turned motor housing, four pitched
          blades each on a steel iron, and an opal light kit underneath. */
@@ -858,7 +858,7 @@ Object.assign(FURN, {
           bl.rotation.set(0.14, -an, 0);
         }
       }
-      lathe(g, 0, top - 30, 0, [[6.5, 4.6], [6.2, 2.4], [4.6, 0.6], [2, 0], [0, 0]], 0xf2eee4, { rough: 0.35, trans: true, opacity: 0.93, seg: 32 });
+      lathe(g, 0, top - 30, 0, [[6.5, 4.6], [6.2, 2.4], [4.6, 0.6], [2, 0], [0, 0]], 0xf2eee4, { lampShade: "opalCap", rough: 0.35, trans: true, opacity: 0.93, seg: 32 });
       cyl(g, 0, top - 25.2, 0, 6.8, 0.8, 0x6e7478, { metal: 0.5, rough: 0.4, seg: 32 });
       sph(g, 0, top - 28, 0, 3.2, 0xfff2cc, { emis: 0xffe2a0, cast: false, seg: 16, segV: 12 });
     },

@@ -270,6 +270,8 @@ export function normalizeSpec(sp, w, h, d) {
     });
     c.secs.forEach(function (s) {
       s.h = Math.round(s.__size * 10) / 10;
+      // an older save's "0 shoe shelves" reads as "the default count" (shoeShelfCount)
+      if (s.t === "shoe" && !(s.n > 0)) delete s.n;
       delete s.__size;
       delete s.__flex;
     });

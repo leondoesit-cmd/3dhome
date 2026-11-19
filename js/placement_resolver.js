@@ -1,6 +1,10 @@
 // Pure placement-intent resolver. It consumes a complete live-scene snapshot
 // prepared by agent_context.js; model prompt budgets and viewport state never
 // participate in command geometry.
+import { S } from "./state.js";
+import { wallLayerBands } from "./wall_types.js";
+import { doorSwingBand, doorSwingPolys } from "./swing_clearance.js";
+import { SEAT_TYPES, SEAT_TARGETS } from "./item_orient.js";
 
 const COMPASS_ROT = Object.freeze({ north: 180, south: 0, east: 270, west: 90 });
 const PLACEMENT_EPS_CM = 0.1;
@@ -19,9 +23,10 @@ function normRot(value) { return ((num(value) % 360) + 360) % 360; }
 export function placementWallFingerprint(wall) {
   if (!wall) return null;
   return JSON.stringify({
-    id: String(wall.id), thickness: round1(wall.thickness), curved: !!wall.curved,
+    id: String(wall.id), thickness: round1(wall.material?.thickness ?? wall.thickness), curved: !!wall.curved,
     physical: wall.physical !== false,
-    points: (wall.points || []).map(function(point) { return [round1(point.x), round1(point.z)]; }),
+    points: (wall.material?.points || wall.points || []).map(function(point) { return [round1(point.x), round1(point.z)]; }),
+    openings: wall.openingZones || [],
   });
 }
 export function canonicalPlacementWall(wall, geometry) {
@@ -37,8 +42,32 @@ export function canonicalPlacementWall(wall, geometry) {
   }
   var kind = typeof geometry.normalizeWallKind === "function"
     ? geometry.normalizeWallKind(wall) : wall.kind || wall.wallTypeId;
-  return { id: wall.id, thickness: Number(wall.thickness) || 10,
+  const record = { id: wall.id, thickness: Number(wall.thickness) || 10,
     kind: kind || "normal", physical: kind !== "roomDivider", curved: !!curved, points: points };
+  if (!S.walls.includes(wall)) return record;
+  const bands=wallLayerBands({...wall},{walls:[],wallTypes:structuredClone(S.wallTypes||[])});
+  const lo=Math.min(...bands.map(b=>b.start)),hi=Math.max(...bands.map(b=>b.end));
+  const shift=(lo+hi)/2;
+  record.material={thickness:hi-lo,points:points.map((p,i)=>{
+    const a=points[Math.max(0,i-1)],b=points[Math.min(points.length-1,i+1)],len=Math.hypot(b.x-a.x,b.z-a.z)||1;
+    return {x:p.x-(b.z-a.z)*shift/len,z:p.z+(b.x-a.x)*shift/len};
+  })};
+  record.openingZones=[];
+  for(const op of S.openings.filter(o=>String(o.wall)===String(wall.id))){
+    const band=doorSwingBand(op);
+    for(const polygon of doorSwingPolys(op))record.openingZones.push({points:polygon,elev:band.lo,h:band.hi-band.lo});
+    const at=pointAt(record,op.s);
+    if(!at)continue;
+    const passage=op.type==="door"||op.type==="passage";
+    const halfDepth=(hi-lo)/2 + (passage?60:1);
+    const halfWidth=op.width/2;
+    const corners=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([x,z])=>({
+      x:at.x+at.tx*x*halfWidth-at.tz*(shift+z*halfDepth),
+      z:at.z+at.tz*x*halfWidth+at.tx*(shift+z*halfDepth),
+    }));
+    record.openingZones.push({points:corners,elev:op.sill||0,h:op.height||205});
+  }
+  return record;
 }
 export function canonicalPlacementItem(item, geometry) {
   if (!item) return null;
@@ -54,6 +83,7 @@ export function canonicalPlacementItem(item, geometry) {
     on: item.on == null ? null : item.on,
     blocksPlacement: !NON_BLOCKING_PLACEMENT_TYPES[item.type],
     rotUser: item.rotUser || null,
+    groupId: item.groupId ?? null, facesId: item.facesId ?? null, layoutSetId:item.configuration?.layoutSetId??null,
     hold: hold,
     locked: !!item.locked,
   };
@@ -87,6 +117,7 @@ function angleDistance(a, b) {
 }
 function pointOnSegment(x, z, a, b) {
   var dx = b.x - a.x, dz = b.z - a.z, cross = (x - a.x) * dz - (z - a.z) * dx;
+  if (dx === 0 && dz === 0) return Math.hypot(x-a.x,z-a.z) <= PLACEMENT_EPS_CM;
   if (Math.abs(cross) > PLACEMENT_EPS_CM * Math.max(1, Math.hypot(dx, dz))) return false;
   var dot = (x - a.x) * dx + (z - a.z) * dz;
   return dot >= -PLACEMENT_EPS_CM && dot <= dx * dx + dz * dz + PLACEMENT_EPS_CM;
@@ -134,7 +165,7 @@ function properSegmentsCross(a, b, c, d) {
     Math.abs(abC) > PLACEMENT_EPS_CM && Math.abs(abD) > PLACEMENT_EPS_CM &&
     Math.abs(cdA) > PLACEMENT_EPS_CM && Math.abs(cdB) > PLACEMENT_EPS_CM;
 }
-function polygonInsideRoom(poly, room) {
+export function polygonInsideRoom(poly, room) {
   if (!room || !Array.isArray(room.pts)) return true;
   if (!poly.every(function(pt) { return pointInPoly(pt.x, pt.z, room.pts); })) return false;
   for (var i = 0; i < poly.length; i++) for (var j = 0; j < room.pts.length; j++) {
@@ -152,8 +183,9 @@ function verticalOverlap(a, b) {
   var b0 = num(b.elev), b1 = b0 + bh;
   return Math.min(a1, b1) > Math.max(a0, b0) + PLACEMENT_EPS_CM;
 }
-function wallSolidOverlap(wall, poly) {
+export function wallSolidOverlap(wall, poly) {
   if (!wall || wall.physical === false) return false;
+  wall=wall.material||wall;
   var half = Math.max(0, num(wall.thickness) / 2);
   return segments(wall).some(function(seg) {
     var nx = -seg.tz * half, nz = seg.tx * half;
@@ -183,6 +215,8 @@ function poseFitsScene(scene, item, pose, room, ignoredObstacleIds) {
     if (!polygonInsideRoom(placed, room)) return false;
     if ((scene.walls || []).some(function(wall) { return wallSolidOverlap(wall, placed); })) return false;
     if (candidate.blocksPlacement === false) return true;
+    if ((scene.walls||[]).some(wall=>wall.openingZones?.some(zone=>
+      verticalOverlap(candidate,zone)&&polygonsOverlap(placed,zone.points)))) return false;
     return !(scene.items || []).some(function(other) {
       if (!other || ignored.has(String(other.id)) || other.blocksPlacement === false || movingIds.has(String(other.id)) ||
           !verticalOverlap(candidate, other)) return false;
@@ -290,7 +324,7 @@ function rayWallHit(wall, x, z, dx, dz) {
 function inwardNormal(room, hit, thickness) {
   if (!room || !hit) return null;
   var nx = -hit.tz, nz = hit.tx;
-  var probes = [0.1, 0.5, 1, 2, Math.max(2, num(thickness) / 2 + 1)];
+  var probes = [0.1, 0.5, 1, 2, Math.max(2, num(thickness) + 1)];
   for (var i = 0; i < probes.length; i++) {
     var eps = probes[i];
     var plus = pointInPoly(hit.x + nx * eps, hit.z + nz * eps, room.pts);
@@ -321,7 +355,7 @@ function roomWalls(scene, room) {
   var ids = new Set((room && room.wallIds || []).map(String));
   return (scene.walls || []).filter(function(wall) {
     return wall && wall.physical !== false && (!room || ids.has(String(wall.id)));
-  });
+  }).map(wall=>wall.material?{...wall,...wall.material}:wall);
 }
 function selectRoomWall(scene, room, item, side) {
   var direction = requestedDirection(side);
@@ -357,9 +391,12 @@ function wallPose(item, wall, room, anchor, rotation) {
   normal = inwardNormal(room, point, wall.thickness);
   if (!normal) return null;
   var offset = num(wall.thickness) / 2 + supportRadius(item, rotation, normal);
-  return { x: round1(point.x + normal.x * offset), z: round1(point.z + normal.z * offset),
-    rot: round1(normRot(rotation)), wallId: wall.curved ? null : wall.id,
-    hostWallId: wall.id, inward: normal, station: station };
+  for (let extra=0;extra<=(wall.curved?Math.max(item.w,item.d)/2:0);extra+=0.5){
+    const pose={x:round1(point.x+normal.x*(offset+extra)),z:round1(point.z+normal.z*(offset+extra)),rot:round1(normRot(rotation))};
+    if (!wall.curved || !wallSolidOverlap(wall,itemCorners(item,pose.x,pose.z,pose.rot)))
+      return {...pose,wallId:wall.id,hostWallId:wall.id,inward:normal,station};
+  }
+  return null;
 }
 function variantsForHost(item, wall, room, anchor, face, baseRotation) {
   var mode = normalizeFace(face, !!wall), rotations = [];
@@ -389,19 +426,43 @@ function resolveBeside(args, scene, item, options) {
   if (!other) return { ok: false, reason: "ITEM_REFERENCE_NOT_FOUND" };
   var room = roomForPoint(scene, other.x, other.z), rotation = normRot(other.rot), a = rotation * Math.PI / 180;
   var localX = { x: Math.cos(a), z: Math.sin(a) }, localZ = { x: -Math.sin(a), z: Math.cos(a) };
-  var side = String(refArgs.side || "right").toLowerCase(), direction = side === "left"
+  const seating=!!(SEAT_TYPES[item.type]&&SEAT_TARGETS[other.type]);
+  const coffee=item.type==='coffee'&&other.type==='sofa';
+  const facingPartner=seating||(item.type==='sofa'&&['tv','tvWall','tvunit','coffee'].includes(other.type));
+  var side = String(refArgs.side || (seating||coffee?"bottom":"right")).toLowerCase(), direction = side === "left"
     ? { x: -localX.x, z: -localX.z } : side === "above" || side === "top"
       ? { x: -localZ.x, z: -localZ.z } : side === "below" || side === "bottom"
         ? localZ : localX;
-  var gap = supportRadius(other, other.rot, direction) + supportRadius(item, rotation, direction);
+  const facing=normalizeFace(args.face,false);
+  if (facingPartner) rotation=rotationFacing({x:-direction.x,z:-direction.z});
+  if (args.face==='keep') rotation=normRot(item.rot);
+  if (COMPASS_ROT[facing]!=null) rotation=COMPASS_ROT[facing];
+  var gap = supportRadius(other, other.rot, direction) + supportRadius(item, rotation, direction)+(seating?12:coffee?40:0);
   var base = { x: other.x + direction.x * gap, z: other.z + direction.z * gap, rot: rotation };
+  if(item.type==='nightstand'&&['bed','bunk'].includes(other.type)&&['left','right'].includes(side)){
+    base.x+=localZ.x*(item.d-other.d)/2;
+    base.z+=localZ.z*(item.d-other.d)/2;
+  }
   var hosted = other.hold && wallById(scene, other.hold.wall);
   if (hosted && (hosted.physical === false || !room || !(room.wallIds || []).map(String).includes(String(hosted.id)))) hosted = null;
-  var wallEntry = hosted ? { wall: hosted, hit: closestOnWall(hosted, base.x, base.z) }
+  if(hosted?.material)hosted={...hosted,...hosted.material};
+  var wallEntry = facingPartner||coffee ? null : hosted ? { wall: hosted, hit: closestOnWall(hosted, base.x, base.z) }
     : nearestRoomWall(scene, room, other);
   if (!wallEntry || wallEntry.hit.distance > BESIDE_WALL_RUN_MAX_DISTANCE_CM) {
     var face = normalizeFace(args.face, false), rot = COMPASS_ROT[face] != null ? COMPASS_ROT[face] : rotation;
     var freePose = { x: round1(base.x), z: round1(base.z), rot: rot };
+    // The move command preserves an existing wall constraint unless it is
+    // replaced by another wall. A free-standing partner pose must respect it.
+    if(item.hold){
+      const wall=wallById(scene,item.hold.wall);
+      if(!wall)return {ok:false,reason:"NO_PLACEMENT_FIT"};
+      const solid=wall.material?{...wall,...wall.material}:wall,anchor=closestOnWall(solid,freePose.x,freePose.z);
+      if(!anchor)return {ok:false,reason:"NO_PLACEMENT_FIT"};
+      const nx=-anchor.tz,nz=anchor.tx,side=item.hold.side===-1?-1:1;
+      const actual=((freePose.x-anchor.x)*nx+(freePose.z-anchor.z)*nz)*side;
+      const wanted=solid.thickness/2+supportRadius(item,rot,{x:nx,z:nz})+(Number(item.hold.gap)||0);
+      if(Math.abs(actual-wanted)>0.2)return {ok:false,reason:"NO_PLACEMENT_FIT"};
+    }
     if (!poseFitsScene(scene, item, freePose, room, options && options.ignoreItemIds))
       return { ok: false, reason: "NO_PLACEMENT_FIT" };
     return { ok: true, moves: [{ itemId: item.id, x: freePose.x, z: freePose.z, rot: rot,
@@ -410,7 +471,6 @@ function resolveBeside(args, scene, item, options) {
       choiceLabelKey: null, holdWallId: null, floorId: scene.floorId,
       placementGuard: placementGuard(null, other, item, scene) }] };
   }
-  if (wallEntry.wall.curved) return { ok: false, reason: "CURVED_WALL_PLACEMENT_UNSUPPORTED" };
   var anchor = closestOnWall(wallEntry.wall, base.x, base.z);
   var moves = variantsForHost(item, wallEntry.wall, room, anchor, args.face, rotation).filter(function(pose) {
     return poseFitsScene(scene, item, pose, room, options && options.ignoreItemIds);
@@ -433,7 +493,6 @@ export function resolvePlacementIntent(args, scene, options) {
   var room = roomForPoint(scene, item.x, item.z), selected = args.wall
     ? selectRoomWall(scene, room, item, String(args.wall).toLowerCase()) : null;
   if (args.wall && !selected) return { ok: false, reason: room ? "WALL_TARGET_NOT_FOUND" : "NO_TARGET_ROOM" };
-  if (selected && selected.wall.curved) return { ok: false, reason: "CURVED_WALL_PLACEMENT_UNSUPPORTED" };
   if (selected) {
     var wallMoves = variantsForHost(item, selected.wall, room, selected.hit, args.face, item.rot).filter(function(pose) {
       return poseFitsScene(scene, item, pose, room, options && options.ignoreItemIds);
@@ -459,7 +518,6 @@ export function resolvePlacementIntent(args, scene, options) {
   if (face === "into-room") {
     var nearest = nearestRoomWall(scene, room, item);
     if (!nearest) return { ok: false, reason: "NO_NEAR_WALL" };
-    if (nearest.wall.curved) return { ok: false, reason: "CURVED_WALL_PLACEMENT_UNSUPPORTED" };
     var nearestMoves = variantsForHost(item, nearest.wall, room, nearest.hit, face, item.rot).filter(function(pose) {
       return poseFitsScene(scene, item, pose, room, options && options.ignoreItemIds);
     }).map(function(pose) {
@@ -471,4 +529,34 @@ export function resolvePlacementIntent(args, scene, options) {
     return nearestMoves.length ? { ok: true, moves: nearestMoves } : { ok: false, reason: "NO_PLACEMENT_FIT" };
   }
   return { ok: false, reason: "PLACEMENT_INTENT_REQUIRED" };
+}
+
+// Resolve small tabletop objects against real furniture footprints. Kept pure
+// so command preparation, revalidation and load-time repair use the same fit.
+
+const TABLETOP = new Set(["tableLamp", "laptop", "printer", "monitor", "coffeeMachine", "toaster", "kettle", "microwave"]);
+const SUPPORTS = new Set(["desk", "nightstand", "table", "base", "island", "dresser", "tvunit",
+  "sideboard", "console", "sideTable", "roundTable"]);
+
+export function requiresTabletop(type) { return TABLETOP.has(type); }
+
+export function tabletopPlacement(item, items, explicitRotation) {
+  if (!requiresTabletop(item.type)) return null;
+  for (const host of items) {
+    if (!SUPPORTS.has(host.type) || !Number.isFinite(host.h) || !(host.w > 0 && host.d > 0)) continue;
+    const a = (host.rot || 0) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+    const inside = p => {
+      const dx = p.x - host.x, dz = p.z - host.z;
+      if (host.type === "roundTable" || host.type === "sideTable")
+        return Math.hypot(dx, dz) <= Math.min(host.w, host.d) / 2 + 0.001;
+      return Math.abs(dx * c + dz * s) <= host.w / 2 + 0.001 && Math.abs(-dx * s + dz * c) <= host.d / 2 + 0.001;
+    };
+    if (!inside(item)) continue;
+    const rot = explicitRotation ? item.rot : host.rot || 0;
+    const footprint = itemCorners(item, item.x, item.z, rot);
+    const fits = footprint.every(inside) && !items.some(other => other !== item && other.on === host.id
+      && polygonsOverlap(footprint, itemCorners(other, other.x, other.z, other.rot)));
+    return { host, fits, rot };
+  }
+  return null;
 }

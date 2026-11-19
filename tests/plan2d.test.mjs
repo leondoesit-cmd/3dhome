@@ -92,8 +92,8 @@ test("resize keeps the current pan instead of snapping to the model centre", () 
   );
   assert.doesNotMatch(resize, /centerContent\(\)/);
   assert.doesNotMatch(sync, /centerContent\(\)/);
-  assert.match(resize, /sizeCanvas\(\)/);
-  assert.match(sync, /sizeCanvas\(\)/);
+  assert.match(resize, /paintPlanForLayout\(.*, sizeCanvas, render2D\)/);
+  assert.match(sync, /paintPlanForLayout\(.*, sizeCanvas, render2D\)/);
 });
 
 test("cabinets with a spec draw their real plan symbol, not a generic front stroke", () => {

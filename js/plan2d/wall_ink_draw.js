@@ -5,7 +5,8 @@
    live imports from ../plan2d.js. */
 import { wallOutline } from "../geometry.js";
 import { sx, sz } from "../plan_view.js";
-import { wallInkAll } from "../wall_ink.js";
+import { wallInkAll, wallInkPass } from "../wall_ink.js";
+import { S } from "../state.js";
 import { pc } from "../plan2d.js";
 import { wallBandPolygon } from "./walls.js";
 import { drawWall } from "./overlays.js";
@@ -55,10 +56,24 @@ function drawPlanWalls(walls, pool) {
   walls.forEach(function (w) { drawWall(w, "ink", inks.get(w)); });
 }
 
+/* Ink only the walls drawWall actually strokes, after its normalization,
+   retaining the HUD's fill/ink order and the full default neighbour pool. */
+function drawHUDWalls(walls, hidden) {
+  let pass;
+  function inkFor(w) {
+    if (!pass) pass = wallInkPass();
+    return pass(w);
+  }
+  for (const w of walls) {
+    if (S.walls.indexOf(w) !== -1 && !hidden[w.id]) drawWall(w, undefined, inkFor);
+  }
+}
+
 /* A wall's lines: the layer boundaries along it, then the perimeter segments
    the ink rule keeps — or, for a selected / erase-hovered wall, its whole
    closed outline in `markColour` (selection chrome keeps the full shape). */
 function inkWall(w, ink, bands, demolish, markColour) {
+  if (typeof ink === "function") ink = ink(w);
   ink = ink || wallInkAll([w]).get(w);
   if (!ink) return;
   pc.save();
@@ -100,4 +115,4 @@ function inkWall(w, ink, bands, demolish, markColour) {
   pc.restore();
 }
 
-export { drawPlanWalls, fillWallBands, inkWall };
+export { drawHUDWalls, drawPlanWalls, fillWallBands, inkWall };

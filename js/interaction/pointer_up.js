@@ -31,6 +31,7 @@ import { releaseTouchPrecisionTrial, touchPrecisionTrialOwns } from "../touch_pr
 import { setConstraintHover, syncWarnHighlight } from "../ui_warn.js";
 import { fillProps, flash, placeFurnAt, refreshTree, select, setLockStruct, syncStairVoids } from "../ui.js";
 import { isWalk } from "../view3d.js";
+import { finishItemDrop3D } from "../view3d/items_layers.js";
 import { cancelFitCab, fitCabUp } from "../interaction/fit_cabinet_tool.js";
 import { solveWallCons } from "../wall_constraints.js";
 import {
@@ -402,7 +403,8 @@ function wireLongPressAndPointerUp() {
         S.action === "wall" || S.action === "marker" || S.action === "markerElev" ||
         S.action === "itemElev" || S.action === "openingElev" || S.action === "slabvoid")
       refreshTree();
-    if (S.action === "item" || S.action === "marker" || S.action === "markerElev" ||
+    if (S.action === "item") finishItemDrop3D();
+    else if (S.action === "marker" || S.action === "markerElev" ||
         S.action === "itemElev" || S.action === "openingElev" || S.action === "slabvoid")
       S.dirty3D = true;
     // drafting guides belong to the drag that produced them — corner and point

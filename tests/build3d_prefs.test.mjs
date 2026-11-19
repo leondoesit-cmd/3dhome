@@ -51,3 +51,16 @@ test("save and load round-trip under mf_build3d_preview; a throwing store is sur
   assert.deepEqual(loadBuild3dPrefs(broken), DEFAULT_BUILD3D_PREFS);
   assert.deepEqual(saveBuild3dPrefs({ mode: "outline" }, broken), { mode: "outline", opacity: 0.45 });
 });
+
+test("see-through wall opacity is its own clamped, stored setting", async () => {
+  const m = await import("../js/build3d_prefs.js");
+  assert.equal(m.clampWallOpacity(null), m.DEFAULT_WALL_OPACITY);
+  assert.equal(m.clampWallOpacity("junk"), m.DEFAULT_WALL_OPACITY);
+  assert.equal(m.clampWallOpacity(5), m.WALL_OPACITY_MAX);
+  assert.equal(m.clampWallOpacity(0), m.WALL_OPACITY_MIN);
+  const data = {};
+  const store = { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); } };
+  assert.equal(m.setWallXrayOpacity(0.4, store), 0.4);
+  assert.equal(data[m.WALL_OPACITY_KEY], "0.4");
+  assert.equal(m.wallXrayOpacity(store), 0.4);
+});

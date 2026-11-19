@@ -67,6 +67,47 @@ export function build3dPrefs() {
   return current;
 }
 
+/* How opaque the see-through walls are (Display › Walls › See-through), a
+   separate per-viewer setting under its own key. A change fires
+   `build3d:wallopacity` on window; the 3D view rebuilds its walls. */
+export const WALL_OPACITY_KEY = "mf_wall_xray_opacity";
+export const WALL_OPACITY_MIN = 0.05;
+export const WALL_OPACITY_MAX = 0.7;
+export const DEFAULT_WALL_OPACITY = 0.18;
+
+export function clampWallOpacity(value) {
+  const n = value == null || typeof value === "boolean" || (typeof value === "string" && value.trim() === "") ? NaN : Number(value);
+  if (!Number.isFinite(n)) return DEFAULT_WALL_OPACITY;
+  return Math.round(Math.min(WALL_OPACITY_MAX, Math.max(WALL_OPACITY_MIN, n)) * 100) / 100;
+}
+
+let wallOpacity = null;
+
+/** The live see-through wall opacity (read once from storage). */
+export function wallXrayOpacity(storage) {
+  if (wallOpacity == null) {
+    try {
+      const store = storageOf(storage);
+      wallOpacity = clampWallOpacity(store ? store.getItem(WALL_OPACITY_KEY) : null);
+    } catch (_) { wallOpacity = DEFAULT_WALL_OPACITY; }
+  }
+  return wallOpacity;
+}
+
+/** Store and announce a new see-through wall opacity. Returns the clamped value. */
+export function setWallXrayOpacity(value, storage) {
+  const prev = wallXrayOpacity(storage);
+  wallOpacity = clampWallOpacity(value);
+  try {
+    const store = storageOf(storage);
+    if (store) store.setItem(WALL_OPACITY_KEY, String(wallOpacity));
+  } catch (_) { /* still applies for this page */ }
+  if (prev !== wallOpacity && typeof window !== "undefined" && typeof window.dispatchEvent === "function" &&
+      typeof CustomEvent === "function")
+    window.dispatchEvent(new CustomEvent("build3d:wallopacity", { detail: wallOpacity }));
+  return wallOpacity;
+}
+
 /** Merge a patch, store it and announce it. Returns the new prefs. */
 export function setBuild3dPrefs(patch, storage) {
   const next = parseBuild3dPrefs({ ...build3dPrefs(), ...(patch || {}) });

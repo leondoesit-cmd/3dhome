@@ -5,6 +5,8 @@ import { setSkin, clearGroup } from "./primitives.js";
 import { FURN, variantOf } from "./furniture_models.js";
 import { ensureItemDefinition, rebuildItem } from "./core/project.js";
 import { designNewStairs } from "./stair_floors.js";
+import { setLayoutSetId } from "./group_frame.js";
+import { reseat } from "./stack.js";
 
 // build a piece into `g` with its variant finish applied. Every caller that
 // renders furniture (3D scene, vertical-span probe, modeler import) goes
@@ -109,9 +111,7 @@ function baseVSpan(it) {
      three lands, so there is nothing to drop then: the only entries are spans
      seeded from pictures kept on disk, which are real measurements.) */
   if (!threeLoaded()) {
-    loadThree().then(function () {
-      window.dispatchEvent(new CustomEvent("vspan:ready"));
-    }, function () {});
+    whenThree();
     return { lo: 0, hi: (it && it.h) || 0 };
   }
   var span = null,
@@ -165,14 +165,20 @@ export function seedVSpan(key, span) {
   toMeasure.delete(key);
   return true;
 }
-/* `it.elev` re-hangs a piece at a chosen height: it is the world Y of the
-   piece's BOTTOM, whatever its builder baked in. Expressing it as an offset
-   from the built span (rather than replacing the span with `elev..elev+h`)
-   is what keeps the 3D view and the elevations agreeing — a wall AC moved to
-   elev 180 keeps its own 40cm-tall shape instead of being stretched to `h`. */
+// Store the ceiling datum, not a guess at a pendant's unmeasured drop.
+export function mountAtCeiling(it, ceilingTop) {
+  if (fin(ceilingTop)) it.configuration = { ...it.configuration, ceilingTop };
+  return it;
+}
+
+/* An explicit mount height is the world Y of the piece's bottom. A ceiling
+   fitting instead meets its mount at the top. Both use the built span so
+   resizing the piece keeps the mounting face fixed. */
 export function elevOffset(it) {
-  if (!it || !fin(it.elev)) return 0;
-  return it.elev - baseVSpan(it).lo;
+  if (!it) return 0;
+  if (fin(it.elev)) return it.elev - baseVSpan(it).lo;
+  const ceiling = it.configuration?.ceilingTop;
+  return fin(ceiling) ? ceiling - baseVSpan(it).hi : 0;
 }
 export function itemVSpan(it) {
   var b = baseVSpan(it);
@@ -202,6 +208,14 @@ function whenThree() {
   threeHooked = true;
   loadThree().then(function () {
     awaitingThree.clear();
+    // A home may have been furnished using the provisional catalogue heights.
+    // Use the current document: the user may have moved a lamp or changed
+    // floors while the geometry library was loading.
+    const hosts = new Set(S.items.filter(it => it.on != null).map(it => it.on));
+    if (hosts.size) {
+      for (const it of S.items) if (it.on == null && hosts.has(it.id)) reseat(it);
+      S.dirty3D = true;
+    }
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("vspan:ready"));
   }, function () { /* three never came: what waits stays unmeasured, quietly */ });
 }
@@ -243,7 +257,7 @@ export function lampColor(it) {
   return it.lightColor != null ? it.lightColor : FURN[it.type].lamp.color;
 }
 
-export function mkItem(type, x, z, rot) {
+export function mkItem(type, x, z, rot, host) {
   var f = FURN[type] || { w: 60, d: 60, h: 80 };
   // a new flight of stairs starts with a design fitted to the code and the
   // floor above (js/stair_floors.js), inside the same undo step as the place
@@ -257,6 +271,7 @@ export function mkItem(type, x, z, rot) {
     d: f.d || 60,
     h: f.h || 80,
     rot: rot || 0,
+    ...(host && { on: host.id, elev: itemVSpan(host).hi }),
   };
 }
 
@@ -303,7 +318,7 @@ export function defaultScene() {
       id: uid(),
       type: "window",
       wall: w[0].id,
-      s: 200,
+      s: 100,
       width: 120,
       height: 120,
       sill: 90,
@@ -318,17 +333,28 @@ export function defaultScene() {
       sill: 90,
     },
   ];
+  const kitchenGroup = uid();
+  let runEnd = WALL_T / 2;
+  const kitchen = ["base", "sink", "cooktop", "fridge"].map(type => {
+    const { w, d } = FURN[type];
+    const unit = mkItem(type, runEnd + w / 2, WALL_T / 2 + d / 2, 0);
+    runEnd += w;
+    unit.functionalZone = "kitchen";
+    return setLayoutSetId(unit, kitchenGroup);
+  });
+  const tv = mkItem("tv", runEnd + FURN.tv.w / 2, WALL_T / 2 + FURN.tv.d / 2, 0);
+  const sofa = mkItem("sofa", tv.x, 300 - WALL_T / 2 - FURN.sofa.d / 2, 180);
+  sofa.w = 120; // the bay beside the run accommodates a loveseat
+  sofa.facesId = tv.id;
+  tv.facesId = sofa.id;
   S.items = [
-    mkItem("sofa", 200, 245, 180),
-    mkItem("table", 200, 160, 0),
-    mkItem("tv", 200, 28, 0),
+    sofa,
+    mkItem("coffee", tv.x, 145, 0),
+    tv,
     mkItem("plant", 55, 250, 0),
-    mkItem("base", 45, 42, 0),
-    mkItem("sink", 110, 42, 0),
-    mkItem("cooktop", 175, 42, 0),
-    mkItem("fridge", 355, 55, 0),
-    mkItem("ceilingLight", 200, 150, 0),
-    mkItem("floorLamp", 360, 250, 0),
+    ...kitchen,
+    mountAtCeiling(mkItem("ceilingLight", 200, 150, 0), WALL_H),
+    mkItem("floorLamp", 245, 250, 0),
   ];
   S.sel = null;
 }

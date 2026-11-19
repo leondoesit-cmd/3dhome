@@ -94,7 +94,7 @@ test("a press that grabbed one piece drags on the plane through the grabbed poin
   const grabbing = { action: "item", sel: { kind: "item", ref: it } };
   assert.equal(itemDragGrabY(grabbing, { point: { x: 0, y: 112, z: 0 } }), 112);
   assert.equal(itemDragGrabY(grabbing, null), 0, "no hit: the floor plane");
-  assert.equal(itemDragGrabY({ action: "item", sel: { kind: "items", refs: [it, {}] } }, { point: { y: 50 } }), null, "a group drag keeps the plain sample");
+  assert.equal(itemDragGrabY({ action: "item", sel: { kind: "items", refs: [it, {}] } }, { point: { y: 50 } }), 50, "a group keeps the original grab plane");
   assert.equal(itemDragGrabY({ action: null, sel: { kind: "item", ref: it } }, { point: { y: 50 } }), null, "a click that did not start a drag");
   assert.equal(itemDragGrabY({ action: "wall", sel: { kind: "wall", ref: {} } }, { point: { y: 50 } }), null);
 

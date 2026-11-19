@@ -12,7 +12,6 @@
 import { S, WALL_H } from "./state.js";
 import { wallGeom, rayIntersect } from "./geometry.js";
 import { isLamp, itemVSpan, knownVSpan, measureVSpanSoon } from "./furniture.js";
-import { hostOf } from "./stack.js";
 import { floorClearances, sideDirs, verticalClearances } from "./clearance.js";
 import { isRoundItem, itemOutline } from "./item_outline.js";
 import { openingSideHits, openingSillHit } from "./opening_clearance.js";
@@ -64,12 +63,67 @@ export function rayToCorners(ox, oz, dx, dz, cs) {
              or the object standing on the point being measured from.
    `target: "both"` reports the nearest wall AND the nearest item on each ray,
    so a drafting overlay can label them separately instead of collapsing to one. */
+/* The obstacle footprints measure4 casts its rays against: each wall's thick
+   quad and each item's corners, built lazily on first use. Without a scope one
+   measure4 call builds them once for its four directions; inside
+   withMeasureObstacles (one HUD paint's distance overlay) every origin of that
+   paint shares them. Scoped to a synchronous pass, so a live drag is always
+   read afresh by the next paint. The filters (target, wallIds, skip, lamps)
+   stay per call, in the same order, so the hits are the same. */
+var obstacleScope = 0, obstacleCache = null, footprintBuilds = 0;
+export function withMeasureObstacles(fn) {
+  obstacleScope++;
+  try {
+    return fn();
+  } finally {
+    if (--obstacleScope === 0) obstacleCache = null;
+  }
+}
+// footprints built so far (tests: one per wall/item per scope)
+export function measureFootprintBuilds() {
+  return footprintBuilds;
+}
+function measureObstacles() {
+  var c = obstacleCache;
+  if (c && c.walls === S.walls && c.items === S.items) return c;
+  c = { walls: S.walls, items: S.items, wallFaces: new Map(), itemCs: new Map() };
+  if (obstacleScope) obstacleCache = c;
+  return c;
+}
+/* The ray against the wall's own thick footprint, end faces included.
+   Hitting the centreline and taking off t/2 was right only square-on
+   (4 cm short of the truth for a 20 cm wall at 45°) and missed a wall
+   whose end, not its line, stands in the way. null: a zero-length wall. */
+function wallFaceQuad(c, w) {
+  if (c.wallFaces.has(w)) return c.wallFaces.get(w);
+  footprintBuilds++;
+  var gm = wallGeom(w), quad = null;
+  if (gm.L > 0) {
+    var h = (w.thickness || 0) / 2, nx = -gm.uz * h, nz = gm.ux * h;
+    quad = [
+      { x: gm.a.x + nx, z: gm.a.z + nz }, { x: gm.b.x + nx, z: gm.b.z + nz },
+      { x: gm.b.x - nx, z: gm.b.z - nz }, { x: gm.a.x - nx, z: gm.a.z - nz },
+    ];
+  }
+  c.wallFaces.set(w, quad);
+  return quad;
+}
+function itemCornersCached(c, o) {
+  var cs = c.itemCs.get(o);
+  if (!cs) {
+    footprintBuilds++;
+    cs = itemCorners(o);
+    c.itemCs.set(o, cs);
+  }
+  return cs;
+}
 export function measure4(ox, oz, ownCs, skip, options) {
   options = options || {};
   var target = options.target || "nearest";
   var wallIds = options.wallIds || null;
   var both = target === "both";
   var out = [];
+  var obs = measureObstacles();
   DIRS4.forEach(function (d) {
     var ownT = ownCs ? rayToCorners(ox, oz, d.dx, d.dz, ownCs) : 0;
     if (ownT === null) return;
@@ -79,17 +133,9 @@ export function measure4(ox, oz, ownCs, skip, options) {
     S.walls.forEach(function (w) {
       if (target === "object") return;
       if (target === "manual" && (!wallIds || wallIds.indexOf(w.id) === -1)) return;
-      /* The ray against the wall's own thick footprint, end faces included.
-         Hitting the centreline and taking off t/2 was right only square-on
-         (4 cm short of the truth for a 20 cm wall at 45°) and missed a wall
-         whose end, not its line, stands in the way. */
-      var gm = wallGeom(w);
-      if (!(gm.L > 0)) return;
-      var h = (w.thickness || 0) / 2, nx = -gm.uz * h, nz = gm.ux * h;
-      var face = rayToCorners(ox, oz, d.dx, d.dz, [
-        { x: gm.a.x + nx, z: gm.a.z + nz }, { x: gm.b.x + nx, z: gm.b.z + nz },
-        { x: gm.b.x - nx, z: gm.b.z - nz }, { x: gm.a.x - nx, z: gm.a.z - nz },
-      ]);
+      var quad = wallFaceQuad(obs, w);
+      if (!quad) return;
+      var face = rayToCorners(ox, oz, d.dx, d.dz, quad);
       if (face === null) return;
       if (face > ownT + 0.5 && (wallT === null || face < wallT)) wallT = face;
     });
@@ -97,7 +143,7 @@ export function measure4(ox, oz, ownCs, skip, options) {
     S.items.forEach(function (o) {
       if (target === "wall" || target === "manual") return;
       if (o === skip || isLamp(o)) return;
-      var tt = rayToCorners(ox, oz, d.dx, d.dz, itemCorners(o));
+      var tt = rayToCorners(ox, oz, d.dx, d.dz, itemCornersCached(obs, o));
       if (tt !== null && tt > ownT + 0.5 && (itemT === null || tt < itemT)) itemT = tt;
     });
 
@@ -148,16 +194,19 @@ export function markerClearMap(m, held) {
 export function measureSides(it, options) {
   options = options || {};
   if (!it) return [];
-  var poly = itemOutline(it, options.pose);
+  // `outline`: measure from this instead (a group's cover, js/group_frame.js; `it` is its lead)
+  var poly = options.outline || itemOutline(it, options.pose);
   var target = options.target || "nearest", walls = planWalls(target, options.wallIds || []);
-  var others = target === "wall" || target === "manual" ? [] : (S.items || []).filter(function (o) {
-    return o && sideObstacle(it, o, options.skip);
+  var inStack = target === "wall" || target === "manual" ? null : stackMembership(it);
+  var others = !inStack ? [] : (S.items || []).filter(function (o) {
+    return o && sideObstacle(it, o, options.skip, inStack);
   }).map(function (o) { return { id: o.id, poly: itemOutline(o) }; });
   var rot = options.pose && options.pose.rot != null ? options.pose.rot : it.rot;
   var dirs = sideDirs(rot, isRoundItem(it), walls, poly);
   var hits = floorClearances({
     poly: poly, dirs: dirs, walls: walls, others: others,
     max: options.max, near: options.near, nearCount: options.nearCount,
+    behind: target === "nearest", // a side a piece blocks still reports its wall
   });
   // doors and windows in the walls it stands against (js/opening_clearance.js)
   if (!walls.length || !(S.openings && S.openings.length)) return hits;
@@ -207,8 +256,9 @@ export function measureVertical(it, options) {
   var span = itemVSpan(it), elev = Number(it.elev) || 0;
   if (!span || !Number.isFinite(span.hi)) span = { lo: elev, hi: elev + (Number(it.h) || 0) };
   var target = options.target || "nearest";
-  var others = target === "wall" || target === "manual" ? [] : (S.items || []).filter(function (o) {
-    return o && o !== it && !inStack(it, o) && !FLAT_TYPES[o.type];
+  var inStack = target === "wall" || target === "manual" ? null : stackMembership(it);
+  var others = !inStack ? [] : (S.items || []).filter(function (o) {
+    return o && o !== it && !inStack(o) && !FLAT_TYPES[o.type];
   }).map(function (o) {
     var s = knownVSpan(o);
     if (!s) measureVSpanSoon(o);
@@ -229,10 +279,25 @@ export function measureVertical(it, options) {
 }
 
 // is `o` what `it` stands on (down its host chain) or something riding on it?
-function inStack(it, o) {
-  for (var h = hostOf(it), n = 0; h && n < 32; h = hostOf(h), n++) if (h === o) return true;
-  for (var a = o, k = 0; a && a.on != null && k < 32; k++) { a = hostOf(a); if (a === it) return true; }
-  return false;
+function stackMembership(it) {
+  var byId, ancestors = new Set();
+  function host(item) {
+    if (item.on == null || Number.isNaN(item.on)) return null;
+    if (!byId) {
+      byId = new Map();
+      for (const o of S.items || []) {
+        if (o && !byId.has(o.id)) byId.set(o.id, o);
+      }
+    }
+    return byId.get(item.on);
+  }
+  var parent = it;
+  for (var n = 0; n < 32 && (parent = host(parent)); n++) ancestors.add(parent);
+  return function (o) {
+    if (ancestors.has(o)) return true;
+    for (var k = 0; k < 32 && (o = host(o)); k++) if (o === it) return true;
+    return false;
+  };
 }
 
 /* Is `o` in the way of `it` on the floor? Not lamps, not flat pieces (a
@@ -241,10 +306,9 @@ function inStack(it, o) {
    pendant over a table). A span still unmeasured counts as in the way and is
    measured soon (the plan repaints on "vspan:ready"). */
 var FLAT_TYPES = { rug: true };
-function sideObstacle(it, o, skip) {
+function sideObstacle(it, o, skip, inStack) {
   if (o === it || (skip && skip.has(o)) || isLamp(o) || FLAT_TYPES[o.type]) return false;
-  for (var h = hostOf(it), n = 0; h && n < 32; h = hostOf(h), n++) if (h === o) return false;
-  for (var a = o, k = 0; a && a.on != null && k < 32; k++) { a = hostOf(a); if (a === it) return false; }
+  if (inStack(o)) return false;
   var mine = itemVSpan(it), span = knownVSpan(o);
   if (!span) { measureVSpanSoon(o); return true; }
   if (span.hi - span.lo < 3) return false;

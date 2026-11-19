@@ -21,9 +21,12 @@ function voidHitsRoom(opening, bounds) {
 // edits. Openings in walls do not affect this conservative floor-solid test.
 // Non-JSON node containers (supported by wallCurveGeom) use the uncached path.
 const solidAnalyses = new WeakMap();
+function withoutImages(key, value) {
+  return typeof value === 'string' && value.startsWith('data:') ? undefined : value;
+}
 function projectSolidIndex(state) {
   if (!Array.isArray(state.nodes)) return solidIndex(state);
-  const signature=JSON.stringify([state.nodes,state.walls,state.wallTypes || []]);
+  const signature=JSON.stringify([state.nodes,state.walls,state.wallTypes || []], withoutImages);
   const saved=solidAnalyses.get(state);
   if(saved?.signature===signature)return saved.index;
   const index=solidIndex(state);
@@ -33,10 +36,10 @@ function projectSolidIndex(state) {
 
 // Sorted x bounds plus prefix maxima let a room skip distant wall solids.
 function solidIndex(state) {
-  const catalog = JSON.parse(JSON.stringify({wallTypes:state.wallTypes || [],walls:[]}));
+  const catalog = JSON.parse(JSON.stringify({wallTypes:state.wallTypes || [],walls:[]}, withoutImages));
   const invalid = [], solids = [];
   for (const original of state.walls) {
-    const wall = JSON.parse(JSON.stringify(original));
+    const wall = JSON.parse(JSON.stringify(original, withoutImages));
     const geom = wallCurveGeom(wall,state.nodes);
     if (!geom) { invalid.push(String(original.id)); continue; }
     const bands = wallLayerBands(wall,catalog);
@@ -83,10 +86,15 @@ export function roomClearArea(state, room) {
   return clearArea(state, room, () => projectSolidIndex(state));
 }
 
-export function floorClearAreas(state, rooms) {
+export function roomAreaPass(state) {
   let index;
   const getIndex=()=>index ||= projectSolidIndex(state);
-  const entries = rooms.map(room=>({key:room.key,...clearArea(state,room,getIndex),type:roomTypeOf(state.roomMeta?.[room.key])}));
+  return room => clearArea(state, room, getIndex);
+}
+
+export function floorClearAreas(state, rooms) {
+  const area = roomAreaPass(state);
+  const entries = rooms.map(room=>({key:room.key,...area(room),type:roomTypeOf(state.roomMeta?.[room.key])}));
   const overlapping = new Set();
   const sorted=entries.map((entry,index)=>({bounds:entry.bounds,index})).filter(e=>e.bounds).sort((a,b)=>a.bounds.x0-b.bounds.x0);
   for(let i=0;i<sorted.length;i++)for(let j=i+1;j<sorted.length&&sorted[j].bounds.x0<sorted[i].bounds.x1-1e-6;j++){

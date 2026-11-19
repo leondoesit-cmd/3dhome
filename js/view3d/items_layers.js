@@ -1,6 +1,8 @@
 /* The 3D view's shadow walls, layer roots, ghosts, furniture cache and item
    sync, split out of js/view3d.js. It shares the editor's state through live
    imports from ../view3d.js. */
+import { itemMeshSignature } from "./item_signature.js";
+import { wallXrayOpacity } from "../build3d_prefs.js";
 import { buildBlueprintUnderlay3D } from "../blueprint_3d.js";
 import { updateCabinetRuntimeMesh } from "../cabinet_mesh.js";
 import { createPreciseBoundsCache } from "../core/precise_bounds_cache.js";
@@ -8,7 +10,7 @@ import { refreshRuntimePlacements } from "../core/runtime.js";
 import { createWallBuildKeys } from "../core/wall_build_key.js";
 import { FURN } from "../furniture.js";
 import { contentBounds, detectRooms, hiddenSets, roomByKey, roomFloor, roomHidden, roomName, wallById, wallGeom, wallPointAt, wallTangentAt } from "../geometry.js";
-import { legacyIntensity } from "../gpu.js";
+import { bindWindowOccluders, exteriorWindow, followDoorShadow, trackDaylightDoor, WINDOW_ANGLE, WINDOW_PENUMBRA } from "./backdrop.js";
 import { isLayerGhosted, isLayerVisible, layerRank } from "../layers.js";
 import { buildMEP3D } from "../mep.js";
 import { mergeMEPMeshes } from "../mep/merge3d.js";
@@ -18,29 +20,31 @@ import { clearPhysics, isPhysicsEnabled } from "../physics_facade.js";
 import { box, floorTexture, groundTexture, polyMesh, worldUVs } from "../primitives.js";
 import { roofMeshTriangles } from "../roof.js";
 import { holesForRoom, openingCorners, slabOpenings } from "../slab_openings.js";
-import { FLOOR, S, TILE, WALLC, WALL_T, clamp } from "../state.js";
+import { FLOOR, S, TILE, WALLC, clamp } from "../state.js";
 import { buildSurveyGeometry } from "../survey_mesh.js";
 import { getTexturePresetBumpUrl } from "../textures.js";
 import { THREE } from "../three_lazy.js";
 import { itemUserVis } from "../user_layers.js";
 import { applySite } from "../view3d/gizmo_env.js";
-import { buildBounceLights, fitPracticalLights, initPhysicsForScene, roomContaining, roomReach, schedulePrewarm } from "../view3d/lighting.js";
+import { buildBounceLights, fitBounceLights, fitPracticalLights, initPhysicsForScene, itemBouncePlacement, schedulePrewarm } from "../view3d/lighting.js";
 import { settleSeeFades, updateSeeThrough, warmFadePipelines } from "../view3d/see_through.js";
 import { cutH, cutH0, makeShadowOnly } from "../view3d/site_cutaway.js";
+import { mepRebuiltEvent } from "../view3d/stack_band.js";
 import { buildSiteDressing, mepXray } from "../view3d/walk_mode.js";
 import { buildItem, buildWall, hasHeightMismatchedJoin, placeItem, releaseItemLights, releaseLight, takeLight } from "../view3d/wall_build.js";
+import { addXrayEdges } from "../view3d/xray_edges.js";
 import { normalizeWallKind, normalizeWallProfile } from "../wall_curves.js";
 import { ensureWallTypes } from "../wall_types.js";
 import {
-  GHOST_OPACITY, catalogRev, dyn, gameRendererLock, itemCache, itemsRoot,
-  markShadowRegion, mepRoot, plannerShadowsEnabled, ready3D, renderer,
+  GHOST_OPACITY, catalogRev, dyn, extTick, gameRendererLock, itemCache, itemsRoot,
+  markShadowRegion, mepRoot, plannerShadowsEnabled, ready3D, relightHooks, renderer,
   retireGroup, reusableWalls, scene, seeStubs, selectionBoundsCache,
   set_buildingShadowWalls, set_drawingHoverObj, set_drawingWalls,
   set_groundPlaneRef, set_itemsRoot, set_mepRoot, set_needsRender,
   set_reusableWalls, set_selectionBoundsCache, set_shadowRoot,
   set_shadowStandIns, set_shadowsDirty, set_shadowsFromRebuild,
   set_structureRoot, set_stubRoot, set_wallBuildArgs, set_windowLights,
-  shadowRoot, structureRoot, stubRoot, surfaceMaterial, svBox, wallBuildArgs,
+  shadowRoot, structureRoot, stubRoot, sun, surfaceMaterial, svBox, wallBuildArgs,
   windowLights,
 } from "../view3d.js";
 
@@ -60,7 +64,11 @@ function buildShadowWalls(hid) {
   } finally {
     set_buildingShadowWalls(false);
     set_structureRoot(keepRoot);
-    if (scene.doors) scene.doors.length = doorCount;
+    if (scene.doors) {
+      const visibleDoors = new Map(scene.doors.slice(0, doorCount).map(d => [d.userData.opening, d]));
+      for (const caster of scene.doors.splice(doorCount))
+        followDoorShadow(visibleDoors.get(caster.userData.opening), caster);
+    }
   }
   tmp.children.slice().forEach(function (g) { shadowRoot.add(makeShadowOnly(g)); });
 }
@@ -204,20 +212,9 @@ function selected3DBox() {
   return box.expandByScalar(2);
 }
 
-function itemSig(it) {
-  try {
-    // Canonical definitions can change independently of their placed item.
-    // Include their complete data so an explicit build request cannot retain
-    // stale geometry, derived bounds or rules after a definition edit.
-    return catalogRev + "|" + JSON.stringify({ item: it, definition: S.parametric?.definitions?.[it.definitionId] }, function (k, v) {
-      // only the piece's OWN placement is transform-only. A nested x/z inside a
-      // custom model's part list genuinely changes its shape, so `this === it`
-      // keeps the exclusion to the top level.
-      return this === it && (k === "x" || k === "z" || k === "rot") ? 0 : v;
-    });
-  } catch (e) {
-    return null; // unserialisable -> never matches, so it always rebuilds
-  }
+function itemSig(it, definitions) {
+  return itemMeshSignature(it, FURN[it.type], S.parametric?.definitions?.[it.definitionId],
+    catalogRev, isPhysicsEnabled(), definitions);
 }
 
 function disposeSubtree(o) {
@@ -255,17 +252,20 @@ function buildAndCache(it) {
 // Reconcile itemsRoot against S.items: build what is new or changed, drop what
 // is gone or hidden, and merely re-transform everything else.
 function syncItems(hid) {
+  const definitions = new Map();
   var live = {};
   S.items.forEach(function (it) {
     if (hid.items[it.id]) return;
     live[it.id] = 1;
     var c = itemCache.get(it.id);
     // a piece merged for drawing is rebuilt whole for the physics sandbox, and back
-    if (c && c.sig != null && c.sig === itemSig(it) && !!c.g.userData.partsMerged === !isPhysicsEnabled()) {
+    if (c && c.sig != null && c.sig === itemSig(it, definitions) && !!c.g.userData.partsMerged === !isPhysicsEnabled()) {
       placeItem(c.g, it);
       syncUserGhost(c.g);
       return;
     }
+    // A procedural builder can upgrade its item's canonical definition.
+    definitions.delete(S.parametric?.definitions?.[it.definitionId]);
     var g = buildAndCache(it);
     if (g) syncUserGhost(g);
   });
@@ -294,7 +294,6 @@ function syncUserGhost(g) {
 /* Drain S.items3D — the cheap path a drag or an inspector edit uses instead of
    S.dirty3D. Anything it cannot do piecewise escalates to a full rebuild. */
 function applyItemOps() {
-  schedulePrewarm(); // new or changed pieces: their shaders for the other shadow sets
   // nothing has been built yet — there is no cached group to update
   if (!itemsRoot) {
     S.items3D.clear();
@@ -305,7 +304,8 @@ function applyItemOps() {
   S.items.forEach(function (it) {
     byId[it.id] = it;
   });
-  var escalate = false, region = new THREE.Box3(), lampMoved = false;
+  var escalate = false, region = new THREE.Box3(), movedLampGroups = new Set(), materialsChanged = false;
+  let bounceChanged = false;
   S.items3D.forEach(function (mode, id) {
     var it = byId[id],
       c = itemCache.get(id);
@@ -317,15 +317,20 @@ function applyItemOps() {
     }
     // where the piece was and where it lands: both shadows change
     region.union(new THREE.Box3().setFromObject(c.g));
-    if (FURN[it.type] && FURN[it.type].lamp) lampMoved = true;
-    if (mode === "move") placeItem(c.g, it);
-    else {
+    if (FURN[it.type]?.lamp || FURN[it.type]?.taskLamp) movedLampGroups.add(c.g);
+    if (mode === "move") {
+      const before = !bounceChanged && itemBouncePlacement(c.g);
+      placeItem(c.g, it);
+      if (!bounceChanged) bounceChanged = before !== itemBouncePlacement(c.g);
+    } else {
+      bounceChanged = true;
       var signature = itemSig(it);
       if (signature != null && signature === c.sig) placeItem(c.g, it);
       else if (c.catalogRev === catalogRev && updateCabinetRuntimeMesh(c.g, it)) {
         placeItem(c.g, it);
         c.sig = itemSig(it);
       } else if (!buildAndCache(it)) escalate = true;
+      else materialsChanged = true;
     }
     var now = itemCache.get(id);
     if (now) region.union(new THREE.Box3().setFromObject(now.g));
@@ -334,7 +339,11 @@ function applyItemOps() {
   /* A lamp carried into another room, or out of the house, takes its range
      clip and its shadow with it: left alone it kept the old room's settings
      and lit the rooms through the walls from outside. */
-  if (lampMoved) fitPracticalLights();
+  if (materialsChanged) {
+    schedulePrewarm();
+    fitPracticalLights();
+  } else if (movedLampGroups.size) fitPracticalLights(movedLampGroups);
+  if (bounceChanged || escalate) fitBounceLights();
   markShadowRegion(region);
   set_needsRender(true);
   /* A piece rebuilt on this path arrives with fresh, solid materials, so a
@@ -350,19 +359,24 @@ function applyItemOps() {
 // Zero opacity keeps the camera and AO pass clear. The renderer's shadow
 // override uses opaque depth for these untextured, double-sided surfaces.
 function plannerCeilingMaterial(xray) {
-  // An opaque ceiling gets the baked paint (polyMesh uv: one unit per 160 cm).
-  if (S.showCeiling && !xray) {
-    var paint = surfaceMaterial(materialById("ceiling_paint"), {
-      repeat: [160 / 200, 160 / 200], tint: 0xf3efe6, side: THREE.DoubleSide,
-    });
-    if (paint) return paint;
-  }
-  return new THREE.MeshStandardMaterial({
+  // A cut or x-ray changes visibility. The paint still returns precisely
+  // the same spectrum to the room whether its underside is drawn or hidden.
+  var paint = surfaceMaterial(materialById("ceiling_paint"), {
+    repeat: [160 / 200, 160 / 200], tint: 0xf3efe6, side: THREE.DoubleSide,
+  });
+  if (S.showCeiling && !xray && paint) return paint;
+  var material = new THREE.MeshStandardMaterial({
     color: 0xf3efe6, roughness: 0.96, side: THREE.DoubleSide,
     transparent: !S.showCeiling || xray,
     opacity: xray ? 0.18 : S.showCeiling ? 1 : 0,
     depthWrite: !!S.showCeiling && !xray,
   });
+  if (paint) {
+    material.bounceTint = paint.bounceTint || paint.color;
+    material.bounceMap = paint.bounceMap || paint.map;
+    material.bounceMetalMap = paint.bounceMetalMap;
+  }
+  return material;
 }
 
 function renewWallMaterials(group) {
@@ -393,10 +407,33 @@ function reusableWallKey(w, color, texture, keyForWall) {
   var bands = w.layers && w.layers.length ? w.layers : type && type.layers;
   if (!bands) return null;
   if (bands.some(function (band) { return band.framing || band.role === 'glazing' || /glass/i.test(String(band.material)); })) return null;
-  return keyForWall(w, { color: color, cut: String(cutH()), xray: mepXray('walls') });
+  return keyForWall(w, { color: color, cut: String(cutH()), xray: mepXray('walls') ? wallXrayOpacity() : false });
 }
-export function rebuild3D() {
+// The ground, site dressing and sun camera depend on the bounds at the last
+// structural build. A move wholly inside them leaves all three in place.
+var builtContentBounds;
+export function finishItemDrop3D() {
+  if (S.dirty3D) return;
+  var item = S.sel?.kind === "item" && S.sel.ref;
+  var fixture = item && itemCache.get(item.id)?.g.fixture;
+  if (fixture && builtContentBounds && !extTick && !gameRendererLock && !isPhysicsEnabled()) {
+    var bounds = contentBounds(), old = builtContentBounds;
+    if (bounds.minx === old.minx && bounds.maxx === old.maxx &&
+        bounds.minz === old.minz && bounds.maxz === old.maxz) {
+      var hidden = hiddenSets().items;
+      if (S.items.every(it => itemCache.has(it.id) === !hidden[it.id])) {
+        // Kept distances and mounts queue any final transforms themselves.
+        // The selected piece also sets the aim point of the near-wall cut.
+        updateSeeThrough(true);
+        return;
+      }
+    }
+  }
+  S.dirty3D = true;
+}
+export function rebuild3D(relight) {
   if (!ready3D) return;
+  const plannerRelight = relight && !extTick && !gameRendererLock && !relightHooks.length;
   refreshRuntimePlacements(S);
   // Normalize every arm before forming dependency keys (builders normalize too).
   ensureWallTypes(S);
@@ -443,7 +480,7 @@ export function rebuild3D() {
   mepRoot.userData.layerRoot = "mep";
   dyn.add(structureRoot);
   scene.doors = [];
-  var bb = contentBounds();
+  var bb = builtContentBounds = contentBounds();
   /* The lawn grows in 10 m steps, not with every wall move: its texture repeat
      is part of the material, so each new size was a new shader (the lit one
      and one per shadow pass, ~200 ms of every rebuild while a wall was
@@ -483,7 +520,7 @@ export function rebuild3D() {
       // finished load replaces on the rebuild it triggers.
       var floorPbr = customTex ? pbrEntryFor(customTex) : pbrEntryFor("floor:" + t);
       if (floorPbr) {
-        var pbrFloor = surfaceMaterial(floorPbr, { side: THREE.DoubleSide, envMapIntensity: 0.7 });
+        var pbrFloor = surfaceMaterial(floorPbr, { side: THREE.DoubleSide });
         if (pbrFloor) {
           matCache[key] = pbrFloor;
           return pbrFloor;
@@ -494,7 +531,7 @@ export function rebuild3D() {
           else customTex = legacyTextureUrl(floorPbr);
         }
       }
-      // per-material sheen so polished floors reflect the environment (IBL) like a showroom
+      // Surface roughness sets the reflection lobe; all finishes see the same sky.
       var FLOOR_ROUGH = {
         epoxy: 0.12,
         marble: 0.18,
@@ -522,7 +559,6 @@ export function rebuild3D() {
       var mat = new THREE.MeshStandardMaterial({
         roughness: customTex ? 0.55 : FLOOR_ROUGH[t] != null ? FLOOR_ROUGH[t] : 0.65,
         metalness: 0.04,
-        envMapIntensity: 0.7,
         side: THREE.DoubleSide,
       });
       var bumpScale = customBump != null ? customBump : 0.20;
@@ -530,7 +566,7 @@ export function rebuild3D() {
       if (customTex) {
         if (!S.customTexCache) S.customTexCache = {};
         if (!S.customTexCache[customTex]) {
-          var tx = new THREE.TextureLoader().load(customTex, function() { S.repaint3D = true; });
+          var tx = new THREE.TextureLoader().load(customTex, function() { fitBounceLights(); S.repaint3D = true; });
           tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
           tx.colorSpace = THREE.SRGBColorSpace;
           S.customTexCache[customTex] = tx;
@@ -605,6 +641,7 @@ export function rebuild3D() {
         m.castShadow = !xrayFloor;
         // named so an export can say WHICH room's floor this is (blender_names.js)
         m.userData.role = "floor";
+        m.userData.roomKey = r.key;
         m.userData.roomLabel = roomName(r.key) || "";
         m.userData.finish = t || "";
         structureRoot.add(m);
@@ -704,7 +741,8 @@ export function rebuild3D() {
       var jMat = new THREE.MeshStandardMaterial({ color: jCol, roughness: 0.9 });
       if (xrayWalls) {
         jMat.transparent = true;
-        jMat.opacity = 0.18;
+        jMat.opacity = wallXrayOpacity();
+        jMat.userData.wallXray = true;
         jMat.depthWrite = false;
       }
       var t1 = w.thickness || 10, t2 = w2.thickness || 10;
@@ -729,7 +767,7 @@ export function rebuild3D() {
         jm.receiveShadow = !xrayWalls;
         jm.castShadow = !xrayWalls;
         jm.userData.role = "jamb";
-        structureRoot.add(jm);
+        structureRoot.add(jm); if (xrayWalls) addXrayEdges(THREE, jm);
       });
       // Cover passage bridges as well as the enclosed rooms. Built even with
       // ceilings off (at opacity 0, like the rooms'): it still shades the floor.
@@ -761,6 +799,7 @@ export function rebuild3D() {
            leaving an export to guess from the material why a ceiling it can see
            in the outliner is invisible in the viewport. */
         m.userData.role = S.showCeiling || xrayCeiling ? "ceiling" : "ceilingHidden";
+        m.userData.roomKey = r.key;
         m.userData.roomLabel = roomName(r.key) || "";
         structureRoot.add(m);
       }
@@ -882,43 +921,29 @@ export function rebuild3D() {
       else structureRoot.add(roofMesh);
     }
   }
-  // daylight through each WINDOW (soft sky light at the opening, scaled by daylight)
+  // Capture live leaf transforms as well as the saved door state, so both
+  // sky admission and portal-to-portal bounce follow the moving aperture.
+  (scene.doors || []).forEach(d => {
+    if (d.userData.opening) trackDaylightDoor(d.userData.opening, d);
+  });
+  // Only exterior, unpaired openings have an independent view of the sky.
   windowLights.forEach(releaseLight); // same lights back, same shaders (see takeLight)
   set_windowLights([]);
   S.openings.forEach(function (o) {
-    if (o.type !== "window") return;
     if (hid.walls[o.wall]) return;
-    var w = wallById(o.wall);
-    if (!w) return;
-    var gm = wallGeom(w);
-    var s = clamp(o.s, o.width / 2, gm.L - o.width / 2),
-      y = o.sill + o.height / 2;
-    var winDist = Math.max(o.width, o.height) * 4 + 260;
-    var wp = wallPointAt(w, s);
-    // Sky light pours IN through the glass: a wide spot just inside the room
-    // the window serves, aimed into it and slightly down, with its throw
-    // stopped at that room (its far corner, and while it does not cast, the
-    // room mask: see fitLightMasks). A point light on the wall centre line lit the
-    // facade and the room behind a partition as much as the room with the
-    // window, and pulled inside it burned a hotspot onto the window wall.
-    var inset = (w.thickness || WALL_T) / 2 + 4, lightRoom = null, lx = wp.x, lz = wp.z, nx = 0, nz = 0;
-    [1, -1].some(function (side) {
-      var px = wp.x - gm.uz * inset * side, pz = wp.z + gm.ux * inset * side;
-      lightRoom = roomContaining(px - gm.uz * 30 * side, pz + gm.ux * 30 * side);
-      if (lightRoom) { lx = px; lz = pz; nx = -gm.uz * side; nz = gm.ux * side; }
-      return !!lightRoom;
-    });
-    var throwCm = lightRoom ? Math.min(winDist, roomReach(lightRoom, lx, lz, y)) : winDist;
-    var pl = lightRoom
-      ? takeLight("SpotLight", 0xcfe2f2, legacyIntensity(0.9, winDist) * S.dayK, throwCm, 2, Math.PI * 0.44, 1)
-      : takeLight("PointLight", 0xcfe2f2, legacyIntensity(0.9, winDist) * S.dayK, winDist, 2);
+    var aperture = exteriorWindow(o, wallById(o.wall), rooms);
+    if (!aperture || roomHidden(aperture.room.key)) return;
+    bindWindowOccluders(aperture, THREE, [structureRoot, shadowRoot]);
+    var { x, y, z, nx, nz, baseI, reach } = aperture;
+    var pl = takeLight("SpotLight", 0xffffff, baseI * (S.windowSkyK || 0), reach, 2, WINDOW_ANGLE, WINDOW_PENUMBRA);
     windowLights.push(pl);
-    pl.position.set(lx, y, lz);
-    if (lightRoom) {
-      pl.target.position.set(lx + nx * 200, y - 70, lz + nz * 200);
-      dyn.add(pl.target);
-    }
-    pl.userData.baseI = legacyIntensity(0.9, winDist);
+    pl.position.set(x, y, z);
+    pl.target.position.set(x + nx * 200, y - 70, z + nz * 200);
+    dyn.add(pl.target);
+    if (sun?.userData.windowSkyColor) pl.color.copy(sun.userData.windowSkyColor);
+    pl.userData.aperture = aperture;
+    pl.userData.sourceRadius = Math.sqrt(aperture.area / Math.PI);
+    pl.userData.baseI = baseI;
     pl.userData.win = true;
     /* Daylight is LIGHTING, not structure: it hangs off `dyn` rather than
        structureRoot so that ghosting the walls to read the plan through them
@@ -927,8 +952,8 @@ export function rebuild3D() {
   });
   dyn.add(itemsRoot);
   syncItems(hid);
-  fitPracticalLights();
-  buildBounceLights(rooms);
+  if (!plannerRelight) fitPracticalLights();
+  buildBounceLights(rooms, !!plannerRelight);
   // MEP conduits + device markers embedded in the model. buildMEP3D takes its
   // parent, and returns early on its own m.show / m.show3D flags — those stay
   // as filters ON TOP of the mep layer, which owns the root's visibility.
@@ -957,8 +982,10 @@ export function rebuild3D() {
   updateSeeThrough(true);
   warmFadePipelines();
   applyLayers3D(); // the roots are brand new too: re-apply hide/ghost to them
+  if (plannerRelight) relight();
   // external modes (RC race) rebuild their collision snapshot off this event
   window.dispatchEvent(new Event("scene3d:rebuilt"));
+  if (relight && !plannerRelight) relight(); // external rigs listen to both events in this order
 }
 
 /* The infrastructure changed and nothing else did (a system shown or hidden,
@@ -983,7 +1010,8 @@ export function rebuildMEP3D() {
   mergeMEPMeshes(mepRoot, THREE);
   applyLayers3D();
   set_needsRender(true);
-  window.dispatchEvent(new Event("scene3d:rebuilt"));
+  // same event as rebuild3D's, marked MEP-only (js/view3d/stack_band.js)
+  window.dispatchEvent(mepRebuiltEvent());
   return true;
 }
 

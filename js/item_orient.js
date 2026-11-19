@@ -27,7 +27,8 @@
    `S.autoFace = false` turns it off for good. */
 import { S } from "./state.js";
 import { wallProject, wallTangentAt, wallGeom, wallPointAt } from "./geometry.js";
-import { resolveItemDrag } from "./item_wall_snap.js";
+import { footReach, resolveItemDrag } from "./item_wall_snap.js";
+import { wallDatumOffset } from "./wall_types.js";
 
 function norm(deg) {
   return ((deg % 360) + 360) % 360;
@@ -177,15 +178,16 @@ export function backToWallRot(it, x, z, reach) {
 
 /* backToWallRot's wall, with where the piece's centre goes for its back to
    sit on that wall's face: { rot, x, z } or null. */
-export function backToWallFit(it, x, z, reach) {
+export function backToWallFit(it, x, z, reach, requiredRot) {
   var best = null,
-    bestGap = reach == null ? WALL_REACH : reach,
-    depth = num(it && it.d) / 2;
+    bestGap = reach == null ? WALL_REACH : reach;
   (S.walls || []).forEach(function (w) {
+    if (w.physical === false) return;
     var g = wallGeom(w),
       hit = wallProject(w, x, z);
     if (!g || !hit || !isFinite(g.L) || g.L <= 0) return;
-    if (hit.s < -SPAN_SLACK || hit.s > g.L + SPAN_SLACK) return;
+    var alongEnd = (x - hit.x) * hit.tangent.x + (z - hit.z) * hit.tangent.z;
+    if (Math.abs(alongEnd) > SPAN_SLACK) return;
     var tan = wallTangentAt(w, hit.s) || { x: g.ux, z: g.uz },
       nx = -tan.z,
       nz = tan.x,
@@ -198,14 +200,36 @@ export function backToWallFit(it, x, z, reach) {
     }
     // the gap between the piece's BACK and the wall's face; |…| so a piece
     // dropped straddling the wall still resolves rather than being ignored
-    var gap = Math.abs(Math.abs(hit.distance) - num(w.thickness) / 2 - depth);
+    var rot = rotFacing(nx, nz);
+    if (requiredRot != null && rot !== norm(requiredRot)) return;
+    var off = wallContactOffset({ ...it, rot }, w, g, hit, side < 0 ? -1 : 1);
+    if (!Number.isFinite(off)) return;
+    var gap = Math.abs(Math.abs(hit.signedOffset) - off);
     if (gap < bestGap) {
       bestGap = gap;
-      var off = num(w.thickness) / 2 + depth;
-      best = { rot: rotFacing(nx, nz), x: hit.x + nx * off, z: hit.z + nz * off };
+      best = { rot, x: hit.x + nx * off, z: hit.z + nz * off, wall: w };
     }
   });
   return best;
+}
+
+// Centre distance from the reference line for contact with a finished face.
+// Inside a circular wall the back corners touch first. Their radial distances
+// must both fit the inner radius even when the footprint is oblique.
+export function wallContactOffset(it, wall, geom, hit, side) {
+  const datum = wall.datum && wall.datum !== "center" ? wallDatumOffset(wall, S) : 0;
+  const face = num(wall.thickness)/2 - side*datum;
+  const tx = hit.tangent.x, tz = hit.tangent.z, nx = -tz*side, nz = tx*side;
+  let offset = face + footReach(it, nx, nz);
+  if (!geom.curve || Math.sign(geom.curve.sweep) !== side) return offset;
+  const radius = geom.curve.radius, inner = radius - face;
+  const a = num(it.rot)*Math.PI/180, c = Math.cos(a), s = Math.sin(a);
+  for (const u of [-it.w/2,it.w/2]) for (const v of [-it.d/2,it.d/2]) {
+    const dx = u*c-v*s, dz = u*s+v*c, tangent = dx*tx+dz*tz;
+    if (Math.abs(tangent) >= inner) return Infinity;
+    offset = Math.max(offset, radius-Math.sqrt(inner*inner-tangent*tangent)-dx*nx-dz*nz);
+  }
+  return offset;
 }
 
 /* Where a piece dropped near a wall stands: back on the wall's face. Facing

@@ -92,6 +92,63 @@ test("scenes change every matching appliance in the plan", () => {
   assert.equal(b.smart.on, false);
 });
 
+test("tunable white preserves dimming, colour mode and hub temperature units", () => {
+  squareRoom();
+  const it = lamp(3, 10, 10);
+  const set = patch => applyCommand(it, patch, { silent: true });
+  set({ brightness: 70 });
+  assert.equal(it.lightColor, undefined, "a dimmer keeps the spectrum of the catalogue bulb");
+  set({ on: true, brightness: 38, colorTemp: 500 });
+  const warm = it.lightColor;
+  // At 2000 K the Planckian locus is near CIE (0.527, 0.413).
+  function xy(hex) {
+    const c = [16, 8, 0].map(shift => ((hex >> shift) & 255) / 255)
+      .map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+    const [r, g, b] = c;
+    const X = 0.4124 * r + 0.3576 * g + 0.1805 * b;
+    const Y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    const Z = 0.0193 * r + 0.1192 * g + 0.9505 * b;
+    return [X / (X + Y + Z), Y / (X + Y + Z)];
+  }
+  const [x, y] = xy(warm);
+  assert.ok(Math.abs(x - 0.527) < 0.002 && Math.abs(y - 0.413) < 0.002);
+  set({ colorTemp: 153 });
+  assert.equal(it.lightI, 0.38);
+  assert.ok((it.lightColor & 255) > (warm & 255));
+  const hue = hueStateFrom(it, { brightness: 50 });
+  assert.equal(hue.ct, 153);
+  assert.equal(hue.hue, undefined);
+  assert.equal(hue.bri, 127);
+  setBinding(it.id, { proto: "ha", entityId: "light.bedside" });
+  assert.equal(haServiceFor(it, { colorTemp: 400 }).data.color_temp_kelvin, 2500);
+  set(stateFromHaEntity({ entity_id: "light.bedside", state: "on", attributes: {
+    brightness: 51, color_mode: "color_temp", color_temp_kelvin: 2500, rgb_color: [255, 0, 0],
+  } }));
+  assert.equal(it.smart.colorTemp, 400);
+  assert.equal(it.lightI, 0.2);
+  set(stateFromHaEntity({ entity_id: "light.hue_1", hueId: "1", state: "on",
+    attributes: { bri: 127, colormode: "ct", ct: 500 } }));
+  assert.equal(it.lightI, 0.5);
+  assert.equal(it.lightColor, warm);
+  set(stateFromHaEntity({ entity_id: "light.hue_1", hueId: "1", state: "on",
+    attributes: { bri: 127, colormode: "hs", hue: 21845, sat: 254 } }));
+  assert.equal(it.lightColor, 0x00ff00);
+  set(stateFromHaEntity({ entity_id: "light.hue_1", hueId: "1", state: "on",
+    attributes: { bri: 127, colormode: "xy", xy: [0.64, 0.33] } }));
+  assert.equal(it.lightColor, 0xff0000);
+  set({ color: "#0000ff" });
+  assert.equal(it.lightColor, 255);
+  assert.equal(hueStateFrom(it, {}).ct, undefined);
+  set({ brightness: 0 });
+  assert.equal(it.lightOn, false);
+  set({ on: true });
+  assert.equal(it.lightOn, true);
+  assert.equal(it.lightI, 1);
+  set({ brightness: 0, on: true });
+  assert.equal(it.lightOn, false);
+  assert.equal(it.lightI, 0);
+});
+
 test("voice commands parse English and Hebrew and drive the matching kind", () => {
   squareRoom();
   var kitchenLamp = lamp(1, 50, 50);

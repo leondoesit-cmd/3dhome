@@ -916,6 +916,8 @@ export default {
   load: "Load",
   menu_file: "File",
   menu_export: "Export",
+  clear_cache: "Clear cache",
+  clear_cache_t: "Development: remove the offline copies of the app and reload",
   menu_edit: "Edit",
   menu_more: "More",
   new_plan: "New plan…",

@@ -3,7 +3,7 @@
    editor's state through live imports from ../view3d.js. */
 import { faceShiftAt, straightThroughAt, tJoinStep, wallGeom, wallSolidAtNode } from "../geometry.js";
 import { legacyTextureUrl, pbrEntryFor, sharedRepeat } from "../pbr_material.js";
-import { box } from "../primitives.js";
+import { box, limitPaintReflectance } from "../primitives.js";
 import { GLASS, HANDLE, MAT_PROPS, S, WALLC, WOOD, clamp } from "../state.js";
 import { getTexturePresetBumpUrl } from "../textures.js";
 import { THREE } from "../three_lazy.js";
@@ -15,6 +15,8 @@ import {
   CAP_COLORS, SHADOW_ONLY_LAYER, buildingShadowWalls, isSharedSurface, scene,
   structureRoot, stubBuildH, surfaceMaterial, walk,
 } from "../view3d.js";
+import { frameSpec } from "./backdrop.js";
+export { frameSpec };
 
 function houseBounds() {
   var b = null;
@@ -128,7 +130,7 @@ function clipBelow(root, yMax) {
   });
 }
 
-function addWallCaps(g, yCut) {
+function addWallCaps(g, yCut, uncut) {
   var tri = [];
   g.children.forEach(function (m) {
     if (!m.isMesh || !m.userData.wallLayer || !m.geometry) return;
@@ -148,35 +150,26 @@ function addWallCaps(g, yCut) {
   var cg = new THREE.BufferGeometry();
   cg.setAttribute("position", new THREE.Float32BufferAttribute(tri, 3));
   cg.computeVertexNormals();
-  var cap = (S.cutaway && S.cutaway.cap) === "dark" ? "dark" : "white";
+  // an uncut wall's own top is no section: always the plain white cap
+  var cap = !uncut && (S.cutaway && S.cutaway.cap) === "dark" ? "dark" : "white";
   var mat = new THREE.MeshStandardMaterial({ color: CAP_COLORS[cap], roughness: 0.85, metalness: 0 });
+  // lit only by the sky (see lightPlace below), a white cap read as grey
+  // beside the rooms' bounce-lit walls; a section's poché keeps its colour
+  if (cap === "white") { mat.emissive.setHex(CAP_COLORS.white); mat.emissiveIntensity = 0.3; }
   var mesh = new THREE.Mesh(cg, mat);
   mesh.castShadow = false;
   mesh.receiveShadow = false;
   mesh.userData.role = "wallCap";
   mesh.userData.wallCap = true;
+  /* The room outlines run down the wall centre lines, so the room light map
+     (js/room_bounce.js) gave a cap's inner half its room's light and its
+     outer half the sky's: a two-tone top. The cut is a drawing convention,
+     outside every room: one light over the whole cap. */
+  if (!CUT_CAP_PLACE) CUT_CAP_PLACE = new THREE.Vector4(0, 0, 0, 0);
+  mesh.userData.lightPlace = CUT_CAP_PLACE;
   g.add(mesh);
 }
-
-/* Per-opening frame profile. Every field is optional on the opening object —
-   an old scene (or one never touched in the inspector) falls back to the
-   dimensions that used to be hard-coded here, so nothing shifts on load.
-   jamb/head/sillW are the visible frame widths per direction (cm); depth is
-   how far the frame stands proud of the wall (total extra thickness); mull is
-   the divider (mullion) thickness with mullV/mullH counts. */
-export function frameSpec(o) {
-  var isWin = o.type === "window";
-  var n = function (v, d) { return v != null && isFinite(v) ? Math.max(0, +v) : d; };
-  return {
-    jamb: n(o.frJamb, o.type === "door" || isWin ? 3 : 0),
-    head: n(o.frHead, o.type === "door" || isWin ? 3 : 0),
-    sillW: n(o.frSillW, isWin ? 3 : 0),
-    depth: n(o.frDepth, 1.6),
-    mull: n(o.frMull, isWin ? 2 : 0),
-    mullV: o.frMullV != null ? Math.max(0, Math.round(o.frMullV)) : isWin ? 1 : 0,
-    mullH: o.frMullH != null ? Math.max(0, Math.round(o.frMullH)) : 0,
-  };
-}
+var CUT_CAP_PLACE = null; // read only by the room map's per-object uniform
 
 function localBox(g, u0, u1, y0, y1, T, color, opt) {
   if (u1 - u0 <= 0.01 || y1 - y0 <= 0.01) return;
@@ -475,16 +468,28 @@ function buildStraightWall(w, col, tex) {
     function addLayerGeom(band, shapes, z0, z1, applyMitre) {
       var depth = z1 - z0;
       if (!(depth > 0.01) || !shapes || !shapes.length) return;
-      if (band.airGap && band.framing) return;
+      // a framed cavity is drawn as its studs (addWallFraming); under a cut
+      // its outline still stands, unseen, so the cap closes the whole top
+      var cavityOnly = !!(band.airGap && band.framing);
+      if (cavityOnly && !(H < Hfull)) return;
       var geom = new THREE.ExtrudeGeometry(shapes, { depth: depth, bevelEnabled: false });
       geom.translate(0, 0, z0);
       if (applyMitre) mitre(geom);
+      if (cavityOnly) {
+        var cavity = new THREE.Mesh(geom, new THREE.MeshBasicMaterial());
+        cavity.visible = false;
+        cavity.raycast = function () {};
+        cavity.userData.exportSkip = true;
+        cavity.userData.wallLayer = { wallId: w.id, layerId: band.id, material: band.material, capOnly: true };
+        g.add(cavity);
+        return;
+      }
       var isGeneric = w.wallTypeId === "generic" || layerBands.length === 1 && band.material === "generic-masonry";
       var layerColor = isGeneric ? col : (band.color || col);
       var isGlass = band.role === "glazing" || /glass/i.test(String(band.material || ""));
       var materialProps = Object.assign({ color: layerColor }, matOpts);
-      if (isGlass) Object.assign(materialProps, { transparent: true, opacity: 0.34, transmission: 0.72, roughness: 0.12, side: THREE.DoubleSide });
-      var mat = new THREE.MeshStandardMaterial(materialProps);
+      if (isGlass) Object.assign(materialProps, { transmission: 0.72, roughness: 0.12, side: THREE.DoubleSide });
+      var mat = new (isGlass ? THREE.MeshPhysicalMaterial : THREE.MeshStandardMaterial)(materialProps);
       // A user-applied wall texture remains the visible finish, while an
       // authored assembly without a texture keeps each layer's semantic color.
       // A library material ("mat:<id>") becomes a PBR node material once its
@@ -526,6 +531,7 @@ function buildStraightWall(w, col, tex) {
           }
         }
       }
+      limitPaintReflectance(mat);
       if (xray) {
         if (isSharedSurface(mat)) mat = mat.clone(); // never change a shared surface
         mat.transparent = true;
@@ -562,7 +568,8 @@ function buildStraightWall(w, col, tex) {
       });
     });
 
-    addWallFraming(structureRoot, w, xray);
+    // the studs stop at the dollhouse cut, as the boards do
+    addWallFraming(structureRoot, H < Hfull ? Object.assign({}, w, { height: H }) : w, xray);
 
     if (skirtShapes.length) {
       var skGeom = new THREE.ExtrudeGeometry(skirtShapes, { depth: skT, bevelEnabled: false });
@@ -752,7 +759,7 @@ function buildStraightWall(w, col, tex) {
     clipBelow(g, H);
     addWallCaps(g, H);
     g.userData.drawExtent.y1 = H;
-  }
+  } else addWallCaps(g, Hfull, true); // a layered top would show every layer and the room light's split
 }
 
 export {

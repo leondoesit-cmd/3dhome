@@ -2,6 +2,7 @@
    controls, lifted out of build3D, split out of js/view3d.js. It shares the
    editor's state through live imports from ../view3d.js. */
 import { retainShaderCaches } from "../gpu.js";
+import { installPlannerGpuPatches } from "../planner_gpu_patches.js";
 import { hitObjectAtCenter, isPhysicsEnabled, toggleSlowMo } from "../physics_facade.js";
 import { S, clamp } from "../state.js";
 import { THREE, TSL } from "../three_lazy.js";
@@ -43,6 +44,7 @@ function setupSkyAndWalkControls() {
     // hour is not using): ~60 shaders a set on a large flat, each a state, a
     // pipeline and its programs; the default 256 lost one set to the next.
     retainShaderCaches(renderer, 2048);
+    installPlannerGpuPatches(THREE, renderer);
     // Anything that needed real GPU work during init3D was deferred to here.
     // applyEnv() rebuilds the IBL/PMREM environment, the sky and the sun from
     // current state, so re-running it is the whole catch-up.

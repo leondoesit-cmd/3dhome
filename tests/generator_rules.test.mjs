@@ -5,9 +5,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const three = pathToFileURL(join(root, "vendor/three/three.module.js")).href;
+const three = pathToFileURL(join(root, "vendor/three/three.webgpu.js")).href;
+const tsl = pathToFileURL(join(root, "vendor/three/three.tsl.js")).href;
 const addons = pathToFileURL(join(root, "vendor/three/addons/")).href;
-const loader = `data:text/javascript,export async function resolve(s,c,n){if(s==="three")return{url:${JSON.stringify(three)},format:"module",shortCircuit:true};if(s.startsWith("three/addons/"))return{url:${JSON.stringify(addons)}+s.slice(13),format:"module",shortCircuit:true};return n(s,c)}`;
+const loader = `data:text/javascript,export async function resolve(s,c,n){if(s==="three"||s==="three/webgpu")return{url:${JSON.stringify(three)},format:"module",shortCircuit:true};if(s==="three/tsl")return{url:${JSON.stringify(tsl)},format:"module",shortCircuit:true};if(s.startsWith("three/addons/"))return{url:${JSON.stringify(addons)}+s.slice(13),format:"module",shortCircuit:true};return n(s,c)}`;
 
 function run(script) {
   const result = spawnSync(process.execPath, ["--experimental-loader", loader, "--input-type=module", "-e", script], {
@@ -17,6 +18,91 @@ function run(script) {
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
 }
+
+test("generated furniture occupies separate measured vertical volumes, including ceiling fixtures and wall decor", () => {
+  run(String.raw`
+    import assert from "node:assert/strict";
+    import { apartmentGenerateCommand } from "./js/generator.js";
+    import { executeCommand } from "./js/commands/executor.js";
+    import { S } from "./js/state.js";
+    import { FURN, itemVSpan } from "./js/furniture.js";
+    import { loadThree, threeLoaded } from "./js/three_lazy.js";
+    import { itemCorners } from "./js/measure.js";
+    import { canonicalPlacementWall, polygonsOverlap, wallSolidOverlap } from "./js/placement_resolver.js";
+    import { WALL_BACKED, frontVector } from "./js/apartment_rules.js";
+    import { detectRooms, pointInPoly, wallPointAt, wallGeom, wallProject } from "./js/geometry.js";
+    const clashes = new Set();
+    let examined = 0;
+    assert.equal(threeLoaded(), false);
+    let coldSmall;
+    for (const size of ["small", "large", "showcase", "random"]) for (const seed of [1, 42, 9876]) {
+      const result = executeCommand(apartmentGenerateCommand, { size, seed, replace: true, replaceInfrastructure: true, infrastructure: false },
+        { domain: "planner", state: S, itemCatalog: FURN }, { history: false });
+      assert.equal(result.ok, true, size + ": " + result.reason);
+      const rooms = detectRooms();
+      const walls = S.walls.map(w => canonicalPlacementWall(w, {wallPointAt,wallGeom}));
+      for (const item of S.items) {
+        assert.ok(walls.every(w => !wallSolidOverlap(w, itemCorners(item))), item.type + " intersects a wall");
+        const f = frontVector(item.rot);
+        if (WALL_BACKED.has(item.type) || item.mounted) {
+          const wall = S.walls.find(w => w.id === item.hold?.wall);
+          assert.ok(wall, item.type + " missing wall hold");
+          const hit = wallProject(wall, item.x, item.z);
+          assert.ok(Math.abs(hit.distance - (wall.thickness + item.d)/2) < 0.01);
+          assert.ok(f.x*(item.x-hit.x) + f.z*(item.z-hit.z) > 0.99*hit.distance);
+        }
+        if (item.facesId != null) {
+          const target = S.items.find(other => other.id === item.facesId);
+          const dx = target.x-item.x, dz = target.z-item.z;
+          assert.ok(dx*f.x + dz*f.z >= 0.86*Math.hypot(dx,dz), item.type + " faces away from partner");
+        }
+      }
+      const fittings = S.items.filter(it => ["ceilingLight", "pendant", "trackLight"].includes(it.type));
+      for (const room of rooms) {
+        const first = S.items.find(it => pointInPoly(it.x, it.z, room.pts));
+        assert.equal(first?.type, "ceilingLight", "preserve the general light's first position in the room");
+      }
+      if (size === "small") {
+        const poses = fittings.map(it => [it.type, it.id, it.x, it.z, it.configuration.ceilingTop]);
+        if (coldSmall) assert.deepEqual(poses, coldSmall, "cold and warm generation choose the same fixture poses and ids");
+        else coldSmall = poses;
+      }
+      const ceilingOf = it => rooms.find(room => pointInPoly(it.x, it.z, room.pts)).ceilH;
+      for (const it of fittings) assert.ok(Math.abs(itemVSpan(it).hi - ceilingOf(it)) < 0.05,
+        size + " " + it.type + " misses its ceiling before mesh measurement");
+      await loadThree();
+      for (const it of fittings) {
+        const mounted = itemVSpan(it), native = itemVSpan({ ...it, configuration: {}, elev: undefined });
+        assert.ok(Math.abs(mounted.hi - ceilingOf(it)) < 0.05, "canopy must touch the room ceiling");
+        assert.ok(Math.abs(mounted.hi - mounted.lo - (native.hi - native.lo)) < 0.01, "ceiling mount preserves shade drop");
+        assert.ok(Math.abs(itemVSpan({ ...it, elev: 155 }).lo - 155) < 0.01, "manual mount height takes precedence");
+      }
+      const solids = S.items.filter(it => it.type !== "rug").map(it => ({
+        it, span: itemVSpan(it), corners: itemCorners(it)
+      }));
+      for (const [i, { it, span, corners }] of solids.entries()) {
+        assert.ok(span.hi > span.lo);
+        for (const other of solids.slice(i + 1)) {
+          examined++;
+          if (span.hi < other.span.lo + 0.05 || span.lo > other.span.hi - 0.05) continue;
+          if (polygonsOverlap(corners, other.corners)) clashes.add(size + "/" + seed + ": " + it.type + " intersects " + other.it.type);
+        }
+        if (!it.mounted) continue;
+        for (const opening of S.openings) {
+          if (span.lo >= (opening.sill || 0) + opening.height || span.hi <= (opening.sill || 0)) continue;
+          const wall = S.walls.find(w => w.id === opening.wall);
+          const a = wallPointAt(wall, opening.s - opening.width / 2), b = wallPointAt(wall, opening.s + opening.width / 2);
+          const len = Math.hypot(b.z - a.z, b.x - a.x), depth = wall.thickness / 2 + it.d + 0.5;
+          const dx = (a.z - b.z) / len * depth, dz = (b.x - a.x) / len * depth;
+          const trim = [{ x:a.x + dx, z:a.z + dz }, { x:b.x + dx, z:b.z + dz }, { x:b.x - dx, z:b.z - dz }, { x:a.x - dx, z:a.z - dz }];
+          if (polygonsOverlap(corners, trim)) clashes.add(size + "/" + seed + ": " + it.type + " covers " + opening.type);
+        }
+      }
+    }
+    assert.ok(examined > 1000);
+    assert.deepEqual([...clashes], []);
+  `);
+});
 
 test("automatic apartments keep essential furniture, clear openings, and collision-free floor items", () => {
   run(String.raw`
@@ -67,7 +153,8 @@ test("automatic apartments keep essential furniture, clear openings, and collisi
           const rad = sofa.rot * Math.PI / 180;
           const sofaFront = [-Math.sin(rad), Math.cos(rad)];
           const tvRad = tv.rot * Math.PI / 180;
-          const screenFront = [Math.sin(tvRad), -Math.cos(tvRad)];
+          // The glossy screen is on the panel's local +Z face.
+          const screenFront = [-Math.sin(tvRad), Math.cos(tvRad)];
           assert.ok((dx / L) * sofaFront[0] + (dz / L) * sofaFront[1] > 0.999, "sofa must point directly at TV");
           assert.ok((-dx / L) * screenFront[0] + (-dz / L) * screenFront[1] > 0.999, "TV screen must face sofa");
           assert.equal(sofa.facesId, tv.id);
@@ -93,7 +180,9 @@ test("automatic apartments keep essential furniture, clear openings, and collisi
             Math.abs(fridge.z - H[1] - Math.min(...zs)), Math.abs(Math.max(...zs) - (fridge.z + H[1]))
           );
           assert.ok(wallDistance <= 7, "fridge must be flush with a kitchen wall");
-          assert.ok(kitchen.every(it => it.groupId === kitchen[0].groupId), "open-plan kitchen must stay in one continuous group");
+          const setId = fridge.configuration?.layoutSetId;
+          assert.ok(setId != null && kitchen.every(it => it.groupId == null && it.configuration?.layoutSetId === setId),
+            "kitchen modules must be independently selectable members of one layout set");
         }
 
         const xs = room.pts.map(p => p.x), zs = room.pts.map(p => p.z);
@@ -233,7 +322,7 @@ test("bed placement uses finished side walls in all four headboard orientations 
       const b = itemBox(bed);
       assert.ok(inside(b), label + ": bed stays inside the finished floor");
       const headGap = [b.z0 - fb.z0, fb.x1 - b.x1, fb.z1 - b.z1, b.x0 - fb.x0][bed.rot / 90];
-      assert.ok(Math.abs(headGap - 1) < 0.01, label + ": headboard stays against its wall");
+      assert.ok(Math.abs(headGap) < 0.01, label + ": headboard stays against its wall");
       const gaps = bed.rot % 180 === 0 ? [b.x0 - fb.x0, fb.x1 - b.x1] : [b.z0 - fb.z0, fb.z1 - b.z1];
       if (width === depth) assert.ok(Math.min(...gaps) >= 60, label + ": roomy bed keeps 60cm on both sides");
       else {

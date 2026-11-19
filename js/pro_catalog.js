@@ -76,7 +76,7 @@ const PLAN = [
     ["Render", [T("Photo mode", "ph-camera", "act:photo", "P"), T("Video studio", "ph-video-camera", "click:#videoStudioBtn"), T("Edit in 3D", "ph-hand-grabbing", "act:edit3d"), T("Physics", "ph-atom", "act:physics"), T("Sun & sky", "ph-sun", "reveal:#envSection")]],
   ]],
   ["Output", [
-    ["File", [T("Save", "ph-floppy-disk", "act:save", "⌘S"), T("Open", "ph-folder-open", "act:load"), T("New plan", "ph-file-plus", "act:newPlan"), T("Import JSON", "ph-upload-simple", "act:importjson", "⌘O"), T("Import DXF", "ph-file-arrow-down", "pro:dxfImport"), T("History", "ph-clock-counter-clockwise", "pro:history")]],
+    ["File", [T("Save", "ph-floppy-disk", "act:save", "⌘S"), T("Open", "ph-folder-open", "act:load"), T("New plan", "ph-file-plus", "act:newPlan"), T("Import JSON", "ph-upload-simple", "act:importjson", "⌘O"), T("Import DXF", "ph-file-arrow-down", "pro:dxfImport"), T("History", "ph-clock-counter-clockwise", "pro:history"), T("Clear cache", "ph-broom", "act:clearCache")]],
     ["Export", [T("DXF", "ph-file-dashed", "pro:dxf"), T("IFC", "ph-buildings", "pro:ifc"), T("Plan SVG", "ph-file-svg", "pro:planSvg"), T("Schedules CSV", "ph-file-csv", "pro:schedules"), T("JSON", "ph-file-code", "act:exportjson", "⌘E"), T("glTF / Blender", "ph-package", "act:exportgltf"), T("PNG 2D", "ph-file-image", "act:png2d"), T("PNG 3D", "ph-images-square", "act:png3d")]],
     ["Team", [T("Workspace", "ph-users-three", "act:workspace"), T("Friends", "ph-user-plus", "act:friends"), T("AI helper", "ph-robot", "act:agent"), T("Walls guide", "ph-graduation-cap", "run:plannerTutorial"), T("Planning guide", "ph-list-checks", "reveal:#planningGuide")]],
   ]],
@@ -257,7 +257,7 @@ export const PRO_HE = {
   "Exchange": "החלפת קבצים", "Project bundle": "חבילת פרויקט", "Open bundle": "פתח חבילה", "Import STEP": "ייבוא STEP", "Export STEP": "ייצוא STEP", "Export IGES": "ייצוא IGES", "Export STL": "ייצוא STL",
   "Design": "עיצוב", "Start": "התחלה", "Families": "משפחות", "Presets": "תבניות", "Blank carcass": "גוף ריק",
   "Horizontal partition": "מחיצה אופקית", "Vertical partition": "מחיצה אנכית", "Remove partition": "מחיקת מחיצה",
-  "Inspector": "מאפיינים", "Fronts & look": "חזיתות ומראה", "Hardware": "פרזול", "History": "היסטוריה",
+  "Inspector": "מאפיינים", "Fronts & look": "חזיתות ומראה", "Hardware": "פרזול", "History": "היסטוריה", "Clear cache": "ניקוי מטמון",
   "My presets": "התבניות שלי", "Save preset": "שמור תבנית", "Load preset": "טען תבנית", "Mode": "מצב", "2D": "דו־ממד",
   "Review": "בקרה", "Checks": "בדיקות", "Summary": "סיכום", "Production": "ייצור", "Make": "ייצור", "Cut plan & production": "תוכנית ניסור וייצור", "PNG export": "ייצוא PNG",
   "Production pack": "חבילת ייצור", "Shop setup": "הגדרות סדנה", "Materials": "חומרים", "Saw": "מסור", "Stock rack": "מלאי לוחות", "Quote": "הצעת מחיר", "Suppliers": "ספקים", "Quote document": "מסמך הצעת מחיר", "Purchase order": "הזמנת רכש", "Cut list CSV": "רשימת חיתוך CSV", "DXF": "DXF", "Drill map": "מפת קידוחים", "Sheets PNG": "גיליונות PNG", "Manufacturing JSON": "דוח ייצור JSON", "Cabinet PNG": "ארון PNG",

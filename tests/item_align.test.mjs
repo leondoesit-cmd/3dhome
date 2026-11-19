@@ -5,7 +5,7 @@ import {
   alignItems, distributeItems, matchRotation, halfSpan,
   holdToWall, releaseHold, reseatHeldItems,
 } from "../js/item_align.js";
-import { wallById } from "../js/geometry.js";
+import { wallById, wallPointAt, wallGeom, wallProject } from "../js/geometry.js";
 
 function scene() {
   S.nodes = [{ x: 0, z: 0 }, { x: 600, z: 0 }, { x: 600, z: 400 }, { x: 0, z: 400 }];
@@ -91,6 +91,35 @@ test("a hold with a gap keeps the gap", () => {
   holdToWall(it, wallById(1), 15);
   reseatHeldItems();
   assert.equal(it.z, 40);
+});
+
+test("held furniture follows the arc face and carries its tabletop riders", () => {
+  scene();
+  const wall = S.walls[0];
+  wall.bulge = 0.5;
+  const mid = wallPointAt(wall, wallGeom(wall).L / 2);
+  const host = S.items[0];
+  Object.assign(host, { x: mid.x, z: mid.z - 40 });
+  const rider = S.items[1];
+  Object.assign(rider, { x: host.x + 2, z: host.z, on: host.id });
+  holdToWall(host, wall, 0);
+  reseatHeldItems();
+  assert.ok(Math.abs(wallProject(wall, host.x, host.z).distance - 25) < 1e-6);
+  assert.equal(rider.z, host.z);
+});
+
+test("back corners clear the concave finished face of a curved wall", () => {
+  scene();
+  const wall = S.walls[0], desk = S.items[0];
+  wall.bulge = 0.5;
+  const g = wallGeom(wall), mid = wallPointAt(wall, g.L / 2);
+  Object.assign(desk, { x: mid.x, z: mid.z + 45, w: 140, d: 70, rot: 0 });
+  holdToWall(desk, wall, 0);
+  reseatHeldItems();
+  for (const side of [-1, 1]) {
+    const hit = wallProject(wall, desk.x + side*desk.w/2, desk.z - desk.d/2);
+    assert.ok(Math.abs(hit.signedOffset - wall.thickness/2) < 1e-5);
+  }
 });
 
 test("a hold whose wall is gone releases itself", () => {

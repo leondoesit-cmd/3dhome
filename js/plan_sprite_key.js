@@ -8,14 +8,18 @@
    size, variant, textures, cabinet spec, stair configuration, parameter
    overrides — the same rule as view3d.js itemSig(). */
 
+import { inferProductRules } from "./core/smart_dimension.js";
+
 // Bump when the models or the sprite lighting change, so no stale picture
 // survives a code update in a long-lived cache.
-export const SPRITE_VERSION = 5;
+export const SPRITE_VERSION = 6;
 
 export const SPRITE_BUCKETS = [64, 128, 256, 512];
 
 // fields that position the piece or describe runtime state, not its shape
-const PLACEMENT = { x: 1, z: 1, rot: 1, id: 1, name: 1, locked: 1, smartState: 1, on: 1, powered: 1, _live: 1 };
+const PLACEMENT = { x: 1, z: 1, rot: 1, id: 1, name: 1, locked: 1, smartState: 1, on: 1, powered: 1, _live: 1,
+  facesId: 1, groupId: 1, mepNodeId: 1, functionalZone: 1, rotUser: 1 };
+const DIMENSION_FIELD = { width: "w", depth: "d", height: "h" };
 
 function stable(v) {
   if (Array.isArray(v)) return "[" + v.map(stable).join(",") + "]";
@@ -27,17 +31,52 @@ function stable(v) {
   return JSON.stringify(v === undefined ? null : v);
 }
 
-function shapeOf(it) {
+function shapeOf(it, builtin, configuration) {
   var out = {};
   Object.keys(it || {}).forEach(function (k) {
     if (PLACEMENT[k] || k.charAt(0) === "_" || typeof it[k] === "function") return;
-    out[k] = it[k];
+    const value = it[k];
+    // ensureItemDefinition writes the built-in ID and dimension projections
+    // during the first 3D build. The same picture can be requested before it.
+    if (k === "definitionId" && builtin && value === "builtin:" + it.type) return;
+    if (k === "parameterOverrides" && value && typeof value === "object" && !Array.isArray(value)) {
+      const overrides = {};
+      for (const [key, v] of Object.entries(value)) {
+        const field = DIMENSION_FIELD[key];
+        if (!field || !Number.isFinite(it[field]) || it[field] !== v) overrides[key] = v;
+      }
+      if (Object.keys(overrides).length) out[k] = overrides;
+    } else if (k !== "configuration") out[k] = value;
   });
+  if (configuration && typeof configuration === "object" && !Array.isArray(configuration)) {
+    const { layoutSetId, ...visual } = configuration;
+    if (Object.keys(visual).length) out.configuration = visual;
+  } else if (configuration != null) out.configuration = configuration;
   return out;
 }
 
-export function spriteKey(it, bucket, rev) {
-  return SPRITE_VERSION + "|" + (rev || 0) + "|" + bucket + "|" + stable(shapeOf(it));
+// Only unmaterialised built-ins need the catalogue defaults. Match the nominal
+// dimensions used by genericDefinition, independent of the placed size.
+export function spriteKey(it, bucket, rev, entry, definition, defaults) {
+  const genericId = "builtin:" + it?.type;
+  const builtin = !it?.cab && !entry?.custom && (!it?.definitionId || it.definitionId === genericId) &&
+    (!definition || (definition.metadata?.source === "built-in-library" && definition.revision === 1));
+  let configuration = it?.configuration || definition?.rules?.configuration;
+  if (!configuration && builtin && entry) {
+    const width = Number(entry.w) || Number(it.w) || 100, depth = Number(entry.d) || Number(it.d) || 60;
+    const height = Number(entry.h) || Number(it.h) || 100;
+    const key = it.type + "|" + width + "|" + depth + "|" + height;
+    configuration = defaults?.get(key);
+    if (!configuration) {
+      configuration = inferProductRules(it.type, { width, depth, height }, entry.parametricRules).configuration || {};
+      defaults?.set(key, configuration);
+    }
+  }
+  const shape = shapeOf(it, builtin, configuration);
+  // The revision follows commits to an edited definition independently of
+  // its placed item. A custom catalogue entry also carries defSig in keyFor.
+  if (!builtin && definition) shape.definitionRevision = definition.revision;
+  return SPRITE_VERSION + "|" + (rev || 0) + "|" + bucket + "|" + stable(shape);
 }
 
 /* Smallest resolution that covers the piece's longest side on screen, in

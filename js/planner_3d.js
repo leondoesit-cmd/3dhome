@@ -126,7 +126,8 @@ function cabinetAt(e){
 let dragGrab=null;
 function dragInput(e,plan){
   const base=plan.plane?null:plannerPointer3D(e.clientX,e.clientY);
-  const probe=dragProbe3D(e.clientX,e.clientY,plan.plane&&S.sel?.ref?[S.sel.ref]:[]);
+  const roots=S.sel?.kind==='items'?S.sel.refs:S.sel?.ref?[S.sel.ref]:[];
+  const probe=dragProbe3D(e.clientX,e.clientY,plan.plane?roots:[]);
   if(!probe)return base;
   const {ray,wall}=probe,flat=plannerPlanePoint3D(e.clientX,e.clientY,{x:0,y:plan.grabY,z:0},{x:0,y:1,z:0});
   const aim=wall&&aimCounts(flat,ray.o,wall)?{wallId:wall.id,nx:wall.nx,nz:wall.nz,x:wall.point.x,y:wall.point.y,z:wall.point.z}:null;

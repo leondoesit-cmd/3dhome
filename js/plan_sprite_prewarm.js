@@ -20,7 +20,7 @@
    pictures it would have baked itself, just earlier. */
 import { FURN, isLamp, knownVSpan, measureVSpanSoon } from "./furniture.js";
 import { SPRITE_BUCKETS, spriteBucket, spriteMode } from "./plan_sprite_key.js";
-import { itemSprite, prebakeSprite, spriteGeneration } from "./plan_sprites.js";
+import { itemSprite, prebakeSprite, spriteGeneration, retainSpriteRequests } from "./plan_sprites.js";
 import { fingerprint } from "./plan_sprite_batch.js";
 import { isPresentation } from "./plan_style.js";
 import { wx, wz } from "./plan_view.js";
@@ -107,6 +107,7 @@ export function prewarmPlanSprites(ahead) {
     view ? [Math.round(view.x0 / 50), Math.round(view.z0 / 50), Math.round(view.x1 / 50), Math.round(view.z1 / 50)] : null]);
   if (sig === lastPass) return 0;
   const list = prewarmOrder(S.items, view);
+  retainSpriteRequests(S.items);
   lastPass = list.pending ? null : sig;
   if (!ahead) list.forEach(function (e) { itemSprite(e.it, SC, dpr, { boost: e.boost }); });
   if (budget.prebakeNextBucket) {
@@ -119,19 +120,28 @@ export function prewarmPlanSprites(ahead) {
 }
 
 /* Every plan frame ends here, HUD-only animation frames too (the MEP flow
-   runs at 30 Hz), so this throttles rather than debounces: at most one pass
-   per SETTLE_MS, in an idle period. A pass over cached pieces is lookups. */
+   runs at 30 Hz). Repeated frames for the same item list share a timer. */
 let timer = 0;
+let paintedItems, paintedCount;
+export let initialPrewarmPending = false;
 function afterPaint() {
-  if (timer) return;
+  // A newly generated plan gets its first pass in the next task. Waiting
+  // for the HUD throttle plus an idle deadline can consume the entire
+  // technical-plan dwell before the offscreen backend even starts.
+  const changed = paintedItems !== S.items || paintedCount !== S.items?.length;
+  if (!changed && timer) return;
+  paintedItems = S.items;
+  paintedCount = S.items?.length;
+  clearTimeout(timer);
+  // The hidden pane can receive an animation frame before this timer.
+  initialPrewarmPending = changed;
   timer = setTimeout(function () {
     timer = 0;
-    const run = function () { try { prewarmPlanSprites(isPresentation()); } catch (e) { /* pictures are a nicety */ } };
-    if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 2000 });
-    else run();
-  }, SETTLE_MS);
+    initialPrewarmPending = false;
+    prewarmPlanSprites(isPresentation());
+  }, changed ? 0 : SETTLE_MS);
 }
 
 // plan2d.js imports this module's importer, so its hook list does not exist
 // yet while this module evaluates: register once the module graph has run
-if (typeof window !== "undefined") setTimeout(function () { onAfterRender(afterPaint); }, 0);
+if (typeof document !== "undefined") setTimeout(function () { onAfterRender(afterPaint); afterPaint(); }, 0);

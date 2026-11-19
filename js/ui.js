@@ -288,10 +288,10 @@ export function setCutaway(patch) {
 
 /* ---- persistence: one serializer shared by localStorage save and file export ---- */
 // exported: the multiplayer visit flow (js/visit.js) snapshots/restores scenes
-export function sceneObject(includeWorkspace) {
+export function sceneObject(includeWorkspace, spatialOptions) {
   var data = {
     idc: S.idc,
-    spatial: exportSpatialProject(S),
+    spatial: exportSpatialProject(S, spatialOptions),
     wallDrawDefaults: S.wallDrawDefaults,
     floorTex: S.floorTex,
     wallColor: S.wallColor,
@@ -351,7 +351,7 @@ export function sceneObject(includeWorkspace) {
   return data;
 }
 export function serialize() {
-  return JSON.stringify(sceneObject(true));
+  return JSON.stringify(sceneObject(true, { detached: false }));
 }
 export function applyData(d) {
   // Accept either a parsed object or a raw JSON string (project store, visit

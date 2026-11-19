@@ -4,6 +4,7 @@ import {draftToolsSection} from "./ui_draft_tools.js";
 import {accessReviewSection} from "./ui_access_review.js";
 import {shapeToolsSection} from "./ui_shape_tools.js";
 import { activeFloorArea } from "./area_snapshot.js";
+import { hiddenRefreshGate } from "./hidden_refresh.js";
 import { roomResizeCommand } from "./commands/room_resize.js";
 import { roomMeasurements } from "./room_summary.js";
 import { captureLock } from "./constraint_engine.js";
@@ -132,9 +133,11 @@ function focusRoom(entry) {
   closeForPlacement();
 }
 
+// The Project tab not chosen: no rooms / areas / rebuild until it shows again.
+const skipWhileHidden = hiddenRefreshGate(() => renderPlanningGuide());
 export function renderPlanningGuide() {
   const host = document.getElementById("planningGuide");
-  if (!host || S.action) return;
+  if (!host || S.action || skipWhileHidden(host)) return;
   const guide = planningGuide(S), faces = detectRooms();
   const entries = checklistStatus(S, faces);
   const areas = activeFloorArea();

@@ -19,7 +19,8 @@ import { S } from "../state.js";
 import { fmtLen } from "../display_units.js";
 import { isOnWall } from "../item_orient.js";
 import { labelSpots } from "../clearance.js";
-import { liveClearances } from "../measure_cache.js";
+import { liveClearances, liveGroupClearances, verticalReach } from "../measure_cache.js";
+import { groupLead } from "../group_frame.js";
 import { itemOutline } from "../item_outline.js";
 import { onAfterRender, planHud, rotatePx, sx, sz } from "../plan2d.js";
 import { reachName, wallPlaneText } from "../wall_plane_strings.js";
@@ -89,8 +90,8 @@ function floorHits(it) { return liveClearances(it); }
 // one rounding for every distance pill here: the furniture domain's unit and precision
 function gapText(cm) { return fmtLen(cm, { domain: "furniture" }); }
 
-function paintFloor3D(o, it) {
-  var y = 1, got = floorHits(it), hits = got.hits; // just over the floor
+function paintFloor3D(o, it, group) {
+  var y = 1, got = group || floorHits(it), hits = got.hits; // just over the floor; `group`: a set's (liveGroupClearances)
   var proj = o.project ? function (p) { return o.project({ x: p.x, y: p.y == null ? y : p.y, z: p.z }); } : function () { return null; };
   var at = labelSpots(hits, proj), placed = [];
   hits.forEach(function (h, i) {
@@ -124,7 +125,8 @@ function paintVertical3D(o, it, vhits, proj, placed) {
       spot = pick.p; q = pick.q;
     }
     o.path([{ x: spot.x, y: h.from.y, z: spot.z }, { x: spot.x, y: h.to.y, z: spot.z }], h.kind === "item" ? FLOOR_DIM : h.kind === "opening" ? OPEN_DIM : DIM);
-    pill3D(o, { x: spot.x, y: my, z: spot.z }, gapText(h.gap) + (h.kind === "opening" ? " · " + reachName(h.what) : ""), it, h);
+    var what = verticalReach(h);
+    pill3D(o, { x: spot.x, y: my, z: spot.z }, gapText(h.gap) + (what ? " · " + what : ""), it, h);
     if (q) placed.push(q);
   });
 }
@@ -137,6 +139,11 @@ function paintWallPlane3D(e) {
   paintKeeps3D(o);
 }
 function paintLive3D(o) {
+  // a set moved as one (a kitchen run, a table with its chairs) measures as one block
+  if (S.sel && S.sel.kind === "items" && S.sel.refs && S.sel.refs.length > 1) {
+    if (!S.action || S.action === "item") paintFloor3D(o, groupLead(S.sel.refs), liveGroupClearances(S.sel.refs));
+    return;
+  }
   var it = S.sel && S.sel.kind === "item" ? S.sel.ref : null;
   if (!it) return;
   var v = wallPlaneView();

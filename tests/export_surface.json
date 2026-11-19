@@ -1090,7 +1090,6 @@
  ],
  "js/view3d.js": [
   "AXIS_DEFS",
-  "BOUNCE_RHO",
   "CAP_COLORS",
   "DEFr",
   "EYE_H",

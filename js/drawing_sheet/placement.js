@@ -94,6 +94,48 @@ export function leaderFrom(x, y, w, h, anchor) {
   return { x: Math.max(x - w / 2, Math.min(anchor.x, x + w / 2)), y: Math.max(y - h / 2, Math.min(anchor.y, y + h / 2)) };
 }
 
+function segmentBounds(a, b) {
+  return { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) };
+}
+
+function obstacleBounds(ob) {
+  if (!ob.poly) return ob;
+  const bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const p of ob.poly) {
+    bounds.x0 = Math.min(bounds.x0, p.x); bounds.x1 = Math.max(bounds.x1, p.x);
+    bounds.y0 = Math.min(bounds.y0, p.y); bounds.y1 = Math.max(bounds.y1, p.y);
+  }
+  return bounds;
+}
+
+// Each occurrence has its own index, including repeated obstacle references.
+// Oversized entries and queries fall back to a scan instead of filling a grid.
+function placementGrid(size) {
+  const all = [], large = [], cells = new Map();
+  function visit(box, fn) {
+    const x0 = Math.floor(box.x0 / size), y0 = Math.floor(box.y0 / size);
+    const x1 = Math.floor(box.x1 / size), y1 = Math.floor(box.y1 / size);
+    if (![x0, y0, x1, y1].every(Number.isSafeInteger) || x1 < x0 || y1 < y0 ||
+        (x1 - x0 + 1) * (y1 - y0 + 1) > 256) return false;
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) fn(x + "," + y);
+    return true;
+  }
+  return {
+    add(value, box) {
+      const id = all.push(value) - 1;
+      if (!visit(box, key => {
+        if (!cells.has(key)) cells.set(key, []);
+        cells.get(key).push(id);
+      })) large.push(id);
+    },
+    near(box) {
+      const ids = new Set(large);
+      if (!visit(box, key => { for (const id of cells.get(key) || []) ids.add(id); })) return all;
+      return Array.from(ids, id => all[id]);
+    }
+  };
+}
+
 /* Labels may also carry:
      variants   [{w, h}] tried in order (a full label, then smaller ones)
      candidates (variant) => [{x, y, ax?, ay?}] explicit centres to try, each
@@ -107,8 +149,12 @@ export function placeLabels(labels, obstacles, opts) {
   const o = opts || {};
   const gap = o.gap || 0, obs = obstacles || [], segs = o.segments || [];
   const order = labels.map((l, i) => ({ l, i })).sort((a, b) => (b.l.priority || 0) - (a.l.priority || 0) || a.i - b.i);
-  const placed = [], result = new Array(labels.length);
-  const segHitsObstacles = (a, b) => obs.reduce((n, ob) => {
+  const size = Math.max(1, (labels[0]?.h || labels[0]?.variants?.[0]?.h || 10) * 4);
+  const placed = placementGrid(size), obstaclesByCell = placementGrid(size), segmentsByCell = placementGrid(size);
+  for (const ob of obs) obstaclesByCell.add(ob, obstacleBounds(ob));
+  for (const sg of segs) segmentsByCell.add(sg, segmentBounds(sg.a, sg.b));
+  const result = new Array(labels.length);
+  const segHitsObstacles = (a, b) => obstaclesByCell.near(segmentBounds(a, b)).reduce((n, ob) => {
     if (ob.poly) return n + (ob.poly.some((p, k) => segsCross(a, b, p, ob.poly[(k + 1) % ob.poly.length])) ? 1 : 0);
     return n + (segHitsBox(a, b, ob) ? 1 : 0);
   }, 0);
@@ -123,9 +169,11 @@ export function placeLabels(labels, obstacles, opts) {
   };
   const costOf = (box, lead) => {
     let cost = 0;
-    for (const p of placed) if (boxesOverlap(box, p.box, gap)) cost += 10;
-    for (const ob of obs) if (obstacleHits(box, ob)) cost += 3;
-    if (lead) for (const sg of segs) if (segsCross(lead.a, lead.b, sg.a, sg.b)) cost += 2;
+    const pad = Math.max(0, gap);
+    const search = { x0: box.x0 - pad, y0: box.y0 - pad, x1: box.x1 + pad, y1: box.y1 + pad };
+    for (const p of placed.near(search)) if (boxesOverlap(box, p, gap)) cost += 10;
+    for (const ob of obstaclesByCell.near(box)) if (obstacleHits(box, ob)) cost += 3;
+    if (lead) for (const sg of segmentsByCell.near(segmentBounds(lead.a, lead.b))) if (segsCross(lead.a, lead.b, sg.a, sg.b)) cost += 2;
     return cost;
   };
   order.forEach(({ l, i }) => {
@@ -158,7 +206,8 @@ export function placeLabels(labels, obstacles, opts) {
     if (!done && l.outside) done = tryPass(variants.length - 1, null, 3);
     if (!best) best = { c: { x: l.x, y: l.y }, v: variants[0], vi: 0, cost: Infinity, lead: null, to: anchor, outside: false, shift: 0 };
     const { c, v } = best;
-    placed.push({ box: boxOf(c.x, c.y, v.w, v.h) });
+    const accepted = boxOf(c.x, c.y, v.w, v.h);
+    placed.add(accepted, accepted);
     result[i] = { id: l.id, x: c.x, y: c.y, w: v.w, h: v.h, variant: best.vi, moved: best.shift > 1e-6, leader: !!best.lead, anchor: best.to, clear: best.cost === 0, outside: best.outside };
   });
   return result;

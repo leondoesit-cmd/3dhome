@@ -2,8 +2,7 @@
    site and street-view cube, and resizing, split out of js/view3d.js. It shares
    the editor's state through live imports from ../view3d.js. */
 import { contentBounds } from "../geometry.js";
-import { backdropLook, backdropMode, softLightOn, studioFloor } from "./backdrop.js";
-import { LUX } from "../gpu.js";
+import { backdropLook, backdropMode, daylightCalibration, plannerTracerSky, softLightOn, solarState, studioFloor } from "./backdrop.js";
 import { SITE, llToLocalCm } from "../site.js";
 import { prefilterInto, skyPixels } from "../sky_model.js";
 import { S, clamp } from "../state.js";
@@ -179,8 +178,8 @@ function lerpC(a, b, t) {
 }
 
 /* The environment as a half-float procedural sky (js/sky_model.js): linear
-   radiance with the sun's glow and disc above 1, so glossy surfaces show a
-   real highlight and the prefiltered fill is brighter on the sun's side.
+   radiance with a broad circumsolar glow, so the prefiltered fill is
+   brighter on the sun's side. The directional light supplies the disc.
    Returns null (and the caller paints the old gradient) if the backend
    cannot take the texture. */
 function hdrSkyTexture(zenC, horC, groundHex, sunDir, sunCol, day) {
@@ -193,7 +192,7 @@ function hdrSkyTexture(zenC, horC, groundHex, sunDir, sunCol, day) {
       horizon: [horC.r * 0.6, horC.g * 0.6, horC.b * 0.6],
       ground: [g.r * 0.9, g.g * 1.0, g.b * 0.8],
       sunColor: [sunCol.r, sunCol.g, sunCol.b],
-      sunI: 30 * day,
+      sunI: 0, // the directional emitter already supplies the solar disc to the PBR BRDF
       glowI: 0.9 * day,
     };
     var f = skyPixels(W, H, [sunDir.x, sunDir.y, sunDir.z], p);
@@ -227,7 +226,7 @@ function updateEnvMap(zenC, horC, groundHex, sunDir, sunCol, day) {
     return;
   }
   var key = zenC.getHexString() + horC.getHexString() + groundHex +
-    (sunDir ? "|" + [sunDir.x, sunDir.y, sunDir.z].map(function (v) { return Math.round(v * 50); }).join(",") : "");
+    "|" + day + (sunDir ? "|" + [sunDir.x, sunDir.y, sunDir.z].map(function (v) { return Math.round(v * 50); }).join(",") : "");
   /* The cache is about not re-prefiltering the same sky, NOT about whether the
      scene is still using it: a game mode that nulls scene.environment for its
      own grade got the daylight sky back on exit but no image-based fill at
@@ -249,14 +248,15 @@ function updateEnvMap(zenC, horC, groundHex, sunDir, sunCol, day) {
     grd = ex.createLinearGradient(0, 0, 0, H);
   // scale sky colors down: the env map is an ambient *fill*, not a second sun,
   // so a lit gradient would flood the room and flatten it.
-  var z = zenC.clone().multiplyScalar(0.62),
-    h = horC.clone().multiplyScalar(0.62);
+  var z = zenC.clone().multiplyScalar(0.55),
+    h = horC.clone().multiplyScalar(0.6);
   grd.addColorStop(0.0, "#" + z.getHexString());
   grd.addColorStop(0.5, "#" + h.getHexString());
   grd.addColorStop(0.52, "#" + groundHex);
   grd.addColorStop(1.0, "#" + groundHex);
   ex.fillStyle = grd;
   ex.fillRect(0, 0, envSrcCanvas.width, H);
+  envSrcTex.colorSpace = THREE.SRGBColorSpace;
   envSrcTex.needsUpdate = true;
   prefilterSky(envSrcTex);
 }
@@ -289,23 +289,12 @@ export function applyEnv() {
     cx = bb.cx,
     cz = bb.cz,
     R = Math.max(Math.hypot(bb.w, bb.d), 300);
-  var sr = 6,
-    ss = 18,
-    on = S.hour > sr && S.hour < ss,
-    E,
-    Ap;
-  if (on) {
-    var t = (S.hour - sr) / (ss - sr);
-    E = Math.sin(t * Math.PI) * 1.02;
-    Ap = ((S.northAngle + 90 + t * 180) * Math.PI) / 180;
-  } else {
-    E = -0.25;
-    Ap = ((S.northAngle + (S.hour <= sr ? 80 : 280)) * Math.PI) / 180;
-  }
+  var solar = solarState(S.hour, S.northAngle);
+  var E = solar.elevation, Ap = solar.azimuth, on = E > 0;
   var ce = Math.cos(E),
     se = Math.sin(E);
   var dx = ce * Math.sin(Ap),
-    dy = Math.max(se, 0.04),
+    dy = se,
     dz = -ce * Math.cos(Ap),
     D = R * 1.7 + 450;
   sun.position.set(cx + dx * D, dy * D, cz + dz * D);
@@ -318,40 +307,39 @@ export function applyEnv() {
   sun.shadow.camera.far = D * 2.4;
   if (sun.shadow.camera.updateProjectionMatrix)
     sun.shadow.camera.updateProjectionMatrix();
-  var dk = on ? clamp(se / 0.85, 0, 1) : 0;
+  var dk = solar.day;
   S.dayK = dk;
   var lowK = on ? 1 - clamp(E / 0.7, 0, 1) : 1;
   // Studio backdrop / soft light (./backdrop.js): scales of 1 in the default look
-  var look = backdropLook(backdropMode(S.workspace), softLightOn(S.workspace), on);
-  // LUX: physical lights divide irradiance by PI, so every pre-r185 intensity
-  // literal in this rig is PI too dim as written. See gpu.js.
-  // The sun is the key light and the sky is fill. With the sky map at full
-  // strength the two came out nearly equal, so interiors read flat and white
-  // walls clipped; a stronger, warmer sun over a dimmer sky gives shadows
-  // that actually model the rooms. The penumbra widens as the sun drops.
-  sun.intensity = LUX * (on ? 0.45 + 1.4 * dk : 0) * look.sunScale;
+  var mode = backdropMode(S.workspace), soft = softLightOn(S.workspace);
+  var look = backdropLook(mode, soft, true), nightLook = backdropLook(mode, soft, false);
   sun.color.copy(lerpC(0xfff1db, 0xff7a36, lowK));
   sun.shadow.radius = 3 + 6 * lowK + look.shadowSoften;
-  // a sun below the horizon still cost a 4096² pass and a texture in every shader
-  sun.castShadow = on;
+  // A sun below the horizon keeps its sampler to preserve every lit shader's
+  // key. syncShadowUpdates skips the 4096² pass at zero intensity.
   /* Light in the order nature has it: the sun's patch through a window is
      several times brighter than the diffuse sky light around it, which is
      brighter than the bounce that fills the rest of the room. The window
      sky light used to put twice the sun's illuminance on the floor beside the
      glass, so a sun patch vanished into it. */
-  scene.environmentIntensity = (on ? 0.53 + 0.21 * lowK : 0.55) * look.envScale;
-  hemi.intensity = LUX * (0.02 + 0.05 * dk); // env map now supplies most sky ambient
-  // gradient sky: zenith->horizon colors, shared with the path tracer via envPT
-  var zen = look.zenith != null ? new THREE.Color(look.zenith) : on ? lerpC(0x5f93c8, 0xb46a4a, lowK) : new THREE.Color(0x070b14);
-  var hor = look.horizon != null ? new THREE.Color(look.horizon) : on ? lerpC(0xd8e6f2, 0xf0a35c, lowK) : new THREE.Color(0x182233);
-  set_envPT({
-    zenith: [zen.r, zen.g, zen.b],
-    horizon: [hor.r, hor.g, hor.b],
-    ground: look.ptGround || [0.3, 0.34, 0.24],
-    night: on ? 0 : 1,
-  });
+  var zen = lerpC(nightLook.zenith ?? 0x070b14, look.zenith ?? lerpC(0x5f93c8, 0xb46a4a, lowK), solar.sky);
+  var hor = lerpC(nightLook.horizon ?? 0x182233, look.horizon ?? lerpC(0xd8e6f2, 0xf0a35c, lowK), solar.sky);
+  var ground = lerpC("#" + (nightLook.envGround || "0a0d14"), "#" + (look.envGround || "3a3d30"), solar.sky);
+  var photometry = daylightCalibration(solar, zen, hor, look);
+  sun.intensity = photometry.direct;
+  hemi.intensity = 0; // PMREM already supplies sky irradiance to exposed surfaces.
+  renderer.toneMappingExposure = photometry.exposure;
+  scene.environmentIntensity = photometry.envStrength;
+  var skyRGB = photometry.windowRGB;
+  S.windowSkyK = Math.max(...skyRGB);
+  sun.userData.windowSkyColor = new THREE.Color().setRGB(...skyRGB).multiplyScalar(1 / (S.windowSkyK || 1));
+  sun.userData.toSun = new THREE.Vector3(dx, dy, dz).normalize();
+  set_envPT(plannerTracerSky(zen, hor, ground, photometry.envStrength, solar.sky));
   var skyGround = hor.clone().multiplyScalar(0.75).getHexString();
   var skyKey = zen.getHexString() + hor.getHexString() + skyGround;
+  // The visible sky and distance haze must follow the same exposure as the
+  // reflected sky. Canvas gradients are authored in sRGB like their hex stops.
+  if (skyDome) skyDome.material.color.setScalar(photometry.backgroundScale);
   if (skyCanvas && skyKey !== lastSkyKey) {
     set_lastSkyKey(skyKey);
     var sx = skyCanvas.getContext("2d"),
@@ -361,25 +349,27 @@ export function applyEnv() {
     grd.addColorStop(1, "#" + skyGround); // below horizon, slightly darker
     sx.fillStyle = grd;
     sx.fillRect(0, 0, skyCanvas.width, skyCanvas.height);
+    skyTex.colorSpace = THREE.SRGBColorSpace;
     skyTex.needsUpdate = true;
   }
-  var bg = look.background != null ? new THREE.Color(look.background) : on ? lerpC(0xbfd6ec, 0xe8975a, lowK) : new THREE.Color(0x0d1320);
+  var bg = lerpC(nightLook.background ?? 0x0d1320, look.background ?? lerpC(0xbfd6ec, 0xe8975a, lowK), solar.sky);
+  bg.multiplyScalar(photometry.backgroundScale);
   scene.background = bg;
-  if (!scene.fog) scene.fog = new THREE.Fog(hor.getHex(), 2600, 9500);
-  else scene.fog.color.copy(look.studio ? bg : hor);
+  if (!scene.fog) scene.fog = new THREE.Fog(0xffffff, 2600, 9500);
+  scene.fog.color.copy(look.studio ? bg : hor.clone().multiplyScalar(photometry.backgroundScale));
   if (stars) stars.visible = !on && look.sky;
   // refresh image-based lighting to match the new sky (ground tone darkens at night)
-  updateEnvMap(zen, hor, look.envGround || (on ? "3a3d30" : "0a0d14"),
-    new THREE.Vector3(dx, dy, dz).normalize(), sun.color, on ? dk : 0);
-  // a dollhouse view keeps its ceilings and full-height walls as shadow
-  // casters (see shadowRoot), so its rooms are lit like rooms seen from inside
-  renderer.toneMappingExposure = (on ? 1.28 : 0.95) * look.exposureScale;
-  S.artK = on ? 0.12 + 0.55 * (1 - dk) : 1.0;
+  updateEnvMap(zen, hor, ground.getHexString(), sun.userData.toSun, sun.color, dk);
+  // Soft light retains its explicit camera grade; practical power is independent.
+  S.artK = 1 - dk;
   dyn.traverse(function (o) {
     if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null) {
-      o.intensity = o.userData.win
-        ? o.userData.baseI * 0.6 * dk
-        : o.userData.baseI * (0.45 + 1.9 * S.artK);
+      if (o.userData.win) {
+        o.intensity = o.userData.baseI * S.windowSkyK;
+        o.color.copy(sun.userData.windowSkyColor);
+      } else {
+        o.intensity = o.userData.baseI;
+      }
     }
     if (
       o.isMesh &&
@@ -388,10 +378,10 @@ export function applyEnv() {
       o.material.userData.glow
     ) {
       var off = o.parent && o.parent.userData && o.parent.userData.lampOff;
-      o.material.emissiveIntensity = off ? 0 : 0.4 + 1.4 * S.artK;
+      o.material.emissiveIntensity = off ? 0 : (o.material.userData.lampLuminance ?? 1);
     }
   });
-  fitPracticalLights(); // night practicals take over the shadows from the sun
+  fitPracticalLights(); // windows and practicals share maps across day and night
   fitBounceLights(); // and the light they let in fills each room
   applySite(); // keep the site skybox/sky-dome visibility in sync with day/night
   runRelightHooks();

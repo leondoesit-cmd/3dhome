@@ -35,6 +35,7 @@ import {
   applyAutoLock,
   setWorkLayer,
   selectionAfterHide,
+  layerTagKind,
 } from "./layers.js";
 import { render2D, onAfterRender } from "./plan2d.js";
 import { select } from "./ui_props.js";
@@ -47,6 +48,7 @@ import {
   userLayers,
   userLayerById,
   itemsOnUserLayer,
+  userLayerCounts,
   addUserLayer,
   nextUserLayerName,
   renameUserLayer,
@@ -54,7 +56,7 @@ import {
   assignUserLayer,
   itemUserUnpickable,
 } from "./user_layers.js";
-import { t, onLangChange } from "./i18n.js";
+import { t, getLang, onLangChange } from "./i18n.js";
 import { flash, fillProps } from "./ui.js";
 import { pushHistory } from "./history.js";
 import { flabel } from "./furniture_meta.js";
@@ -212,8 +214,8 @@ function build() {
       commit();
     });
 
-    /* "Editing", "Faded" or "Hidden": the state a glance at the row has to
-       answer. A sibling of the name button rather than part of it, because
+    /* "Editing", "Visible", "Faded" or "Hidden" (layerTagKind, js/layers.js):
+       the state a glance at the row has to answer. A sibling of the name button rather than part of it, because
        js/pro_compact.js reads the work layer's name from that button's text. */
     var tag = document.createElement("span");
     tag.className = "lchip-tag";
@@ -288,8 +290,9 @@ function sync() {
     // drawn quieter than a padlock the user closed by hand
     r.row.classList.toggle("autolocked", auto);
     r.name.setAttribute("aria-checked", on ? "true" : "false");
-    r.tag.textContent = L.vis !== "show" ? t("lay_vis_" + L.vis) : on && S.workSet !== "all" ? t("lay_tag_edit") : "";
-    r.tag.setAttribute("data-kind", L.vis !== "show" ? L.vis : on ? "edit" : "");
+    var kind = layerTagKind(id, S.workSet, L.vis);
+    r.tag.textContent = t(kind === "edit" ? "lay_tag_edit" : "lay_vis_" + kind);
+    r.tag.setAttribute("data-kind", kind);
     r.eye.querySelector("i").className = "ph " + (VIS_ICON[L.vis] || "ph-eye");
     r.eye.title =
       t("lay_vis_" + L.vis) + " · " + t(L.vis === "show" ? "lay_eye_hide" : "lay_eye_show") + " · " + t("lay_solo");
@@ -302,7 +305,7 @@ function sync() {
   });
   syncStatus();
   syncPresets();
-  syncCounts();
+  syncCounts(false);
   syncRefRow();
   renderUserRows();
   syncLockBtn();
@@ -560,7 +563,7 @@ function fillPopover() {
 }
 
 // Visible / Faded / Hidden: the three visibility states, each named.
-function visibilityRow(L, onChange) {
+function visibilityRow(layer, onChange, resolveLayer) {
   var wrap = document.createElement("div");
   wrap.className = "lp-row";
   var lab = document.createElement("span");
@@ -573,8 +576,10 @@ function visibilityRow(L, onChange) {
     var b = document.createElement("button");
     b.type = "button";
     b.textContent = t("lay_vis_" + v);
-    b.className = L.vis === v ? "on" : "";
+    b.className = layer.vis === v ? "on" : "";
     b.addEventListener("click", function () {
+      var L = resolveLayer ? resolveLayer() : layer;
+      if (!L) return;
       L.vis = v;
       (onChange || commit)();
     });
@@ -664,7 +669,7 @@ function layerCount(id) {
 }
 
 // Cheap enough to run after every plan paint: five numbers, written only when changed.
-function syncCounts() {
+function syncCounts(includeUserRows = true) {
   LAYER_IDS.forEach(function (id) {
     var r = rows[id];
     if (!r || !r.count) return;
@@ -672,10 +677,12 @@ function syncCounts() {
       txt = n == null ? "" : String(n);
     if (r.count.textContent !== txt) r.count.textContent = txt;
   });
+  if (!includeUserRows) return; // renderUserRows updates them during a full sync
+  var counts = null; // one pass over the items for every row (userLayerCounts)
   userLayers().forEach(function (L) {
     var r = rows["ul:" + L.id];
     if (!r || !r.count) return;
-    var txt = String(itemsOnUserLayer(L.id).length);
+    var txt = String((counts || (counts = userLayerCounts())).get(L.id) || 0);
     if (r.count.textContent !== txt) r.count.textContent = txt;
   });
 }
@@ -790,100 +797,137 @@ function userChanged() {
 
 function renderUserRows() {
   if (!userBox) return;
-  Object.keys(rows).forEach(function (k) {
-    if (k.indexOf("ul:") === 0) delete rows[k];
-  });
-  userBox.textContent = "";
-  var head = document.createElement("div");
-  head.className = "lchip-user-head";
-  var title = document.createElement("span");
-  title.textContent = t("ul_title");
-  var add = document.createElement("button");
-  add.type = "button";
-  add.className = "lchip-user-add";
-  add.innerHTML = '<i class="ph ph-plus" aria-hidden="true"></i><span></span>';
-  add.querySelector("span").textContent = t("ul_new");
-  add.title = t("ul_new_t");
-  add.addEventListener("click", function (e) {
-    e.stopPropagation();
-    newUserLayer();
-  });
-  head.append(title, add);
-  userBox.appendChild(head);
-  var ls = userLayers();
+  var head = userBox.firstElementChild;
+  if (!head) {
+    head = document.createElement("div");
+    head.className = "lchip-user-head";
+    var title = document.createElement("span"), add = document.createElement("button");
+    add.type = "button";
+    add.className = "lchip-user-add";
+    add.innerHTML = '<i class="ph ph-plus" aria-hidden="true"></i><span></span>';
+    add.addEventListener("click", function (e) {
+      e.stopPropagation();
+      newUserLayer();
+    });
+    head.append(title, add);
+    userBox.appendChild(head);
+  }
+  setLayerText(head.firstElementChild, t("ul_title"));
+  setLayerText(head.lastElementChild.querySelector("span"), t("ul_new"));
+  var addTitle = t("ul_new_t");
+  if (head.lastElementChild.title !== addTitle) head.lastElementChild.title = addTitle;
+
+  var ls = userLayers(), live = new Set(ls.map(L => "ul:" + L.id));
+  for (const key of Object.keys(rows)) {
+    if (key.startsWith("ul:") && !live.has(key)) {
+      rows[key].row.remove();
+      delete rows[key];
+    }
+  }
+  var hint = userBox.querySelector(".lchip-user-empty");
   if (!ls.length) {
-    var hint = document.createElement("div");
-    hint.className = "lchip-user-empty";
-    hint.textContent = t("ul_empty");
-    userBox.appendChild(hint);
+    if (!hint) {
+      hint = document.createElement("div");
+      hint.className = "lchip-user-empty";
+      userBox.appendChild(hint);
+    }
+    setLayerText(hint, t("ul_empty"));
     return;
   }
-  ls.forEach(function (L) {
-    var key = "ul:" + L.id;
-    var row = document.createElement("div");
-    row.className = "lchip lchip-x lchip-ul";
-    row.setAttribute("data-ulayer", L.id);
-    row.classList.toggle("ghosted", L.vis === "ghost");
-    row.classList.toggle("hidden-layer", L.vis === "hide");
-    row.classList.toggle("locked", !!L.locked);
-    var name = document.createElement("button");
-    name.type = "button";
-    name.className = "lchip-name";
-    name.innerHTML = '<i class="ph ph-folder-simple" aria-hidden="true"></i><span class="lchip-t"></span>';
-    name.querySelector(".lchip-t").textContent = L.name;
-    name.title = t("ul_sel_t", { name: L.name });
-    name.addEventListener("click", function () {
+  if (hint) hint.remove();
+  var counts = userLayerCounts(), previous = head;
+  for (const L of ls) {
+    const key = "ul:" + L.id, r = rows[key] || (rows[key] = makeUserRow(L.id));
+    updateUserRow(r, L, counts.get(L.id) || 0);
+    const before = previous.nextElementSibling;
+    if (r.row !== before) {
+      if (r.row.parentNode === userBox && userBox.moveBefore) userBox.moveBefore(r.row, before);
+      else {
+        const focused = r.row.contains(document.activeElement) && document.activeElement;
+        userBox.insertBefore(r.row, before);
+        if (focused) focused.focus({ preventScroll: true });
+      }
+    }
+    previous = r.row;
+  }
+}
+
+function setLayerText(el, value) {
+  if (el.textContent !== value) el.textContent = value;
+}
+
+function userRowButton(className, markup, click) {
+  var button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.innerHTML = markup;
+  button.addEventListener("click", click);
+  return button;
+}
+
+function makeUserRow(id) {
+  var row = document.createElement("div");
+  row.className = "lchip lchip-x lchip-ul";
+  row.setAttribute("data-ulayer", id);
+  var name = userRowButton("lchip-name",
+    '<i class="ph ph-folder-simple" aria-hidden="true"></i><span class="lchip-t"></span>', function () {
       var hid = hiddenSets();
-      selectRefs(
-        itemsOnUserLayer(L.id).filter(function (it) {
-          return !hid.items[it.id];
-        }),
-        "item",
-        "items",
-      );
+      selectRefs(itemsOnUserLayer(id).filter(it => !hid.items[it.id]), "item", "items");
     });
-    var count = document.createElement("span");
-    count.className = "lchip-count";
-    count.textContent = String(itemsOnUserLayer(L.id).length);
-    var tag = document.createElement("span");
-    tag.className = "lchip-tag";
-    tag.textContent = L.vis !== "show" ? t("lay_vis_" + L.vis) : "";
-    tag.setAttribute("data-kind", L.vis !== "show" ? L.vis : "");
-    var eye = document.createElement("button");
-    eye.type = "button";
-    eye.className = "lchip-eye";
-    eye.innerHTML = '<i class="ph ' + (L.vis === "hide" ? "ph-eye-slash" : "ph-eye") + '"></i>';
-    eye.title = t("lay_vis_" + L.vis) + " · " + t(L.vis === "show" ? "lay_eye_hide" : "lay_eye_show");
-    eye.setAttribute("aria-label", L.name + " · " + eye.title);
-    eye.setAttribute("aria-pressed", L.vis === "show" ? "true" : "false");
-    eye.addEventListener("click", function () {
-      L.vis = L.vis === "show" ? "hide" : "show";
-      userChanged();
-    });
-    var lock = document.createElement("button");
-    lock.type = "button";
-    lock.className = "lchip-lock";
-    lock.innerHTML = '<i class="ph ' + (L.locked ? "ph-lock-simple" : "ph-lock-simple-open") + '"></i>';
-    lock.title = t(L.locked ? "lay_unlock" : "lay_lock");
-    lock.setAttribute("aria-label", L.name + " · " + lock.title);
-    lock.addEventListener("click", function () {
-      L.locked = !L.locked;
-      userChanged();
-    });
-    var more = document.createElement("button");
-    more.type = "button";
-    more.className = "lchip-more";
-    more.innerHTML = '<i class="ph ph-dots-three-vertical"></i>';
-    more.title = t("lay_more");
-    more.setAttribute("aria-label", L.name + " · " + t("lay_more"));
-    more.addEventListener("click", function (e) {
-      e.stopPropagation();
-      openPopover(key, more);
-    });
-    row.append(name, count, tag, eye, lock, more);
-    userBox.appendChild(row);
-    rows[key] = { row: row, more: more, count: count };
+  var count = document.createElement("span"), tag = document.createElement("span");
+  count.className = "lchip-count";
+  tag.className = "lchip-tag";
+  var eye = userRowButton("lchip-eye", "<i></i>", function () {
+    var L = userLayerById(id);
+    if (!L) return;
+    L.vis = L.vis === "show" ? "hide" : "show";
+    userChanged();
   });
+  var lock = userRowButton("lchip-lock", "<i></i>", function () {
+    var L = userLayerById(id);
+    if (!L) return;
+    L.locked = !L.locked;
+    userChanged();
+  });
+  var more = userRowButton("lchip-more", '<i class="ph ph-dots-three-vertical"></i>', function (e) {
+    e.stopPropagation();
+    openPopover("ul:" + id, more);
+  });
+  row.append(name, count, tag, eye, lock, more);
+  return { row, name, count, tag, eye, lock, more };
+}
+
+function updateUserRow(r, L, count) {
+  var lang = getLang(), translate = lang !== r.lang, renamed = r.layerName !== L.name;
+  var visibility = r.lang === undefined || r.vis !== L.vis, locked = r.locked !== !!L.locked;
+  setLayerText(r.count, String(count));
+  if (renamed) setLayerText(r.name.lastElementChild, L.name);
+  if (renamed || translate) r.name.title = t("ul_sel_t", { name: L.name });
+  if (visibility) {
+    r.row.classList.toggle("ghosted", L.vis === "ghost");
+    r.row.classList.toggle("hidden-layer", L.vis === "hide");
+    r.eye.firstElementChild.className = "ph " + (L.vis === "hide" ? "ph-eye-slash" : "ph-eye");
+    r.eye.setAttribute("aria-pressed", L.vis === "show" ? "true" : "false");
+  }
+  if (visibility || translate) {
+    var kind = layerTagKind(null, null, L.vis);
+    setLayerText(r.tag, t("lay_vis_" + kind));
+    r.tag.setAttribute("data-kind", kind);
+    r.eye.title = t("lay_vis_" + L.vis) + " · " + t(L.vis === "show" ? "lay_eye_hide" : "lay_eye_show");
+  }
+  if (locked) {
+    r.row.classList.toggle("locked", !!L.locked);
+    r.lock.firstElementChild.className = "ph " + (L.locked ? "ph-lock-simple" : "ph-lock-simple-open");
+  }
+  if (locked || translate) r.lock.title = t(L.locked ? "lay_unlock" : "lay_lock");
+  if (translate) r.more.title = t("lay_more");
+  if (renamed || translate || visibility) r.eye.setAttribute("aria-label", L.name + " · " + r.eye.title);
+  if (renamed || translate || locked) r.lock.setAttribute("aria-label", L.name + " · " + r.lock.title);
+  if (renamed || translate) r.more.setAttribute("aria-label", L.name + " · " + r.more.title);
+  r.lang = lang;
+  r.layerName = L.name;
+  r.vis = L.vis;
+  r.locked = !!L.locked;
 }
 
 function newUserLayer() {
@@ -911,6 +955,7 @@ function actButton(key, vars, enabled, run) {
 }
 
 function fillUserPopover(L) {
+  var id = L.id;
   var h = document.createElement("label");
   h.className = "lp-row lp-name";
   var lab = document.createElement("span");
@@ -925,21 +970,23 @@ function fillUserPopover(L) {
     if (e.key === "Enter") input.blur();
   });
   input.addEventListener("change", function () {
-    if (renameUserLayer(L.id, input.value)) userChanged();
+    if (renameUserLayer(id, input.value)) userChanged();
   });
   h.append(lab, input);
   pop.appendChild(h);
-  pop.appendChild(visibilityRow(L, userChanged));
+  pop.appendChild(visibilityRow(L, userChanged, () => userLayerById(id)));
   var picked = selectedItems(),
     offIt = picked.filter(function (it) {
       return it.ulayer !== L.id;
     });
   pop.appendChild(
     actButton("ul_add", { n: offIt.length }, offIt.length > 0, function () {
+      var current = userLayerById(id);
+      if (!current) return;
       pushHistory();
-      var n = assignUserLayer(offIt, L.id);
+      var n = assignUserLayer(offIt, id);
       userChanged();
-      flash(t("ul_added", { n: n, name: L.name }));
+      flash(t("ul_added", { n: n, name: current.name }));
     }),
   );
   var onIt = picked.filter(function (it) {
@@ -947,19 +994,23 @@ function fillUserPopover(L) {
   });
   pop.appendChild(
     actButton("ul_take", { n: onIt.length }, onIt.length > 0, function () {
+      var current = userLayerById(id);
+      if (!current) return;
       pushHistory();
       var n = assignUserLayer(onIt, null);
       userChanged();
-      flash(t("ul_taken", { n: n, name: L.name }));
+      flash(t("ul_taken", { n: n, name: current.name }));
     }),
   );
   pop.appendChild(
     actButton("ul_delete", null, true, function () {
+      var current = userLayerById(id);
+      if (!current) return;
       closePopover();
       pushHistory();
-      removeUserLayer(L.id);
+      removeUserLayer(id);
       userChanged();
-      flash(t("ul_deleted", { name: L.name }));
+      flash(t("ul_deleted", { name: current.name }));
     }),
   );
   var hint = document.createElement("div");

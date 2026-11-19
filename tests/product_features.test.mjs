@@ -53,7 +53,7 @@ test("layout alternatives are scored and can be applied without moving locked it
   const layouts = generateLayouts();
   assert.equal(layouts.length, 3);
   assert.ok(layouts.every((candidate) => Number.isFinite(candidate.score)));
-  applyLayout(layouts.find((candidate) => candidate.id === "rotate"));
+  assert.equal(applyLayout(layouts.find((candidate) => candidate.id !== "original")), true);
   assert.deepEqual({ x: S.items[0].x, z: S.items[0].z }, before);
 });
 

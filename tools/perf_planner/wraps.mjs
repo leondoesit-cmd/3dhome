@@ -30,7 +30,10 @@ export const WRAPS = {
   "js/mep_route.js": { fns: ["makeRouter"] },
   "js/mep/drawing.js": { fns: ["buildMEP3D"] },
   "js/ui_mep.js": { fns: ["renderPanel"] },
-  "js/view3d/items_layers.js": { fns: ["rebuild3D", "itemSig", "syncItems", "rebuildMEP3D"] },
+  "js/view3d/items_layers.js": { fns: ["rebuild3D", "itemSig", "syncItems", "rebuildMEP3D", "applyItemOps"] },
+  "js/view3d/lighting.js": { fns: ["fitLightMasks", "fitBounceLights", "fitPracticalLights"] },
+  "js/view3d/item_merge.js": { fns: ["mergeItemMeshes"] },
+  "js/room_bounce.js": { fns: ["roomIrradiance", "rasterRooms", "packRoomGeometry", "diffuseReflectance"] },
 };
 
 /* Rename `function NAME(args) {` (optionally `export`/`async`) and put a

@@ -45,6 +45,7 @@ import {
   moveColumnBy, moveSectionBy, openProductionSetup,
 } from "./ui_cabinet_inspect.js";
 import { neighbourSelection } from "./cabinet_layout_ops.js";
+import { pluralKey, statusSegments } from "./cabinet_chrome_logic.js";
 
 var cabinetListeners = null;
 function destroyDOM() {
@@ -1042,26 +1043,32 @@ function fillStatusBar() {
   if (!bar || !E.it) return;
   var s = specOf(E.it), parts = [];
   var preset = cabinetProductionPreset(s.productionConvention && s.productionConvention.presetId);
-  parts.push(preset ? (isEn() ? preset.label : preset.labelHe) : T("statusNoConvention"));
-  parts.push(T("statusUnits").replace("{u}", displayUnit("cabinet")));
-  if (s.panel > 0) parts.push(T("statusStock").replace("{t}", formatStockMm(s.panel)));
+  parts.push({ key: "conv", text: preset ? (isEn() ? preset.label : preset.labelHe) : T("statusNoConvention") });
+  // a bare unit says nothing on its own: statusSegments drops it (the size fields carry the unit)
+  parts.push({ key: "units", text: T("statusUnits").replace("{u}", displayUnit("cabinet")) });
+  if (s.panel > 0) parts.push({ key: "stock", text: T("statusStock").replace("{t}", formatStockMm(s.panel)) });
   var stats = null;
   try {
     var panels = panelsOf([E.it]), q = nest(panels);
     var area = 0, used = 0;
     q.groups.forEach(function (g) { if (!g.bySqm) { area += g.area; used += g.used; } });
-    parts.push(T("statusSheets").replace("{n}", q.sheetCount) + (area > 0 ? " · " + T("statusYield").replace("{p}", Math.round(used / area * 100)) : ""));
-    parts.push(T("statusParts").replace("{n}", panels.length));
+    parts.push({ key: "sheets", text: T(pluralKey(q.sheetCount, "statusSheet", "statusSheets")).replace("{n}", q.sheetCount) });
+    if (area > 0) parts.push({ key: "yield", text: T("statusYield").replace("{p}", Math.round(used / area * 100)) });
+    parts.push({ key: "parts", text: T(pluralKey(panels.length, "statusPart", "statusParts")).replace("{n}", panels.length) });
     stats = { parts: panels.length, sheets: q.sheetCount };
   } catch (error) {
-    parts.push(T("statusNestFailed"));
+    parts.push({ key: "failed", text: T("statusNestFailed") });
   }
   fillProdStats(stats);
   bar.innerHTML = "";
-  parts.forEach(function (text, i) {
-    var span = document.createElement(i === 0 ? "button" : "span");
-    span.textContent = text;
-    if (i === 0) {
+  statusSegments(parts).forEach(function (seg) {
+    var conv = seg.key === "conv";
+    var span = document.createElement(conv ? "button" : "span");
+    span.textContent = seg.text;
+    // the narrow bar drops by this (css/pro_ribbon.css, @container cb-status)
+    span.dataset.prio = seg.prio;
+    if (seg.key === "stock") span.title = T("statusUnits").replace("{u}", displayUnit("cabinet"));
+    if (conv) {
       // the convention (or its absence) opens the production setup, as the
       // Technical tab's "Production setup" button does
       span.type = "button";

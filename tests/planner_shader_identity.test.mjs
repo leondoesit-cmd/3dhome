@@ -36,7 +36,7 @@ test("lights go back to the pool when their build is thrown away", () => {
     "a dropped lamp hands its light back before the group is disposed");
   assert.match(view3d, /windowLights\.forEach\(releaseLight\);[^\n]*\n\s*(?:windowLights = \[\]|set_windowLights\(\[\]\));\n\s*S\.openings\.forEach/,
     "window daylight returns its lights before the windows are lit again");
-  assert.match(view3d, /takeLight\("SpotLight", 0xcfe2f2[^\n]*\n[^\n]*takeLight\("PointLight", 0xcfe2f2[^\n]*\n\s*windowLights\.push\(pl\);/);
+  assert.match(view3d, /var pl = takeLight\("SpotLight", 0xffffff, baseI[^\n]*\n\s*windowLights\.push\(pl\);/, "each exterior aperture takes one pooled sky spot");
   assert.match(fnBody(view3d, "releaseLight"), /drawnShadows\.delete\(l\.shadow\);/, "a reused caster redraws its shadow");
 });
 

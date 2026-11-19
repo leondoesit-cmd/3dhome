@@ -3,6 +3,7 @@
    ../cabinet.js. */
 import { layoutCab } from "../cabinet/layout.js";
 import { cabinetDoorSwings } from "../cabinet/pricing.js";
+import { countWord } from "../cabinet_chrome_logic.js";
 import {
   CARCASS, COLKIND, DOORS, FAM, FINISH, FRONTS, HW, SEC, cabRun, cornerPoly,
   he, isCorner, isFloat, planMemo,
@@ -115,8 +116,9 @@ export function cabSummary(it) {
     });
   });
   // "1 door", not "1 doors": [Hebrew one, Hebrew many, English one, English many]
+  var en = he(false, true);
   function count(n, w) {
-    return n + " " + (n === 1 ? he(w[0], w[2]) : he(w[1], w[3]));
+    return countWord(n, w, en);
   }
   var p = [];
   p.push(count(L.cols.length, ["עמודה", "עמודות", "column", "columns"]));

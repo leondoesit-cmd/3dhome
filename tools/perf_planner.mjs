@@ -267,9 +267,18 @@ async function main() {
     try {
       await boot(p, relay.origin);
       if (CPU_THROTTLE > 1) await p.cdp("Emulation.setCPUThrottlingRate", { rate: CPU_THROTTLE });
+      if (flag("full-drop")) await p.evaluate("window.__fullDropReference = true");
+      if (arg("drag-item", "")) await p.evaluate("window.__dragItemType = " + JSON.stringify(arg("drag-item", "")));
       // --profile: the same, under the CPU profiler (self time by function)
       const src = readFileSync(EVAL, "utf8");
       const res = flag("profile") ? await profiled(p, async () => ({ value: await p.evaluate(src, 600000) })) : await p.evaluate(src, 600000);
+      const probe = flag("profile") ? res.value : res;
+      if (probe?.error || probe?.validCrossRoomDrop === false) process.exitCode = 1;
+      else if (CAPTURE && probe?.captureClip) {
+        const shot = await p.cdp("Page.captureScreenshot", { format: "png", clip: probe.captureClip });
+        if (!shot.result?.data) throw new Error("Could not capture the measured viewport");
+        writeFileSync(CAPTURE, "data:image/png;base64," + shot.result.data);
+      }
       console.log(JSON.stringify(res, null, 1));
     } finally { p.close(); chrome.close(); relay.close(); }
     return;

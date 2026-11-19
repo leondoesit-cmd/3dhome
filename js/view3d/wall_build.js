@@ -2,21 +2,25 @@
    materials), wall building, item placement and window lights, split out of
    js/view3d.js. It shares the editor's state through live imports from
    ../view3d.js. */
-import { FURN, buildItem as buildFurn, elevOffset, itemVSpan, lampColor } from "../furniture.js";
+import { wallXrayOpacity } from "../build3d_prefs.js";
+import { FURN, buildItem as buildFurn, elevOffset, itemVSpan } from "../furniture.js";
 import { tJoinStep, wallBandOutline, wallGeom, wallPointAt, wallSolidAtNode, wallSolidTop, wallTangentAt } from "../geometry.js";
-import { legacyIntensity } from "../gpu.js";
+import { fixtureLamp, fixtureOptics } from "../primitives.js";
+import { driveFixture, installFixture } from "./lighting.js";
 import { GLASS, MAT_PROPS, S, WALLC, WOOD, clamp, fin } from "../state.js";
 import { THREE } from "../three_lazy.js";
 import { isPhysicsEnabled } from "../physics_facade.js";
+import { limitPaintReflectance } from "../primitives.js";
 import { mergeItemMeshes } from "../view3d/item_merge.js";
 import { tagItemPhysicsRole } from "../view3d/lighting.js";
 import { addWallCaps, buildStraightWall, clipBelow, cutH, frameSpec, localBox } from "../view3d/site_cutaway.js";
 import { mepXray } from "../view3d/walk_mode.js";
+import { addXrayEdges } from "../view3d/xray_edges.js";
 import { HALF_WALL_HEIGHT, normalizeWallKind, normalizeWallProfile, verticalSegments, wallProfileHeight } from "../wall_curves.js";
 import { wallFraming } from "../wall_framing.js";
 import { normalizeWall, wallLayerBands, wallThickness, wallTypeById } from "../wall_types.js";
 import {
-  drawnShadows, itemsRoot, scene, spareLights, structureRoot,
+  SHADOW_ONLY_LAYER, drawnShadows, itemsRoot, scene, spareLights, structureRoot,
 } from "../view3d.js";
 
 /* Curves and vertically-special walls cannot be represented by the old single
@@ -103,10 +107,10 @@ function sampledLayerMaterial(w, band, fallbackColor, xray) {
   var color = isGeneric ? fallbackColor : (band.color || fallbackColor);
   var isGlass = band.role === "glazing" || /glass/i.test(String(band.material || ""));
   var opts = { color: color, roughness: isGlass ? 0.12 : 0.9, metalness: 0, flatShading: true };
-  if (isGlass) Object.assign(opts, { transparent: true, opacity: 0.34, transmission: 0.72, side: THREE.DoubleSide });
+  if (isGlass) Object.assign(opts, { transmission: 0.72, side: THREE.DoubleSide });
   if (w.phase === "demolition" || w.phase === "demolish") Object.assign(opts, { color: 0xc66b62, transparent: true, opacity: 0.55 });
-  if (xray) Object.assign(opts, { transparent: true, opacity: 0.18, depthWrite: false });
-  return new THREE.MeshStandardMaterial(opts);
+  if (xray) Object.assign(opts, { transparent: true, opacity: wallXrayOpacity(), depthWrite: false, userData: { wallXray: true } });
+  return limitPaintReflectance(new (isGlass ? THREE.MeshPhysicalMaterial : THREE.MeshStandardMaterial)(opts));
 }
 
 function openingAtSample(w, s) {
@@ -209,7 +213,7 @@ function addWallFraming(parent, w, xray) {
 function addRailSegment(group, a, b, y, height, depth, color, xray) {
   var dx = b.x - a.x, dz = b.z - a.z, length = Math.hypot(dx, dz);
   if (length < 0.01) return;
-  var mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.58, metalness: 0.12, transparent: xray, opacity: xray ? 0.18 : 1, depthWrite: !xray });
+  var mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.58, metalness: 0.12, transparent: xray, opacity: xray ? wallXrayOpacity() : 1, depthWrite: !xray, userData: { wallXray: !!xray } });
   var mesh = new THREE.Mesh(new THREE.BoxGeometry(length + 0.5, height, depth), mat);
   mesh.position.set((a.x + b.x) / 2, y, (a.z + b.z) / 2);
   mesh.rotation.y = -Math.atan2(dz, dx);
@@ -232,7 +236,7 @@ function addSampledRailing(group, w, gm, vertical, col, xray) {
   var posts = Math.max(1, Math.ceil(gm.L / spacing));
   for (var p = 0; p <= posts; p++) {
     var point = wallPointAt(w, gm.L * p / posts);
-    var mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.58, metalness: 0.12, transparent: xray, opacity: xray ? 0.18 : 1, depthWrite: !xray });
+    var mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.58, metalness: 0.12, transparent: xray, opacity: xray ? wallXrayOpacity() : 1, depthWrite: !xray, userData: { wallXray: !!xray } });
     var post = new THREE.Mesh(new THREE.BoxGeometry(railT, top - bottom, depth), mat);
     post.position.set(point.x, (bottom + top) / 2, point.z);
     post.castShadow = !xray;
@@ -263,7 +267,7 @@ function addSampledOpening(group, w, o) {
   if (o.type === "window") {
     var sill = Math.min(FR.sillW, (top - y0) / 2);
     if (sill > 0) localBox(holder, -half + jamb, half - jamb, y0, y0 + sill, T + FR.depth, 0xeee9df, { rough: 0.75 });
-    localBox(holder, -half + jamb, half - jamb, y0 + sill, top - Math.min(FR.head, (top - y0) / 2), 2, GLASS, { trans: true, opacity: 0.34, transmission: 0.9, rough: 0.05, cast: false });
+    localBox(holder, -half + jamb, half - jamb, y0 + sill, top - Math.min(FR.head, (top - y0) / 2), 2, GLASS, { trans: true, opacity: 1, transmission: 0.9, rough: 0.05, cast: false });
   } else if (o.type === "door") {
     var pivot = new THREE.Group();
     var left = String(o.swingDir || "R_IN").startsWith("L");
@@ -354,10 +358,18 @@ function buildSampledWall(w, col) {
   if (cutting) {
     clipBelow(group, Hc);
     addWallCaps(group, Hc); // curved and profiled walls get their cut tops too
-  }
+  } else addWallCaps(group, renderWall.height, true);
 }
 
 function buildWall(w, col, tex) {
+  // structureRoot is read now: see_through.js builds stubs into a swapped root
+  var root = structureRoot, before = root ? root.children.length : 0;
+  buildWallGeometry(w, col, tex);
+  // see-through walls get crease lines so they stay legible (xray_edges.js)
+  if (root && mepXray("walls")) for (var i = before; i < root.children.length; i++) addXrayEdges(THREE, root.children[i]);
+}
+
+function buildWallGeometry(w, col, tex) {
   normalizeWall(w, S);
   var kind = normalizeWallKind(w), gm = wallGeom(w);
   if (kind === "roomDivider") return;
@@ -387,6 +399,26 @@ function placeItem(g, it) {
     var vs = null;
     try { vs = itemVSpan(it); } catch (e) { vs = null; }
     hideForCut = !!(vs && (vs.lo >= hc - 1 || (vs.lo > 60 && vs.hi > hc + 2)));
+  }
+  // A cut hides the fitting from the eye. Its bulb stays on and its shade
+  // continues to intercept light in the shadow cameras.
+  if (g.fixture || FURN[it.type]?.lamp || FURN[it.type]?.taskLamp) {
+    if (g.fixture) driveFixture(g, it, fixtureLamp(FURN[it.type]));
+    // A built fixture keeps the same meshes until the group is replaced.
+    // Only crossing the cut changes their camera layers.
+    if (!!g.userData.fixtureCut === hideForCut) return;
+    g.userData.fixtureCut = hideForCut;
+    g.traverse(function (o) {
+      if (!o.isMesh) return;
+      if (hideForCut && o.userData.uncutLayers == null) {
+        o.userData.uncutLayers = o.layers.mask;
+        o.layers.set(SHADOW_ONLY_LAYER);
+      } else if (!hideForCut && o.userData.uncutLayers != null) {
+        o.layers.mask = o.userData.uncutLayers;
+        delete o.userData.uncutLayers;
+      }
+    });
+    return;
   }
   // only ever undo a hide this rule made; other code owns other hides
   if (hideForCut) {
@@ -445,61 +477,18 @@ function buildItem(it) {
   var f = FURN[it.type];
   if (!f) return null;
   var g = new THREE.Group();
-  placeItem(g, it);
   itemsRoot.add(g);
   buildFurn(g, it);
+  const lamp = fixtureLamp(f);
+  const optics = lamp && fixtureOptics(g, it, THREE, lamp);
   // a few draw calls per piece; the sandbox breaks a piece into its meshes
   g.userData.partsMerged = !isPhysicsEnabled();
   if (g.userData.partsMerged) mergeItemMeshes(g, THREE);
+  placeItem(g, it);
   tagItemPhysicsRole(g, it);
-  if (f.lamp) {
-    var L = f.lamp,
-      on = it.lightOn !== false,
-      col = lampColor(it),
-      mul = it.lightI != null ? it.lightI : 1;
-    g.userData.lampOff = !on;
-    g.traverse(function (o) {
-      if (
-        o.isMesh &&
-        o.material &&
-        o.material.userData &&
-        o.material.userData.glow
-      ) {
-        o.material.emissive.setHex(col);
-        o.material.emissiveIntensity = on ? 0.4 + 1.4 * S.artK : 0;
-      }
-    });
-    if (on) {
-      var ly = typeof L.y === "function" ? L.y(it) : L.y;
-      if (fin(ly)) {
-        // Physical candela for a centimetre-scale scene, calibrated against this
-        // lamp's OWN throw — see gpu.js. Without the conversion a lamp's
-        // inverse-square falloff divides by ~62500 and it lights nothing at all.
-        var base = legacyIntensity(L.intensity * mul, L.dist || 500);
-        var pl;
-        if (it.spot) {
-          pl = takeLight(
-            "SpotLight",
-            col,
-            base * (0.45 + 1.9 * S.artK),
-            L.dist || 500,
-            2,
-            ((it.cone != null ? it.cone : 45) * Math.PI) / 180,
-            0.5
-          );
-          var pitch = (it.pitch != null ? it.pitch : 0) * Math.PI / 180;
-          var tObj = new THREE.Object3D();
-          tObj.position.set(0, ly - 100 * Math.cos(pitch), 100 * Math.sin(pitch));
-          g.add(tObj);
-          pl.target = tObj;
-        } else {
-          pl = takeLight("PointLight", col, base * (0.45 + 1.9 * S.artK), L.dist || 500, 2);
-        }
-        pl.position.set(0, ly, 0);
-        pl.userData.baseI = base;
-        g.add(pl);
-      }
-    }
+  if (optics) {
+    installFixture(g, optics, takeLight);
+    driveFixture(g, it, lamp);
   }
   return g;
 }

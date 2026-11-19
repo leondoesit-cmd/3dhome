@@ -12,7 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const three = pathToFileURL(join(root, "vendor/three/three.module.js")).href;
 const addons = pathToFileURL(join(root, "vendor/three/addons/")).href;
-const loader = `data:text/javascript,export async function resolve(s,c,n){if(s==="three")return{url:${JSON.stringify(three)},format:"module",shortCircuit:true};if(s.startsWith("three/addons/"))return{url:${JSON.stringify(addons)}+s.slice(13),format:"module",shortCircuit:true};return n(s,c)}`;
+const loader = `data:text/javascript,export async function resolve(s,c,n){if(s==="three")return{url:${JSON.stringify(three)},format:"module",shortCircuit:true};if(s==="three/tsl"||s==="three/webgpu")return{url:${JSON.stringify(three.slice(0,-"three.module.js".length))}+"three."+s.slice(6)+".js",format:"module",shortCircuit:true};if(s.startsWith("three/addons/"))return{url:${JSON.stringify(addons)}+s.slice(13),format:"module",shortCircuit:true};return n(s,c)}`;
 
 function run(script) {
   const result = spawnSync(process.execPath, ["--experimental-loader", loader, "--input-type=module", "-e", script], {
@@ -57,7 +57,7 @@ test("generated furniture keeps its back on the wall and its composition rules",
       assert.deepEqual(warnings.map(v => v.message), [], "random/" + seed);
       // bedside lamps stand on nightstands, desk lamps on desks
       S.items.filter(it => it.type === "tableLamp").forEach(lamp => {
-        const support = S.items.find(it => it.id === lamp.supportId);
+        const support = S.items.find(it => it.id === lamp.on);
         assert.ok(support && ["nightstand", "desk"].includes(support.type), "a table lamp needs a table");
       });
       // every bedroom with a bed has at least one bedside lamp
@@ -129,10 +129,44 @@ test("the 3D view keeps lamps in their own room and lets daylight in through the
   const { readFile } = await import("node:fs/promises");
   const src = moduleSource("js/view3d.js");
   const rebuild = sourceFunctionText(src, "rebuild3D");
-  assert.match(rebuild, /syncItems\(hid\);\s*fitPracticalLights\(\);/, "practical ranges are fitted after every rebuild");
+  assert.match(rebuild, /syncItems\(hid\);\s*if \(!plannerRelight\) fitPracticalLights\(\);/, "standalone rebuild fits the practical ranges");
+  assert.match(src, /rebuild3D\(applyEnv\)/, "the render loop fits the ranges with the new environment");
   const env = sourceFunctionText(src, "applyEnv");
   assert.match(env, /fitPracticalLights\(\)/, "a change of hour re-fits practical shadows");
   assert.match(env, /scene\.environmentIntensity =/, "the sky map is fill, balanced under the sun");
-  assert.match(rebuild, /takeLight\("SpotLight", 0xcfe2f2/, "window daylight is aimed into its room");
-  assert.match(src, /var d = o\.userData\.throwCm \|\| o\.distance/, "path-tracer power ignores the room clip");
+  assert.match(rebuild, /pl.target\.position\.set\(x \+ nx \* 200, y - 70, z \+ nz \* 200\)/, "window daylight is aimed into its room");
+  assert.match(src, /power: photoLampPower\(o, photoExposure\)/, "photo mode receives the metered physical lamp power");
+});
+
+test("every room in a furnished generated home is reachable from its front door with a 60 cm walking width", () => {
+  run(prelude + String.raw`
+    import { reviewAccess } from "./js/access_review.js";
+    import { openingSides } from "./js/apartment_rules.js";
+    import { detectRooms, wallGeom, wallPointAt } from "./js/geometry.js";
+    import { normalizeWallKind } from "./js/wall_curves.js";
+    import { canonicalPlacementWall, canonicalPlacementItem } from "./js/placement_resolver.js";
+    import { itemVSpan } from "./js/furniture_api.js";
+    import { loadThree } from "./js/three_lazy.js";
+    await loadThree();
+    const runs=[["small",1],["large",1],["showcase",1],...Array.from({length:40},(_,i)=>["random",(i+1)*7919])];
+    for(const [size,seed] of runs){
+      generate(size,seed);
+      const rooms=detectRooms().map(r=>({...r,wallIds:r.key.split(",")}));
+      const walls=S.walls.map(w=>{
+        const record=canonicalPlacementWall(w,{wallGeom,wallPointAt,normalizeWallKind});
+        return {...record,...record.material};
+      });
+      const doors=S.openings.filter(o=>(o.type==="door"||o.type==="passage")&&!(o.sill>0)).map(o=>({
+        ...o,center:wallPointAt(S.walls.find(w=>w.id===o.wall),o.s)
+      }));
+      const frontDoor=doors.find(o=>{
+        const sides=openingSides(o,S.walls,rooms);
+        return sides&&!!sides.a!==!!sides.b;
+      });
+      assert.ok(frontDoor,size+"/"+seed+" exterior door");
+      const scene={rooms,walls,items:S.items.map(it=>canonicalPlacementItem(it,{itemVSpan}))};
+      const review=reviewAccess({scene,doors,width:60,entranceId:frontDoor.id});
+      assert.deepEqual(rooms.filter(r=>!review.walkable?.includes(r.key)).map(r=>S.roomMeta[r.key]?.name||r.key),[],size+"/"+seed);
+    }
+  `);
 });

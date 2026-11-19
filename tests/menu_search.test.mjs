@@ -139,5 +139,5 @@ test("the work set that follows the tool selects its planner tab, only among the
   const { readFileSync } = await import("node:fs");
   const src = readFileSync(new URL("../js/pro_ribbon.js", import.meta.url), "utf8");
   assert.match(src, /window\.addEventListener\("layers:changed", followWorkSet\)/);
-  assert.match(src, /S\.workSet === seenWorkSet\) return;[\s\S]*?ribbonTabForWorkSet\(S\.workSet, cur && cur\[0\]\)/);
+  assert.match(src, /S\.workSet === seenWorkSet && !\(e && e\.detail && e\.detail\.resync\)\)\) return;[\s\S]*?ribbonTabForWorkSet\(S\.workSet, cur && cur\[0\]\)/);
 });

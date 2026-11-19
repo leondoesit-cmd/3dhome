@@ -22,8 +22,9 @@
    subtly different angles is the most common thing that looks wrong in a
    render and the hardest to spot in plan. */
 import { S } from "./state.js";
-import { wallById, wallGeom } from "./geometry.js";
-import { markManualRot } from "./item_orient.js";
+import { wallById, wallGeom, wallProject } from "./geometry.js";
+import { carryChildren } from "./stack.js";
+import { markManualRot, wallContactOffset } from "./item_orient.js";
 
 /* The axis-aligned half-size of a piece's footprint, taking its rotation into
    account — the same measure the drag snap uses, so an aligned edge and a
@@ -150,9 +151,8 @@ export function holdToWall(it, wall, gap) {
      pushed along with it. The parallel-offset constraint learned exactly this
      (see addOffset's signed value): the side is part of the statement, not
      something to re-observe. */
-  var side = g && isFinite(g.L) && g.L > 0
-    ? ((it.x - g.a.x) * -g.uz + (it.z - g.a.z) * g.ux >= 0 ? 1 : -1)
-    : 1;
+  var hit = g && wallProject(wall, it.x, it.z);
+  var side = hit && hit.signedOffset < 0 ? -1 : 1;
   // "on the wall" (dragged on the wall plane, js/item_orient.js isOnWall) is
   // the user's choice about the piece, not about this wall: it survives a new hold
   var onWall = it.hold && it.hold.onWall ? 1 : 0;
@@ -176,7 +176,7 @@ export function reseatHeldItems() {
   (S.items || []).forEach(function (it) {
     if (!it || !it.hold) return;
     var w = wallById(it.hold.wall);
-    if (!w) {
+    if (!w || w.physical === false) {
       delete it.hold;
       return;
     }
@@ -184,23 +184,19 @@ export function reseatHeldItems() {
     if (!g || !isFinite(g.L) || g.L <= 0) return;
     // where the piece sits ALONG the wall is left alone; only its distance
     // from the wall is restored, which is what "flush" actually means
-    var along = (it.x - g.a.x) * g.ux + (it.z - g.a.z) * g.uz;
-    var nx = -g.uz,
-      nz = g.ux;
+    var hit = wallProject(w, it.x, it.z);
+    if (!hit) return;
+    var nx = -hit.tangent.z, nz = hit.tangent.x;
     // recorded when the hold was made — see holdToWall
     var side = it.hold.side === -1 ? -1 : 1;
     /* The piece's reach toward the wall is its OWN footprint projected on the
        normal. halfSpan's axis-aligned box projected instead put a 200×90 sofa
        turned 45° against a 45° wall 145 cm out, not 45. */
-    var a = ((Number(it.rot) || 0) * Math.PI) / 180,
-      ca = Math.cos(a),
-      sa = Math.sin(a),
-      reach = ((Number(it.w) || 0) / 2) * Math.abs(ca * nx + sa * nz) +
-        ((Number(it.d) || 0) / 2) * Math.abs(-sa * nx + ca * nz),
-      off = (Number(w.thickness) || 0) / 2 + reach + (Number(it.hold.gap) || 0);
-    var wantX = g.a.x + g.ux * along + nx * side * off,
-      wantZ = g.a.z + g.uz * along + nz * side * off;
+    var off = wallContactOffset(it, w, g, hit, side) + (Number(it.hold.gap) || 0);
+    if (!Number.isFinite(off)) return;
+    var wantX = hit.x + nx * side * off, wantZ = hit.z + nz * side * off;
     if (Math.hypot(wantX - it.x, wantZ - it.z) < 1e-6) return;
+    carryChildren(it, wantX - it.x, wantZ - it.z, new Set([it]));
     it.x = wantX;
     it.z = wantZ;
     moved++;

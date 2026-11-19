@@ -18,7 +18,8 @@ import { layerRank } from "../layers.js";
 import { hitMarker, markerItem, moveMarker } from "../markers.js";
 import { ensureMEP, routeResolve, wallPath } from "../mep.js";
 import { sendPlanCursor } from "../plan_sync.js";
-import { mepOverlayOnHud, plan, render2D, requestRenderHUD } from "../plan2d.js";
+import { mepOverlayOnHud, plan, render2D, requestRenderHUD, requestRenderHUDVisual } from "../plan2d.js";
+import { modelHoverUnchanged } from "../plan2d/select_hover.js";
 import { inputBounds, inputScale, planRotRad, wx, wz } from "../planner_input.js";
 import { corridorRect, solveDock, translateRect } from "../room_dock.js";
 import { detachRoomSeam } from "../room_graph.js";
@@ -130,6 +131,15 @@ function wirePlanMove() {
        the next wall. It is the question you are asking whenever the cursor is
        over a wall, and it used to need a measure-tool detour. */
     updateWallProbe(px, pz);
+    if (S.action === "pan") {
+      // before the tool branches (a middle / Space drag pans under any tool); screen drag -> base-frame shift rotated by −planRot
+      var pa = -planRotRad();
+      var dpx = e.offsetX - S.panStart.px, dpy = e.offsetY - S.panStart.py;
+      S.OX = S.panStart.ox + dpx * Math.cos(pa) - dpy * Math.sin(pa);
+      S.OY = S.panStart.oy + dpx * Math.sin(pa) + dpy * Math.cos(pa);
+      render2D();
+      return;
+    }
     if (S.action === "fitcab") { fitCabMove(px, pz); return; }
     if (S.tool === "fitcab" && !S.action) { fitCabHover(px, pz); return; }
     if (S.tool === "wall") {
@@ -143,12 +153,12 @@ function wirePlanMove() {
         if (entryOpen()) return;
         var p = snapWallPoint(px, pz, S.drawFrom);
         S.previewPt = { x: p.x, z: p.z };
-        render2D();
+        requestRenderHUDVisual(); // band, dims, angle arc, snap mark, probe: HUD only (auto-pan paints in full)
         return;
       }
       var p0 = snapPoint(px, pz, null);
       S.previewPt = fin(p0.x) && fin(p0.z) ? { x: p0.x, z: p0.z } : null;
-      render2D();
+      requestRenderHUDVisual();
       return;
     }
     if (S.tool === "walloffset") {
@@ -185,13 +195,13 @@ function wirePlanMove() {
     if (S.tool === "arcwall") {
       var ap = snapPoint(px, pz, null);
       S.previewPt = fin(ap.x) && fin(ap.z) ? { x: ap.x, z: ap.z } : null;
-      render2D();
+      requestRenderHUDVisual(); // the arc's rubber band: HUD only, as the wall tool's
       return;
     }
     if (S.tool === "rect" || S.tool === "slabvoid") {
       var rrp = snapPoint(px, pz, null);
       S.previewPt = fin(rrp.x) && fin(rrp.z) ? { x: rrp.x, z: rrp.z } : null;
-      render2D();
+      requestRenderHUDVisual(); // the rectangle's ghost: HUD only, as the wall tool's
       return;
     }
     if (S.tool === "roomstamp") {
@@ -307,19 +317,10 @@ function wirePlanMove() {
         S.warnHover = hk;
         syncWarnHighlight();
       }
-      render2D();
+      if (modelHoverUnchanged()) requestRenderHUDVisual(); else render2D();
       return;
     }
     if (!S.action) return;
-    if (S.action === "pan") {
-      // a screen-space drag maps to a base-frame shift rotated by −planRot
-      var pa = -planRotRad();
-      var dpx = e.offsetX - S.panStart.px, dpy = e.offsetY - S.panStart.py;
-      S.OX = S.panStart.ox + dpx * Math.cos(pa) - dpy * Math.sin(pa);
-      S.OY = S.panStart.oy + dpx * Math.sin(pa) + dpy * Math.cos(pa);
-      render2D();
-      return;
-    }
     // dragging a placeholder point: same drafting snap as placing it, and the
     // object standing on it comes along (moveMarker carries it)
     if (S.action === "marker" && S.sel && S.sel.kind === "marker") {

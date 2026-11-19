@@ -16,113 +16,25 @@ import { setTool } from "../interaction/mep_tools.js";
 import { agentCommandEnvironment, currentPlacementScene, startNodeConPick } from "../interaction/wall_edit.js";
 import { holdToWall } from "../item_align.js";
 import { applyAutoFace, markManualRot, orientMode, wallSnapSegments } from "../item_orient.js";
-import { footReach, resolveItemDrag } from "../item_wall_snap.js";
+import { resolveItemDrag } from "../item_wall_snap.js";
+import { groupLead, groupProxy } from "../group_frame.js";
+import { generateLayouts, applyLayout } from "../layouts.js";
+import { linkFurnishedSets } from "../layout_analysis.js";
 import { canDrag } from "../layers.js";
 import { releaseIfMoved } from "../markers.js";
 import { detachNodesFromWalls } from "../mep.js";
-import { placementBatchFitsScene } from "../placement_resolver.js";
+import { placementBatchFitsScene, requiresTabletop } from "../placement_resolver.js";
 import { dropPoint, render2D } from "../plan2d.js";
 import { inputIs3D, plannerInputView } from "../planner_input.js";
 import { attach as stackAttach, carryChildren, descendantsOf, detach as stackDetach, findSupport, hostOf, orphanChildren, reseat as stackReseat, rotateWith, topOf, wouldCycle } from "../stack.js";
-import { S, WALL_T, touchItem3D } from "../state.js";
+import { S, touchItem3D, uid } from "../state.js";
 import { renderWarnPanel } from "../ui_warn.js";
 import { fillProps, flash, refreshTree, select, syncStairVoids } from "../ui.js";
 import { addAxisAlignment, addAxisDistance, addCoincident, addDistance, addEqualAngle, addFixed, anchorNode, angleSectorAtNode, mergeAnchorNodes, nodeAnchor, pinnedNodes, pruneCons, removeCon, solveWallCons, wallCons } from "../wall_constraints.js";
 import { resolveWallDrawDefaults } from "../wall_draw.js";
 import {
-  CEILING_TYPES, CENTER_TYPES, dropDragProxy, proxyNodes,
+  dropDragProxy, proxyNodes,
 } from "../interaction.js";
-
-function arrangeRoom(r) {
-  var items = itemsInRoom(r).filter(function (it) {
-    return !it.locked;
-  });
-  if (!items.length) return;
-  var minx = 1e9, maxx = -1e9, minz = 1e9, maxz = -1e9;
-  r.pts.forEach(function (p) {
-    minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x);
-    minz = Math.min(minz, p.z); maxz = Math.max(maxz, p.z);
-  });
-  var inset = WALL_T / 2 + 4, // inner wall face + breathing gap
-    gap = 12, // space between neighbours along a wall
-    corner = 8, // keep off the exact corner
-    cx = (minx + maxx) / 2,
-    cz = (minz + maxz) / 2;
-  // 4 walls: top(z=minz,rot0,front+Z) right(x=maxx,rot90) bottom(z=maxz,rot180) left(x=minx,rot270)
-  var walls = [
-    { axis: "x", lo: minx + inset + corner, hi: maxx - inset - corner, fixed: minz + inset, rot: 0 },
-    { axis: "z", lo: minz + inset + corner, hi: maxz - inset - corner, fixed: maxx - inset, rot: 90 },
-    { axis: "x", lo: minx + inset + corner, hi: maxx - inset - corner, fixed: maxz - inset, rot: 180 },
-    { axis: "z", lo: minz + inset + corner, hi: maxz - inset - corner, fixed: minx + inset, rot: 270 },
-  ];
-  walls.forEach(function (w) {
-    w.cursor = w.lo;
-  });
-
-  var rugs = [], mids = [], ceil = [], wallItems = [];
-  items.forEach(function (it) {
-    if (it.type === "rug") rugs.push(it);
-    else if (CEILING_TYPES[it.type]) ceil.push(it);
-    else if (CENTER_TYPES[it.type]) mids.push(it);
-    else wallItems.push(it);
-  });
-  // biggest first packs tighter
-  wallItems.sort(function (a, b) {
-    return b.w * b.d - a.w * a.d;
-  });
-
-  wallItems.forEach(function (it) {
-    var run = it.w; // width runs along the wall, depth (d) faces it
-    var best = null;
-    walls.forEach(function (w) {
-      var remaining = w.hi - w.cursor;
-      if (remaining >= run && (!best || remaining > best.rem))
-        best = { w: w, rem: remaining };
-    });
-    if (!best) {
-      mids.push(it); // no wall run fits — fall back to the centre row
-      return;
-    }
-    var w = best.w,
-      along = w.cursor + run / 2;
-    w.cursor += run + gap;
-    it.rot = w.rot;
-    if (w.axis === "x") {
-      it.x = along;
-      it.z = w.rot === 0 ? w.fixed + it.d / 2 : w.fixed - it.d / 2;
-    } else {
-      it.z = along;
-      it.x = w.rot === 270 ? w.fixed + it.d / 2 : w.fixed - it.d / 2;
-    }
-  });
-
-  // rugs sit dead centre; ceiling fixtures share the ceiling, so spread them
-  // along it instead of stacking every light and diffuser on one point
-  rugs.forEach(function (it) {
-    it.rot = 0;
-    it.x = cx;
-    it.z = cz;
-  });
-  var ceilTotal = ceil.reduce(function (s, it) { return s + it.w; }, 0) + gap * Math.max(0, ceil.length - 1),
-    ceilX = cx - ceilTotal / 2;
-  ceil.forEach(function (it) {
-    it.rot = 0;
-    it.x = ceil.length === 1 ? cx : ceilX + it.w / 2;
-    it.z = cz;
-    ceilX += it.w + gap;
-  });
-  // tables/islands in a centred row (over the rug)
-  var totalW = mids.reduce(function (s, it) {
-    return s + it.w;
-  }, 0) + gap * Math.max(0, mids.length - 1);
-  var startX = cx - totalW / 2;
-  mids.forEach(function (it) {
-    it.rot = 0;
-    it.x = startX + it.w / 2;
-    it.z = cz;
-    startX += it.w + gap;
-  });
-}
 
 export function autoArrangeAll() {
   var rooms = detectRooms();
@@ -130,8 +42,10 @@ export function autoArrangeAll() {
     flash(t("f_needRoom"));
     return;
   }
+  const alternative = generateLayouts().find(option => option.id !== "original");
+  if (!alternative) return flash(t("layout_failure_no-fit"));
   pushHistory();
-  rooms.forEach(arrangeRoom);
+  applyLayout(alternative);
   select(null);
   S.dirty3D = true;
   render2D();
@@ -179,14 +93,39 @@ function weldAt(ni) {
    that looked closed but detected zero rooms; nothing outside openWall() ever
    welded. Runs after an edit settles, from normalizeStructure(). */
 export function weldCoincidentNodes() {
-  var u = usedNodes(),
-    idx = Object.keys(u).map(Number);
-  for (var i = 0; i < idx.length; i++) {
+  var idx = Object.keys(usedNodes()).map(Number), grid = new Map();
+  // weldNodes rewires walls and anchors, but leaves node coordinates in place.
+  var cells = idx.map(function (ni, i) {
+    var n = S.nodes[ni];
+    if (!n) return null;
+    var x = Math.floor(n.x / 2), z = Math.floor(n.z / 2);
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+    var key = x + "," + z;
+    if (!grid.has(key)) grid.set(key, { x, z, members: [] });
+    var cell = grid.get(key);
+    cell.members.push(i);
+    return cell;
+  });
+  cells.forEach(function (cell, i) {
+    if (!cell) return;
+    // Merge the nine sorted lists once per occupied cell. canWeld reads
+    // the wall topology left by earlier pairs, so traversal order matters.
+    if (!cell.nearby) {
+      var nearby = [];
+      for (var x of new Set([cell.x - 1, cell.x, cell.x + 1])) {
+        for (var z of new Set([cell.z - 1, cell.z, cell.z + 1])) {
+          var other = grid.get(x + "," + z);
+          if (other) for (var member of other.members) nearby.push(member);
+        }
+      }
+      cell.nearby = nearby.sort(function (a, b) { return a - b; });
+      cell.start = 0;
+    }
     var a = S.nodes[idx[i]];
-    if (!a) continue;
-    for (var j = i + 1; j < idx.length; j++) {
+    while (cell.start < cell.nearby.length && cell.nearby[cell.start] <= i) cell.start++;
+    for (var k = cell.start; k < cell.nearby.length; k++) {
+      var j = cell.nearby[k];
       var b = S.nodes[idx[j]];
-      if (!b) continue;
       /* The 2 cm gate is wider than the constraint engine's idea of "the same
          point", so an automatic weld could quietly drag a locked wall's end up
          to 2 cm and undo a joint the engine had just released. canWeld refuses
@@ -197,7 +136,7 @@ export function weldCoincidentNodes() {
       )
         weldNodes(idx[i], idx[j]);
     }
-  }
+  });
 }
 
 function ownedNodeAnchor(ni) {
@@ -594,10 +533,20 @@ function beforePlacementCommandBatch(entries, env) {
   if (semantic.length && !placementBatchFitsScene(currentPlacementScene(), semantic))
     return { ok: false, reason: "PLACEMENT_GEOMETRY_CHANGED" };
   env.placementBatchItems = items.size ? items : null;
+  env.newItemCommands = entries.flatMap((entry, index) => entry.commandId === "item.place" ? [index] : []);
+  env.furnishBatchStart = entries?.length > 1 && entries.every(e => e.commandId === "item.place") ? S.items.length : null;
   return { ok: true };
 }
 
 function afterPlacementCommandBatch(_entries, env) {
+  if (env.furnishBatchStart != null) {
+    const fresh = S.items.slice(env.furnishBatchStart), rooms = detectRooms();
+    if (!rooms.length) linkFurnishedSets(fresh, uid);
+    else for (const room of rooms) {
+      const members = new Set(itemsInRoom(room));
+      linkFurnishedSets(fresh.filter(item => members.has(item)), uid);
+    }
+  }
   var items = env.placementBatchItems;
   if (!items) return { ok: true };
   var changed = [];
@@ -619,9 +568,24 @@ function afterPlacementCommandBatch(_entries, env) {
 
 function cleanupPlacementCommandBatch(_entries, env) {
   env.placementBatchItems = null;
+  env.newItemCommands = null;
+  env.furnishBatchStart = null;
 }
 
-function validatePlacementRelations(summary) {
+function validatePlacementRelations(summary, env) {
+  // These hooks belong to programmatic planner proposals. Check the actual
+  // final pose after automatic facing and every move in the same transaction.
+  if (env?.newItemCommands?.length) {
+    const scene = currentPlacementScene();
+    const placements = [];
+    for (const index of env.newItemCommands) {
+      const id = summary.results[index].created[0].id;
+      const item = scene.items.find(it => it.id === id);
+      if (!item || (requiresTabletop(item.type) && item.on == null)) return { ok: false, reason: "INVALID_ITEM_POSITION" };
+      placements.push({ itemId: id, x: item.x, z: item.z, rot: item.rot });
+    }
+    if (!placementBatchFitsScene(scene, placements)) return { ok: false, reason: "INVALID_ITEM_POSITION" };
+  }
   var changedIds = new Set((summary.changed || []).filter(function(entry) {
     return entry && entry.kind === "item";
   }).map(function(entry) { return String(entry.id); }));
@@ -710,26 +674,32 @@ export function moveItemTo(it, nx, nz) {
   applyResolvedItemTranslation(it, c.x, c.z, { trackDragState: true, touch3D: true });
 }
 
-/* A multi-selection drag: walls block the group's bounding footprint (no
-   magnetic pull; Alt frees it). `orig` is S.dragOrig ({ it, x, z } per piece
+/* A multi-selection drag (a kitchen run, a table with its chairs): the set
+   moves as one box in its largest piece's orientation (js/group_frame.js), so
+   it goes flush to a wall and into a corner the way that piece alone would
+   (its capture distance; S.snapObj === false keeps only the blocking), and
+   walls block it. Alt frees it. `orig` is S.dragOrig ({ it, x, z } per piece
    at the drag's start); (dx, dz) the wanted move from there. Returns the move
-   that keeps the group out of the walls. */
+   to apply. */
+var groupSnapMemo = null;
 export function groupWallMove(orig, dx, dz) {
-  if (!orig || !orig.length || S.orientHold) return { dx: dx, dz: dz };
-  var x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
-  orig.forEach(function (o) {
-    var hx = footReach(o.it, 1, 0), hz = footReach(o.it, 0, 1);
-    x0 = Math.min(x0, o.x - hx); x1 = Math.max(x1, o.x + hx);
-    z0 = Math.min(z0, o.z - hz); z1 = Math.max(z1, o.z + hz);
-  });
-  if (!(x1 > x0 && z1 > z0)) return { dx: dx, dz: dz };
-  var cx = (x0 + x1) / 2, cz = (z0 + z1) / 2,
-    ox = Number(orig[0].it.x) - orig[0].x, oz = Number(orig[0].it.z) - orig[0].z;
+  if (!orig || !orig.length || S.orientHold) { S.itemSnapWall = null; groupSnapMemo = null; return { dx: dx, dz: dz }; }
+  var items = orig.map(function (o) { return o.it; }), lead = groupLead(items);
+  var box = groupProxy(items, lead ? lead.rot : 0, orig);
+  if (!box) return { dx: dx, dz: dz };
+  var ox = Number(orig[0].it.x) - orig[0].x, oz = Number(orig[0].it.z) - orig[0].z,
+    mode = lead ? orientMode(lead.type) : "free";
+  if (mode === "hung") mode = "wall"; // a set is not hung as one piece
+  var key = items.map(function (it) { return it.id; }).join(","),
+    prev = groupSnapMemo && groupSnapMemo.key === key && S.itemSnapWall != null && String(groupSnapMemo.wallId) === String(S.itemSnapWall) ? groupSnapMemo : null;
   var r = resolveItemDrag({
-    item: { w: x1 - x0, d: z1 - z0, rot: 0, x: cx + (ox || 0), z: cz + (oz || 0) },
-    target: { x: cx + dx, z: cz + dz }, walls: wallSnapSegments(), mode: "free", snap: false,
+    item: Object.assign({ type: lead && lead.type }, box, { x: box.x + (ox || 0), z: box.z + (oz || 0) }),
+    target: { x: box.x + dx, z: box.z + dz }, walls: wallSnapSegments(), mode: mode,
+    prev: prev, mul: snapMul(), snap: S.snapObj !== false,
   });
-  return { dx: r.x - cx, dz: r.z - cz };
+  S.itemSnapWall = r.flush ? r.wallId : null;
+  groupSnapMemo = r.flush ? { key: key, wallId: r.wallId, side: r.side, corner: r.corner } : null;
+  return { dx: r.x - box.x, dz: r.z - box.z };
 }
 
 export {

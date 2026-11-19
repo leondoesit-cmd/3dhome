@@ -40,14 +40,17 @@ function savePrefs() { writeCoachPrefs(storage(), prefs); }
 
 /* ---- the illustrations: inline SVG, CSS keyframes in css/coach.css ---- */
 var ANIM = {
+  /* Two stacked levels: the floor below as a faded, dashed slab, the storey
+     being started lifted over it in the accent, and the rise between them. */
   upper:
     '<svg viewBox="0 0 160 84" aria-hidden="true" focusable="false">' +
-    '<rect class="ca-ghost" x="18" y="10" width="124" height="64" rx="1"/>' +
-    '<line class="ca-ghost" x1="84" y1="10" x2="84" y2="74"/>' +
-    '<rect class="ca-void" x="96" y="20" width="18" height="40"/>' +
-    '<path class="ca-wall" pathLength="100" d="M18 10H142V74H18Z"/>' +
-    '<path class="ca-wall ca-wall2" pathLength="100" d="M84 10V74"/>' +
-    "</svg>",
+    '<path class="ca-lvl-lo" d="M28 66H100L132 52H60Z"/>' +
+    '<path class="ca-lvl-post" d="M28 42V66M100 42V66M132 28V52"/>' +
+    '<path class="ca-lvl-dim" d="M16 38V66M12 38H20M12 66H20"/>' +
+    '<g class="ca-lvl-up">' +
+    '<path class="ca-lvl-side" d="M28 38V42H100V38ZM100 38V42L132 28V24Z"/>' +
+    '<path class="ca-lvl-hi" d="M28 38H100L132 24H60Z"/>' +
+    "</g></svg>",
   stairs:
     '<svg viewBox="0 0 160 84" aria-hidden="true" focusable="false">' +
     '<g class="ca-turn">' +

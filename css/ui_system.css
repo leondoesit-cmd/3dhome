@@ -532,6 +532,10 @@ body.compact-nav #view-3d { --b3d-bottom: calc(var(--mobile-nav-block, 48px) + v
 #view-3d > .b3d-preview-pop .b3d-opacity[hidden] { display: none; }
 #view-3d > .b3d-preview-pop .b3d-opacity input { flex: 1 1 auto; min-width: 120px; accent-color: var(--accent); }
 #view-3d > .b3d-preview-pop .b3d-opacity output { min-width: 3.2em; text-align: end; font-variant-numeric: tabular-nums; color: var(--text-main); }
+#view-3d > .b3d-preview-pop .b3d-sec { margin: 2px 2px -4px; font-size: max(11px, var(--fs-floor, 0px)); font-weight: 600; letter-spacing: .02em; color: var(--text-muted); }
+#view-3d > .b3d-preview-pop .b3d-sec:not(:first-child) { margin-top: 4px; }
+#view-3d > .b3d-preview-pop .b3d-note { margin: 0 2px; font-size: max(11px, var(--fs-floor, 0px)); color: var(--text-muted); }
+#view-3d > .planner-navigation > .pn-preview .b3d-caret { font-size: max(10px, var(--fs-floor, 0px)); margin-inline-start: 2px; opacity: .7; }
 html body.pro-skin #view-3d > .planner-navigation > .pn-preview { order: 5; }
 /* fingers: every control here at least 44px */
 :is(body.pro-compact, body.touch-desk, body.compact-nav) #view-3d > .b3d-chain > button,

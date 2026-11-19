@@ -206,6 +206,17 @@ function wallKey(w) {
    ones on screen), and `bandsOf(w)`, a wall's layer bands when the caller has
    them (that result is not memoised). */
 export function wallInkAll(walls, opts) {
+  var get = wallInkPass(opts), keys = new Map(), out = new Map();
+  (walls || []).forEach(function (w) {
+    if (w && S.nodes[w.a] && S.nodes[w.b]) out.set(w, get(w, keys));
+  });
+  return out;
+}
+
+/* A pass shares node adjacency and opening groups. The model draws from a
+   stable wall list and can also share keys. The HUD normalizes a wall just
+   before drawing it, so reads the current keys when that wall needs ink. */
+export function wallInkPass(opts) {
   var bandsOf = opts && opts.bandsOf, at = new Map();
   ((opts && opts.pool) || S.walls || []).forEach(function (w) {
     [w.a, w.b].forEach(function (n, i) {
@@ -221,15 +232,14 @@ export function wallInkAll(walls, opts) {
     if (!openingsOf.has(k)) openingsOf.set(k, []);
     openingsOf.get(k).push([o.s, o.width, o.height, o.sill]);
   });
-  var keyOf = new Map();
-  function keyFor(w) {
-    if (!keyOf.has(w)) keyOf.set(w, wallKey(w) + JSON.stringify(openingsOf.get(String(w.id)) || null));
-    return keyOf.get(w);
+  function keyFor(w, keys) {
+    if (keys && keys.has(w)) return keys.get(w);
+    var key = wallKey(w) + JSON.stringify(openingsOf.get(String(w.id)) || null);
+    if (keys) keys.set(w, key);
+    return key;
   }
   function armsAt(n) { return at.get(n) || []; }
-  var out = new Map();
-  (walls || []).forEach(function (w) {
-    if (!w || !S.nodes[w.a] || !S.nodes[w.b]) return;
+  return function (w, keys) {
     var near = new Set([w]);
     [w.a, w.b].forEach(function (n) {
       armsAt(n).forEach(function (ow) {
@@ -237,12 +247,11 @@ export function wallInkAll(walls, opts) {
         armsAt(ow.a).concat(armsAt(ow.b)).forEach(function (x) { near.add(x); });
       });
     });
-    var key = Array.from(near).map(keyFor).sort().join("\n"),
+    var key = Array.from(near, function (ow) { return keyFor(ow, keys); }).sort().join("\n"),
       hit = inkCache.get(w);
-    if (!bandsOf && hit && hit.key === key) { out.set(w, hit.ink); return; }
+    if (!bandsOf && hit && hit.key === key) return hit.ink;
     var ink = wallInk(w, armsAt, bandsOf ? bandsOf(w) : undefined);
     if (!bandsOf) inkCache.set(w, { key: key, ink: ink });
-    out.set(w, ink);
-  });
-  return out;
+    return ink;
+  };
 }

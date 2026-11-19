@@ -38,6 +38,70 @@ function rig(code = source) {
 }
 const plain = value => JSON.parse(JSON.stringify(value));
 
+test('gesture checkpoints share settled indexes and never clone or scan historical snapshots', () => {
+  const r = rig();
+  r.H.seed(); r.pushHistory('first'); r.S.nodes[0].x++;
+  r.pushHistory('second'); r.S.nodes[0].x++;
+  const treeCopies = [], rootScans = [];
+  const original = globalThis.structuredClone;
+  globalThis.structuredClone = value => {
+    if (value?.nodes instanceof Map) treeCopies.push(value);
+    return original(value);
+  };
+  r.context.historyPoolRoots = snapshots => { rootScans.push(snapshots); return historyPoolRoots(snapshots); };
+  try {
+    const a = r.captureHistorySession(), b = r.captureHistorySession();
+    assert.equal(treeCopies.length, 0, 'no deep copy of a tree carrying snapshot strings');
+    assert.equal(rootScans.length, 0, 'no search through historical snapshots for pool tokens');
+    assert.equal(a.history.nodes.get(0).idx, b.history.nodes.get(0).idx);
+    assert.notEqual(a.history.nodes.get(0).kids, b.history.nodes.get(0).kids);
+    const portable = r.captureHistorySession(true);
+    assert.notEqual(portable.history.nodes.get(0).idx, a.history.nodes.get(0).idx);
+    const transferred = structuredClone(portable);
+    r.S.workspace.floors[1].scene.walls[0].id = 99;
+    assert.equal(portable.pools.floors[0][1].walls[0].id, 9);
+    r.restoreHistorySession(transferred);
+    assert.equal(r.S.workspace.floors[1].scene.walls[0].id, 9);
+  } finally { globalThis.structuredClone = original; }
+});
+
+test('a pruned redo branch and its texture survive gesture cancellation with ordered live selection', () => {
+  const r = rig(), archived = 'data:image/png;base64,BBBB';
+  r.S.items.push({id: 3, type: 'box', x: 30});
+  r.H.seed(); r.pushHistory('textured alternative'); r.S.walls[0].tex = archived;
+  r.H.undo(); r.S.sel = { kind: 'items', ref: r.S.items[0], refs: [r.S.items[1], r.S.items[0]] };
+  const saved = r.captureHistorySession();
+  for (let i = 0; i < 85; i++) { r.pushHistory('move'); r.S.nodes[0].x++; }
+  assert.equal(r.H.tree().some(n => n.label === 'textured alternative'), false);
+  r.S.sel = null; r.collect(); r.restoreHistorySession(saved);
+  assert.equal(r.S.sel?.kind, 'items');
+  assert.equal(r.S.sel.ref, r.S.items[0]);
+  assert.equal(r.S.sel.refs[0], r.S.items[1]);
+  assert.equal(r.S.sel.refs[1], r.S.items[0]);
+  assert.equal(r.S.nodes[0].x, 0);
+  assert.equal(r.H.redo(), true); assert.equal(r.S.walls[0].tex, archived);
+});
+
+test('checkpoint selection resolves every planner object and keeps primitive node and room picks', () => {
+  const r = rig();
+  Object.assign(r.S, { openings:[{id:11}], markers:[{id:12}], wallCons:[{id:13}], slabOpenings:[{id:14}],
+    mep:{nodes:[{id:15}], runs:[{id:16}]} });
+  for (const [kind, collection] of Object.entries({ wall:'walls', opening:'openings', item:'items', marker:'markers',
+    con:'wallCons', slabvoid:'slabOpenings', mepNode:'mep.nodes', mepRun:'mep.runs' })) {
+    const get = () => collection.split('.').reduce((v, key) => v[key], r.S)[0];
+    const before = get();
+    r.S.sel = {kind, ref:before};
+    r.restoreHistorySession(r.captureHistorySession());
+    assert.equal(r.S.sel?.ref, get(), kind);
+    assert.notEqual(r.S.sel?.ref, before, kind);
+  }
+  for (const selection of [{kind:'node',ref:0}, {kind:'nodes',refs:[1,0]}, {kind:'room',ref:'1,2,3'}]) {
+    r.S.sel = selection;
+    r.restoreHistorySession(r.captureHistorySession());
+    assert.deepEqual(plain(r.S.sel), selection);
+  }
+});
+
 test('actual pointerDown arms without snapshots and pointercancel restores the first mutation', () => {
   const r = rig(), noop = () => {};
   const interaction = moduleSource("js/interaction.js");
@@ -55,11 +119,16 @@ test('actual pointerDown arms without snapshots and pointercancel restores the f
   r.S.tool = 'select';
   r.context.pointerDown({ ...event, button: 0 }); r.context.endAction({ type: 'pointercancel' });
   assert.equal(r.snapshots(), 0, 'pan and unmoved selected marker never snapshot');
+  r.S.sel = {kind:'wall', ref:r.S.walls[0]};
+  r.S.wallEditEnd = 'b'; r.S.wallOpenFocus = 19; r.S.warnSel = 'openEnd:1';
   const eager = r.captureHistorySession();
   r.context.pointerDown({ ...event, button: 0 });
   r.commitPending(); r.S.nodes[0].x = 99;
+  r.S.wallEditEnd = r.S.wallOpenFocus = r.S.warnSel = null;
   r.context.endAction({ type: 'pointercancel' });
   assert.equal(r.S.nodes[0].x, 0);
+  assert.equal(r.S.sel?.ref, r.S.walls[0]);
+  assert.deepEqual([r.S.wallEditEnd, r.S.wallOpenFocus, r.S.warnSel], ['b', 19, 'openEnd:1']);
   assert.deepEqual(r.H.retainedSnapshots(), [...eager.history.nodes.values()].map(node => node.snap).concat(eager.history.lastFull));
   r.reset(); r.pushHistory('after cancellation');
   assert.equal(r.snapshots(), 1, 'the ended gesture cannot capture a later edit');

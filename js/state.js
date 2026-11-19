@@ -169,6 +169,11 @@ export function defaultLayers() {
   return t;
 }
 
+/* A new plan opens at golden hour: a low, warm sun (the rig in
+   js/view3d/gizmo_env.js sets sunrise 6, sunset 18) that models the rooms
+   with long soft shadows instead of the flat white of midday. */
+export const DEFAULT_HOUR = 17;
+
 export const S = {
   // model
   nodes: [],
@@ -346,7 +351,7 @@ export const S = {
   roof: null,
   floorTex: "wood",
   wallColor: 0xefe9dd,
-  hour: 13,
+  hour: DEFAULT_HOUR,
   northAngle: 0,
   dayK: 1,
   artK: 0.25,

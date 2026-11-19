@@ -85,6 +85,17 @@ export function legacyIntensity(i, distance, decay, refFrac) {
   return i * Math.pow(1 - f, n) * Math.PI * Math.pow(ref, n);
 }
 
+// Catalogue ratings are bulb lumens. A white Lambertian under 100 lux has
+// unit scene radiance at this exposure (E / pi), with distances in cm.
+// Imported catalogues without a lumen rating retain their authored calibration.
+export const PLANNER_FLUX_SCALE = Math.PI * 10000 / 100;
+export function plannerLampIntensity(item, lamp) {
+  var level = Math.max(0, item.lightI ?? 1);
+  const lengthScale = lamp.ratedLength ? Math.max(0, item.w ?? lamp.ratedLength) / lamp.ratedLength : 1;
+  if (lamp.lumens > 0) return lamp.lumens * lengthScale * PLANNER_FLUX_SCALE * level / (4 * Math.PI);
+  return legacyIntensity(lamp.intensity * level, lamp.dist || 500, 2, 0.5);
+}
+
 /**
  * Punctual scale for a light whose `decay` is NOT 2.
  *

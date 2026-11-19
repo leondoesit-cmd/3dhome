@@ -1,4 +1,5 @@
 import './blueprint_3d.js';
+import { dragShadowQueue } from "./view3d/drag_shadow_queue.js";
 import './core/precise_bounds_cache.js';
 import { createSceneRegistry } from './core/scene_registry.js';
 import './core/wall_build_key.js';
@@ -27,6 +28,7 @@ import "./furniture.js";
 import "./core/runtime.js";
 import "./textures.js";
 import { pbrTextures, pbrSurfaceMaterial } from "./pbr_material.js";
+import { photoLampPower } from "./primitives.js";
 import { createLightLoop } from "./light_loop.js";
 import { createRoomBounce, roomInspectionFill, UNMASKED } from "./room_bounce.js";
 import { HumanFactory } from "./human.js";
@@ -68,7 +70,7 @@ import {
 } from "./view3d/see_through.js";
 import {
   finishPrewarm, fitPracticalLights, initPhysicsForScene, prewarmHolds,
-  schedulePrewarm, startPrewarm,
+  schedulePrewarm, startPrewarm, missesCachedSpotShadow,
 } from "./view3d/lighting.js";
 import {
   applyItemOps, applyLayers3D, pickableRoots, rebuild3D, selected3DBox,
@@ -127,7 +129,7 @@ export {
 };
 // for js/view3d/lighting.js (live bindings: it sees every reassignment)
 export {
-  BOUNCE_RHO, MAX_SHADOW_MAPS, PRACTICAL_SHADOW, PREWARM_IDLE_MS, SHADOW_SETS,
+  MAX_SHADOW_MAPS, PRACTICAL_SHADOW, PREWARM_IDLE_MS, SHADOW_SETS,
   bounceRooms, gameRendererLock, needsRender, plannerShadowsEnabled,
   prewarmPass, roomBounce, set_bounceRooms, set_prewarmDue, set_prewarmRun,
   set_starsWarm, settle, starsWarm, usePost, windowLights,
@@ -295,10 +297,9 @@ export function registerPlannerLights(r) {
   return true;
 }
 /* Ends the idle prewarm's run (see startPrewarm) and says whether one was in
-   progress: until it is over the lights are on another hour's shadow set,
-   which a second renderer drawing now would draw. The run stops after the
-   build in flight, as input here stops it; the next quiet spell starts it
-   again. */
+   progress: until it ends the scene pass's target and MRT are in use. The
+   run stops after the build in flight, as input here stops it; the next
+   quiet spell starts it again. */
 export function stopShadowSetPrewarm() {
   if (!prewarmRun) return false;
   prewarmRun.stop = true;
@@ -611,19 +612,30 @@ function lightReaches(o, box) {
   if (o.isDirectionalLight) return true;
   if (!_lightPos) _lightPos = new THREE.Vector3();
   o.getWorldPosition(_lightPos);
-  return !o.distance || box.distanceToPoint(_lightPos) < o.distance;
+  return (!o.distance || box.distanceToPoint(_lightPos) < o.distance) && !missesCachedSpotShadow(o, _lightPos, box);
 }
 /* `hold`: rebuilds are coming back to back (see rebuildShadowT). A map that
    has a picture already (a window light handed back to the pool and out again
    on every rebuild) keeps it until the paced redraw; only a light that has
    never drawn draws at once. */
 var everDrawn = new WeakSet();
-function syncShadowUpdates(now, box, hold) {
+const dragMaps = dragShadowQueue();
+function syncShadowUpdates(now, box, hold, paced) {
+  if (box && !now) scene.traverse(function (o) {
+    if (o.isLight && o.castShadow && o.intensity && lightShown(o) && lightReaches(o, box)) dragMaps.add(o.shadow, box);
+  });
+  const due = dragMaps.take(paced && !now);
+  if (dragMaps.size) needsRender = true;
   scene.traverse(function (o) {
     if (!o.isLight || !o.castShadow || !o.shadow) return;
     var sh = o.shadow;
     var stale = !drawnShadows.has(sh) && !(hold && everDrawn.has(sh));
-    var draw = now || stale || (!!box && lightReaches(o, box));
+    var draw = o.intensity !== 0 && (now || stale || due.has(sh));
+    if (o.isPointLight) {
+      sh.plannerRegionRenderer = renderer;
+      sh.plannerRegion = !now && !stale && due.get(sh);
+    }
+    if (o.intensity === 0) drawnShadows.delete(sh); // refresh when the source returns
     sh.autoUpdate = draw;
     if (draw && lightShown(o)) { drawnShadows.add(sh); everDrawn.add(sh); }
   });
@@ -946,64 +958,58 @@ function set_reusableWalls(value) { return reusableWalls = value; }
    door as brightly as its own. Each lamp's range is clipped to the farthest
    corner of the room it hangs in — the physical falloff window is smooth, so
    the clip itself never shows — while its intensity stays calibrated to its
-   own catalogue throw. A sphere that fills the corners still crosses the
+   working distance (the floor lamp's reading distance, or its catalogue
+   throw for other fixtures). A sphere that fills the corners still crosses the
    nearest wall, so a lamp that does not cast is also masked to its own room
-   (fitLightMasks). At dusk and at night (when practicals carry the scene)
-   the main ceiling fixture of each room also casts a soft shadow, so furniture
-   sits on the floor instead of floating in flat light. Shadow maps update on
-   demand only, so the cost is paid when something moves, not every frame. */
+   (fitLightMasks). Windows and fixtures share the remaining maps at every
+   hour, so furniture sits on the floor in daylight and lamplight. Shadow
+   maps update on demand only, so the cost is paid when something moves,
+   not every frame. */
 /* ---- light that bounces: the room fills itself ----
    Split-flux interreflection per room, carried by ONE light for the whole
    house (see js/room_bounce.js): the flux that enters each room through its
    windows and from its lamps, times ρ/(1−ρ), spread over the room's surfaces.
    Walls stop it exactly — the map it reads is the plan — and the light is
    always on and never casts, so refitting it never changes the light set the
-   shaders are keyed on. ρ = 0.5: pale walls and a mid floor. */
-var BOUNCE_RHO = 0.5;
+   shaders are keyed on. Each finish contributes its linear RGB reflectance. */
 var bounceRooms = []; // the rooms the bounce map was last drawn for
 function set_bounceRooms(value) { return bounceRooms = value; }
-var PRACTICAL_SHADOW = { ceilingLight: 1, pendant: 1, chandelier: 1 };
+var PRACTICAL_SHADOW = { floorLamp: 2, tableLamp: 2, wallLamp: 2, ceilingLight: 1, pendant: 1, chandelier: 1 };
 /* ---- one shadow budget for every light that can cast ----
    Every shadow map is one more sampled texture in EVERY lit material's
    fragment stage, and WebGPU's default per-stage limit is 16; the PBR maps
-   and the environment take about five, the bounce map (js/room_bounce.js)
-   one more. Past it every pipeline in the house
+   vary by material. The room atlas and environment each need one binding,
+   and transmissive glass needs two more. sceneShadowBudget counts them. Past it every pipeline in the house
    fails at once (a big flat at night used to ask for a cube per room), and
    each map is also five more depth taps in every pixel. So the lights that
    cast are chosen here, in order of what it costs the picture to go without:
      1. a lamp OUTSIDE every room whose throw reaches the house: with a
         shadow it lights the rooms through their windows. Over budget its
         mask keeps it outside them (see fitLightMasks), facade glow intact.
-     2. at dusk and at night, the main ceiling fixture of each room (largest
-        rooms first), so furniture sits on the floor in lamplight;
-     3. by day, the brightest windows' daylight (the sky seen through the
-        glass), so furniture throws its shadow away from the window. They
-        hand over to the practicals at dusk rather than adding to them.
-   The sun takes one slot by day. A light whose map is stale after this
+     2. daylight from the windows and the room fixtures share the remaining
+        maps, favouring shaded and overhead fixtures in larger rooms and
+        spreading the daylight maps across different rooms.
+        Furniture can throw a shadow away from an opening or a lit fixture.
+   The sun takes one slot at every hour; changing the hour changes energy
+   without changing the shaders' keys. A light whose map is stale after this
    (it starts casting, or its range moved) is redrawn on its own; nothing
    here invalidates the other maps. */
 var MAX_SHADOW_MAPS = 8;
 
-/* ---- shadow sets built ahead of the handoff ----
-   Which lights cast is part of every lit shader's key, and the day's and
-   the night's casters cannot share one shader (16 textures a stage). So
-   dusk (the window shadows hand over to the ceiling lamps), sunset (the sun
-   stops casting) and dawn each built their shaders the first time they
-   came, ~850 ms with the page frozen; repeats are cheap (retainShaderCaches).
+/* ---- the star field built ahead of nightfall ----
+   Which lights cast is part of every lit shader's key. The same lights now
+   keep their maps from dawn through night, so the lit materials can use
+   their existing shaders when the hour changes. The star field, hidden by
+   day, still needs its own shader the first time the sky goes dark.
 
-   So once the view has been idle a few seconds, the shaders of the other
-   sets are built ahead. The lights take each set in turn and three's
-   compileAsync builds one mesh's shaders at a time, yielding between the
-   stages of each build (~6 slices of a ~450 ms shader). Two things make
-   them the shaders the frames will ask for: the scene pass's target and MRT
-   stay set until the build is done (the output code depends on them), and
-   the render context is the one the scene pass draws in, at its call depth
-   (three keys every shader on it; compileAsync alone takes depth 0, which
-   no planner frame uses). Nothing is drawn meanwhile, so the temporary set
-   never shows. Anything that wants a frame (input, a time change, an edit)
-   ends the run after the build in flight, with the hour's own lights back.
-   The shadow maps' own depth shaders are not built this way; those are the
-   cheap part of a handoff. */
+   Once the view has been idle a few seconds, compileAsync builds that
+   shader ahead. Two things make it the shader the frames will ask for:
+   the scene pass's target and MRT stay set until the build is done (the
+   output code depends on them), and the render context is the one the
+   scene pass draws in, at its call depth (three keys every shader on it;
+   compileAsync alone takes depth 0, which no planner frame uses). Nothing
+   is drawn meanwhile. Anything that wants a frame (input, a time change,
+   an edit) ends the run after the build in flight. */
 var prewarmPass = null; // the scene pass: its target, MRT and call depth key the shaders
 function set_prewarmPass(value) { return prewarmPass = value; }
 var prewarmDue = 0; // when to start (performance.now), 0 for nothing to do
@@ -1013,11 +1019,8 @@ function set_prewarmRun(value) { return prewarmRun = value; }
 var PREWARM_IDLE_MS = 3000;
 var starsWarm = false; // the star field's shader is built (see startPrewarm)
 function set_starsWarm(value) { return starsWarm = value; }
-var SHADOW_SETS = [
-  { night: false, sun: true }, // day: the sun and the windows
-  { night: true, sun: true }, // dusk and dawn: the sun and the ceiling lamps
-  { night: true, sun: false }, // night: the ceiling lamps
-];
+// Retained public descriptor. One caster set serves all hours.
+var SHADOW_SETS = [{ sun: true }];
 
 var overviewRadiusLimit = 4000;
 function set_overviewRadiusLimit(value) { return overviewRadiusLimit = value; }
@@ -1273,8 +1276,7 @@ export function ensureBuilt() {
   if (!ready3D) return;
   if (S.dirty3D) {
     S.dirty3D = false;
-    rebuild3D();
-    applyEnv();
+    rebuild3D(applyEnv);
   }
 }
 
@@ -1292,6 +1294,7 @@ export function extractPTScene() {
   var sd = new THREE.Vector3()
     .subVectors(sun.target.position, sun.position)
     .normalize();
+  const photoExposure = renderer.toneMappingExposure;
   var materials = [],
     matKey = {},
     textures = [],
@@ -1326,9 +1329,9 @@ export function extractPTScene() {
       color: [m.color.r, m.color.g, m.color.b],
       rough: m.roughness != null ? m.roughness : 0.8,
       metal: m.metalness || 0,
-      opacity: m.transparent ? m.opacity : 1,
+      opacity: m.transmission ? 1 - m.transmission : m.transparent ? m.opacity : 1,
       emissive: em,
-      emissiveI: m.emissiveIntensity || 0,
+      emissiveI: (m.emissiveIntensity || 0) * photoExposure / 3,
       tex: m.map ? regTex(m.map) : -1,
     };
     var key =
@@ -1369,13 +1372,6 @@ export function extractPTScene() {
       e[14],
     ];
   }
-  /* undo the candela conversion so the tracer sees pre-r185 intensity units */
-  function legacyPower(o) {
-    // calibrated against the lamp's catalogue throw, not its room-clipped range
-    var d = o.userData.throwCm || o.distance || 0;
-    if (!(d > 0)) return o.intensity / (Math.PI * 250 * 250);
-    return (o.intensity * 16) / (Math.PI * d * d);
-  }
   function aabbOf(o) {
     var b = new THREE.Box3().setFromObject(o);
     return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z];
@@ -1403,13 +1399,9 @@ export function extractPTScene() {
         var lp = o.getWorldPosition(new THREE.Vector3());
         lights.push({
           p: [lp.x, lp.y, lp.z],
-          r: 7,
+          r: o.userData.sourceRadius || 7,
           color: [o.color.r, o.color.g, o.color.b],
-          // The tracer's LAMP_SCALE is calibrated against pre-r185 (unitless)
-          // intensities. Scene lights now carry physical candela from
-          // legacyIntensity(i, dist) = i * PI * (dist/2)^2 / 4, so invert that
-          // here — otherwise every lamp arrives ~10^5 too strong.
-          power: legacyPower(o),
+          power: photoLampPower(o, photoExposure),
         });
       }
       return;
@@ -1514,13 +1506,13 @@ export function extractPTScene() {
     sun: {
       dir: [sd.x, sd.y, sd.z],
       color: [sun.color.r, sun.color.g, sun.color.b],
-      // same unit story as the lamps: sun.intensity is LUX-scaled (x PI) now,
-      // while the tracer's SUN_SCALE/SUN_DISC were tuned pre-r185
-      intensity: sun.intensity / Math.PI,
+      // Worker multiplies irradiance by SUN_SCALE=3 before diffuse reflection.
+      intensity: sun.intensity * photoExposure / (3 * Math.PI),
       angRad: 0.032,
     },
-    sky: envPT,
-    exposure: renderer.toneMappingExposure,
+    sky: { ...envPT, zenith: envPT.zenith.map(v => v * photoExposure),
+      horizon: envPT.horizon.map(v => v * photoExposure), ground: envPT.ground.map(v => v * photoExposure) },
+    exposure: 1, // meter before the worker's firefly clamp
     materials: materials,
     textures: textures,
     prims: prims,

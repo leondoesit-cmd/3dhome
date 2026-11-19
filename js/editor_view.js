@@ -517,12 +517,13 @@ export function createEditorView(opts) {
       view.big = !!b;
       if (render !== false) view.render();
     };
-    // point the camera at a standard direction (used by the axis buttons)
-    view.orbitTo = function (az, el) {
+    // point the camera at a standard direction (used by the axis buttons);
+    // `render === false` leaves the frame to a caller that re-fits and draws
+    view.orbitTo = function (az, el, render) {
       view.clearFixedFrame(false);
       view.az = az;
       view.el = clamp(el, minEl, maxEl);
-      view.render();
+      if (render !== false) view.render();
     };
     // Lock the camera square to an arbitrary planar sketch. GridHelper starts
     // in XZ (normal +Y), so the same frame also orients the construction grid.

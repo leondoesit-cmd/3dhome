@@ -89,6 +89,7 @@ test("materials compare by value, maps by identity", () => {
   assert.ok(!sameMaterial(std({ map: tex }), std({ map: other })));
   assert.ok(!sameMaterial(std(), std({ roughness: 0.61 })));
   assert.ok(!sameMaterial(std(), std({ side: THREE.DoubleSide })));
+  assert.ok(!sameMaterial(std(), std({ shadowSide: THREE.FrontSide })));
   const glow = std(); glow.userData.glow = true;
   assert.ok(!sameMaterial(std(), glow));
   assert.ok(!sameMaterial(std(), new THREE.MeshPhysicalMaterial({ color: 0x8a6a4a, roughness: 0.6, metalness: 0.1 })));
@@ -102,7 +103,8 @@ test("the 3D view merges a piece only outside the physics sandbox, and rebuilds 
   const src = moduleSource("js/view3d.js");
   const build = sourceFunctionText(src, "buildItem");
   assert.match(build, /g\.userData\.partsMerged = !isPhysicsEnabled\(\);\s*if \(g\.userData\.partsMerged\) mergeItemMeshes\(g, THREE\);/);
-  // merged before the lamp code: the glow pass and the light pool see the final meshes
-  assert.ok(build.indexOf("mergeItemMeshes") < build.indexOf("f.lamp"));
+  // Measure individual emitter positions before the bake, install their lights afterward.
+  assert.ok(build.indexOf("fixtureOptics") < build.indexOf("mergeItemMeshes"));
+  assert.ok(build.indexOf("mergeItemMeshes") < build.indexOf("installFixture"));
   assert.match(sourceFunctionText(src, "syncItems"), /!!c\.g\.userData\.partsMerged === !isPhysicsEnabled\(\)/);
 });

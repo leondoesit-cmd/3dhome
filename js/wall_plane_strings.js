@@ -35,6 +35,10 @@ const S = {
   "reach-passage": ["passage", "מעבר"],
   "reach-opening": ["opening", "פתח"],
   "reach-end": ["wall end", "קצה הקיר"],
+  // what a vertical distance reached (js/measure_cache.js verticalReach)
+  "reach-ceiling": ["to ceiling", "עד התקרה"],
+  "reach-floor": ["off floor", "מעל הרצפה"],
+  "reach-item": ["to {name}", "עד {name}"],
 };
 
 /** The short name of an opening type (or "end") a distance reached. */

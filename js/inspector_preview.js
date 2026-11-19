@@ -27,6 +27,8 @@ var host = null,
   resizeObserver = null,
   initialized = false,
   visible = false,
+  syncPending = false,
+  resetPending = false,
   renderQueued = false,
   selectionKey = "",
   // three is late-bound, so these two cannot be built at module scope any more.
@@ -74,7 +76,7 @@ function ensureElements() {
   toggle.className = "inspector-preview-toggle";
   toggle.setAttribute("aria-expanded", "false");
   const label = () => { toggle.textContent = t(host.classList.contains("preview-expanded") ? "workflow_preview_hide" : "workflow_preview_show"); };
-  toggle.onclick = () => { const expanded = host.classList.toggle("preview-expanded"); toggle.setAttribute("aria-expanded", String(expanded)); label(); scheduleRender(); };
+  toggle.onclick = () => { const expanded = host.classList.toggle("preview-expanded"); toggle.setAttribute("aria-expanded", String(expanded)); label(); canvasResized(); };
   host.prepend(toggle); label(); onLangChange(label);
 
   function syncRoof() {
@@ -107,8 +109,9 @@ function ensureElements() {
     resetView();
   });
   if (typeof ResizeObserver === "function") {
-    resizeObserver = new ResizeObserver(function () { scheduleRender(); });
+    resizeObserver = new ResizeObserver(canvasResized);
     resizeObserver.observe(host);
+    resizeObserver.observe(canvas);
   }
   window.addEventListener("scene3d:rebuilt", function () {
     ownLights.invalidate();
@@ -127,6 +130,15 @@ function ensureElements() {
     shadowRepaintT = setTimeout(scheduleRender, 150);
   });
   return true;
+}
+
+function canvasDisplayed() {
+  return visible && canvas.getClientRects().length > 0;
+}
+
+function canvasResized() {
+  if (syncPending && canvasDisplayed()) syncInspectorPreview();
+  else scheduleRender();
 }
 
 function ensureRenderer() {
@@ -165,7 +177,7 @@ function ensureRenderer() {
 
 function fitSelection(resetAngles) {
   // A scene rebuild can arrive before the first lazy preview initialization.
-  if (!selectionBox || !center) return false;
+  if (!selectionBox || !center || !canvasDisplayed()) return false;
   var box = getSelectionBox3D();
   if (!box || box.isEmpty()) return false;
   var sphere = box.getBoundingSphere(new THREE.Sphere());
@@ -234,7 +246,7 @@ function updateCamera(width, height) {
 }
 
 function scheduleRender() {
-  if (renderQueued || !visible) return;
+  if (renderQueued || !canvasDisplayed()) return;
   renderQueued = true;
   requestAnimationFrame(function () {
     renderQueued = false;
@@ -432,7 +444,7 @@ function resetView() {
 }
 
 function onPointerDown(event) {
-  if (!visible || event.button !== 0 || event.target.closest("button")) return;
+  if (!canvasDisplayed() || !threeLoaded() || event.button !== 0 || event.target.closest("button")) return;
   pointerId = event.pointerId;
   pointerX = event.clientX;
   pointerY = event.clientY;
@@ -499,17 +511,22 @@ export function syncInspectorPreview() {
   visible = nextVisible;
   host.hidden = !nextVisible;
   if (!nextVisible) {
+    syncPending = false;
     pointerId = null;
     host.classList.remove("dragging");
     return;
   }
-  // Nothing below this line runs without three, and everything above it does.
-  if (!threeHere()) return;
+  // A hidden canvas (collapsed phone preview) waits for canvasResized(); past
+  // the threeHere() check nothing runs without three, and everything before it does.
   var nextKey = keyForSelection(), changed = nextKey !== selectionKey;
   selectionKey = nextKey;
   if (changed) overlayDirty = true;
   if (changed && stateEl) stateEl.classList.remove("ready");
+  resetPending ||= changed;
+  syncPending = !canvasDisplayed();
+  if (syncPending || !threeHere()) return;
   ensureRenderer();
-  fitSelection(changed);
+  fitSelection(resetPending);
+  resetPending = false;
   scheduleRender();
 }

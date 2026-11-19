@@ -72,7 +72,7 @@ export function upholstered(g, it, V, armW) {
           { rough: 0.97, radius: 6, crown: 3, crownAxis: "z" });
         if (pl) {
           pl.rotation.x = -0.32;
-          pl.rotation.y = s * 0.42;
+          pl.rotation.y = -s * 0.42;
         }
       });
     }

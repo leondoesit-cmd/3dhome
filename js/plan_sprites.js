@@ -29,9 +29,9 @@ import { offscreenGL, offscreenDead, offscreenIdle, useRig, shrinkAll, useSmallT
 import { FURN, buildItem, itemVSpan } from "./furniture.js";
 import { rememberVSpan, seedVSpan, spanOfBox, vSpanKeyOf } from "./furniture_api.js";
 import { deviceBudget, noteBakeMs, adaptBatch } from "./device_budget.js";
-import { pickBatch, storeCounted, quietStep } from "./plan_sprite_batch.js";
+import { PictureQueue, pickBatch, storeCounted, quietStep } from "./plan_sprite_batch.js";
 import { clearGroup } from "./primitives.js";
-import { pbrLoading } from "./pbr_material.js";
+import { pictureMaterialLoads } from "./pbr_material.js";
 import { S } from "./state.js";
 import { isPresentation } from "./plan_style.js";
 import { spriteKey, spriteBucket, SPRITE_BUCKETS, SPRITE_VERSION } from "./plan_sprite_key.js";
@@ -53,6 +53,7 @@ const NOTE_MS = 150; // at most one plan repaint this often while pictures land
    marked provisional instead (see prepare()), is never kept on disk, and is
    dropped when a load lands. */
 const defSigs = new Map();
+const spriteDefaults = new Map();
 function hashStr(str) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619) >>> 0;
@@ -69,11 +70,12 @@ function defSig(type) {
   return sig;
 }
 function keyFor(it, bucket) {
-  return spriteKey(it, bucket, 0) + "|" + defSig(it.type);
+  const definition = it.definitionId && S.parametric?.definitions?.[it.definitionId];
+  return spriteKey(it, bucket, 0, FURN[it.type], definition, spriteDefaults) + "|" + defSig(it.type);
 }
 const cache = new Map(); // key -> sprite (Map order = LRU order)
 const lastById = new Map(); // item id -> its most recent sprite, any key
-const queue = new Map(); // item id -> {key, it, bucket, pri}
+const queue = new PictureQueue();
 const failed = new Set(); // keys whose model would not render: never retried
 let pixels = 0,
   // pieces per bake batch, adapted per slice (pump()), at most the budget's
@@ -121,7 +123,7 @@ export function itemSprite(it, SC, dpr, opts) {
   if (hit) {
     remember(key, hit);
     if (it.id != null) lastById.set(it.id, hit);
-    queue.delete(it.id);
+    queue.cancel(String(it.id ?? key));
     return hit;
   }
   // the same piece at another zoom: better than a stretched stand-in
@@ -137,11 +139,8 @@ export function itemSprite(it, SC, dpr, opts) {
 
 function enqueue(it, bucket, key, pri, ahead) {
   const id = (it.id != null ? it.id : key) + (ahead ? "|ahead" : "");
-  const cur = queue.get(id);
-  if (cur && cur.key === key) {
-    if (pri > cur.pri) cur.pri = pri; // asked again by the paint: it is on screen
-    return;
-  }
+  const cur = queue.get(key)?.members.get(id);
+  if (cur && cur.pri >= pri) return;
   let clone;
   try {
     clone = JSON.parse(JSON.stringify(it));
@@ -151,7 +150,7 @@ function enqueue(it, bucket, key, pri, ahead) {
   clone.x = 0;
   clone.z = 0;
   clone.rot = 0;
-  queue.set(id, { key: key, it: clone, bucket: bucket, pri: pri, ahead: !!ahead });
+  queue.request(id, { key, it: clone, bucket, pri, ahead: !!ahead });
   schedule();
 }
 
@@ -167,9 +166,23 @@ export function prebakeSprite(it, bucket) {
 }
 // anything queued that a viewer is waiting for (not only pictures ahead)
 function waitedFor() {
-  let any = false;
-  queue.forEach(function (req) { if (!req.ahead) any = true; });
-  return any;
+  for (const req of queue.values()) if (!req.ahead) return true;
+  return false;
+}
+let bakingCurrent = false;
+export function currentPicturesPending() {
+  return !offscreenDead() && (bakingCurrent || waitedFor());
+}
+
+// A replacement apartment can arrive while the boot scene is still queued.
+export function retainSpriteRequests(items) {
+  if (!queue.size) return;
+  const ids = new Set((items || []).map(it => it?.id));
+  for (const group of queue.values()) {
+    for (const [slot, req] of group.members) {
+      if (!ids.has(req.it.id)) queue.cancel(slot);
+    }
+  }
 }
 
 const idle = typeof requestIdleCallback === "function"
@@ -214,20 +227,28 @@ function quietSlot() {
       const step = quietStep({ urgent: urgentWork(), now: now(), lastInput: lastInput });
       if (step.go) return void finish();
       if (step.waitMs) return void setTimeout(ask, step.waitMs);
-      if (typeof requestIdleCallback !== "function") return void setTimeout(finish, 50);
-      requestIdleCallback(function (deadline) {
-        if (deadline.timeRemaining() < 8) ask();
+      const resume = function () {
+        if (quietStep({ urgent: urgentWork(), now: now(), lastInput }).waitMs) ask();
         else finish();
-      });
+      };
+      if (typeof requestIdleCallback !== "function") return void setTimeout(resume, 50);
+      requestIdleCallback(resume, { timeout: 80 });
     };
     ask();
   });
 }
 
+let readingIndex = false;
 function schedule() {
-  if (scheduled || baking || !queue.size) return;
+  if (readingIndex || scheduled || baking || !queue.size) return;
   scheduled = true;
-  idle(pump);
+  // Start backend/PMREM initialization on the first cold miss. thumbsReady
+  // resumes this queue after initialization; disk hits never enter here.
+  if (offscreenGL()) idle(pump);
+  else {
+    scheduled = false;
+    if (offscreenDead()) queue.clear();
+  }
 }
 
 function announce() {
@@ -275,24 +296,26 @@ async function pump() {
       const batch = pickBatch(queue, batchSize, function (key) { return cache.has(key); });
       if (!batch.length) continue;
       sliceLongMs = 0;
+      bakingCurrent = batch.some(b => !b.req.ahead);
       const gen = texGen;
       const sps = await bakeBatch(batch.map(function (b) { return b.req; }));
+      bakingCurrent = false;
       // a long task this slice caused halves the next batch, a clean one grows it back
       batchSize = adaptBatch(batchSize, { longTaskMs: sliceLongMs }, top);
       batch.forEach(function (b, i) {
         const sp = sps[i], best = b.req;
-        const show = function (req) { if (req.it.id != null) lastById.set(req.it.id, sp); };
+        const show = function () {
+          for (const req of best.members.values()) if (req.it.id != null) lastById.set(req.it.id, sp);
+        };
         if (sp && sp.prov && gen !== texGen) {
           // a texture landed while this one was baking: its invalidation ran
           // before the picture existed, so caching it would keep the fallback
           // look for good. Show it as the stand-in and bake it again.
-          show(best);
-          b.also.forEach(show);
-          if (!queue.has(b.id)) queue.set(b.id, best);
+          show();
+          for (const [slot, req] of best.members) if (!queue.slots.has(slot)) queue.request(slot, req);
         } else if (sp) {
           store(best.key, sp);
-          show(best);
-          b.also.forEach(show); // equal pieces share the one picture
+          show();
           if (persistable(best.it, sp)) persist(best.key, sp);
           made++;
         } else if (!offscreenDead()) failed.add(best.key);
@@ -302,9 +325,10 @@ async function pump() {
         made = 0;
         noted = now();
       }
-      await idleTick();
+      if (urgentWork()) await idleTick(); // background batches already yield in quietSlot
     }
   } finally {
+    bakingCurrent = false;
     baking = false;
     setSpritesUrgent(false);
   }
@@ -381,11 +405,9 @@ function setUp(g, box, rect, L, W, H) {
   g.r.setViewport(0, 0, W, H);
 }
 
-/* Is any texture still on its way? The library bitmaps (pbrLoading) and the
-   plain texture caches, which several builders fill and whose entries have
-   no image until their load lands. */
+/* Plain custom texture caches have no per-build load promise. Keep their
+   conservative invalidation until the images arrive. */
 function texturesPending() {
-  if (pbrLoading()) return true;
   return [S.customTexCache, S.customBumpCache].some(function (c) {
     if (!c) return false;
     for (const k in c) if (c[k] && !c[k].image) return true;
@@ -413,23 +435,23 @@ function yieldTask() {
   return new Promise(function (resolve) { setTimeout(resolve, 0); });
 }
 async function prepare(it, bucket) {
-  const model = new THREE.Group(),
-    px = texPx(bucket),
-    t = now();
+  const model = new THREE.Group(), px = texPx(bucket);
   const p = { it: it, bucket: bucket, model: model, px: px, proxies: [], syncMs: 0 };
   try {
-    buildItem(model, it);
+    let t = now();
+    const build = () => buildItem(model, it);
+    let loading = pictureMaterialLoads(build);
     // A library material it uses still loading means the build fell back to
     // the material's old preset: wait for the bitmaps (briefly) and build
     // again, rather than bake a picture that is stale as soon as they land.
-    for (let i = 0; i < 2; i++) {
-      const loading = pbrLoading();
-      if (!loading) break;
+    for (let i = 0; loading && i < 2; i++) {
+      p.syncMs += now() - t;
       await Promise.race([loading, wait(LOAD_WAIT_MS)]);
+      t = now();
       clearGroup(model);
-      buildItem(model, it);
+      loading = pictureMaterialLoads(build);
     }
-    p.prov = texturesPending();
+    p.prov = !!loading || texturesPending();
     if (!model.children.length) return release(p);
     model.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(model);
@@ -514,7 +536,8 @@ async function bakeBatch(reqs) {
     for (let i = 0; i < preps.length; i++) {
       const p = preps[i];
       if (!p) continue;
-      await idleTick();
+      if (reqs[i].ahead) await idleTick();
+      else await yieldTask(); // this batch already received a quiet slot
       g = offscreenGL();
       if (!g) break;
       try { out[i] = drawPrepared(g, p); } catch (e) { out[i] = null; }
@@ -659,6 +682,14 @@ function fromDisk(key) {
 /* Load the index of kept pictures; drop ones from an older SPRITE_VERSION and
    the oldest beyond the cap. */
 function hydrate() {
+  readingIndex = true;
+  function indexReady() {
+    clearTimeout(deadline);
+    readingIndex = false;
+    schedule();
+  }
+  // A blocked database must not hold the first cold picture indefinitely.
+  const deadline = setTimeout(indexReady, 100);
   openDB().then(function (db) {
     const tx = db.transaction(STORE, "readwrite"), st = tx.objectStore(STORE), req = st.getAll();
     req.onsuccess = function () {
@@ -669,16 +700,22 @@ function hydrate() {
         else if (!persisted.has(r.key)) {
           persisted.set(r.key, r);
           seedVSpan(r.vk, r.vs); // the plan knows each kept piece's height without building it
+          const waiting = queue.get(r.key);
+          if (waiting) {
+            queue.delete(r.key);
+            if (!waiting.ahead) fromDisk(r.key);
+          }
         }
       });
     };
     tx.oncomplete = function () {
       db.close();
+      indexReady();
       generation++;
       if (persisted.size && typeof window !== "undefined") window.dispatchEvent(new Event("planSpritesReady"));
     };
-    tx.onerror = function () { db.close(); };
-  }).catch(function () {});
+    tx.onerror = function () { db.close(); indexReady(); };
+  }).catch(indexReady);
 }
 
 /* A texture finished loading: pictures baked while one was pending may be
@@ -700,11 +737,12 @@ export function invalidateTexturedSprites() {
 export function invalidateSprites() {
   generation++;
   defSigs.clear();
+  spriteDefaults.clear();
   failed.clear();
   if (typeof window !== "undefined") window.dispatchEvent(new Event("planSpritesReady"));
 }
 
-if (typeof window !== "undefined") {
+if (typeof window !== "undefined" && typeof document !== "undefined") {
   window.addEventListener("catalogUpdated", invalidateSprites);
   window.addEventListener("customTextureLoaded", invalidateTexturedSprites);
   // the renderer came up: work queued while it was pending can run now

@@ -68,6 +68,15 @@ export function itemsOnUserLayer(id) {
     return it && it.ulayer === id;
   });
 }
+/* itemsOnUserLayer(id).length for every id at once, in one pass over the
+   items (same membership rule): `.get(id) || 0`. For the per-paint counts. */
+export function userLayerCounts() {
+  var counts = new Map();
+  (S.items || []).forEach(function (it) {
+    if (it) counts.set(it.ulayer, (counts.get(it.ulayer) || 0) + 1);
+  });
+  return counts;
+}
 
 // Names stay short and unique-ish: "Layer 1", "Layer 2", ...
 export function nextUserLayerName(base) {

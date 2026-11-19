@@ -22,6 +22,7 @@ import { api, E, T, isEn, AXES, sp, formatCm } from "./ui_cabinet_ctx.js";
 import { legibleInk } from "./core/color_science.js";
 import { displayUnit, toDisp, fromDisp, fmtLen, parseLen } from "./display_units.js";
 import { sizeEntryChanged } from "./cabinet_layout_ops.js";
+import { hintReserve } from "./cabinet_chrome_logic.js";
 
 /* Persistent pan & zoom state for the 2D elevation. The base scale `k` auto-
    fits the cabinet to the viewport; these overlay it so a pinch gesture can
@@ -59,6 +60,14 @@ function dockClearance() {
   return r.height > 0 ? Math.round(r.height + 10) : 0;
 }
 
+/* The floating hint pill must not sit on the width dimension: the bottom
+   margin grows to wherever the pill actually floats (it moves with the
+   command bar, the split and the layout). */
+function hintPad(base) {
+  var cv = E.host && E.host.querySelector("#cbCanvas"), h = E.host && E.host.querySelector(".cb-hint");
+  return cv && h ? hintReserve(cv.getBoundingClientRect(), h.getBoundingClientRect(), base) : base;
+}
+
 export function css(name, fb) {
   var v = getComputedStyle(document.documentElement).getPropertyValue(name);
   return (v && v.trim()) || fb;
@@ -88,7 +97,7 @@ export function setMode(m) {
      does not jump to some unrelated angle the moment you want to look at it in
      the round. Straight up and straight down are pulled back off the pole —
      a camera looking exactly along its own up vector has no orientation. */
-  if (m === "3d" && E.pv && AXES[E.axis]) E.pv.orbitTo(AXES[E.axis].az, AXES[E.axis].el);
+  if (m === "3d" && E.pv && AXES[E.axis]) E.pv.orbitTo(AXES[E.axis].az, AXES[E.axis].el, false);
   // one renderer, two homes — see editor_view.js
   if (!E.swapView) {
     E.swapView = createViewportSwap({
@@ -99,7 +108,9 @@ export function setMode(m) {
   }
   E.host.classList.toggle("cb-is3d", m === "3d");
   E.host.classList.toggle("cb-split", split);
-  E.swapView(m === "3d" || split, E.pv);
+  /* The orbit and the move to the new pane do not draw: the one frame comes
+     from renderPreview() below, once the pane is sized and the piece fitted. */
+  E.swapView(m === "3d" || split, E.pv, { render: false });
   frameCabinetPreview(E.pv, E.it, true);
   if (split !== wasSplit) sizeCanvas();
   E.host.querySelectorAll(".cb-vmodes button[data-mode]").forEach(function (b) {
@@ -596,7 +607,7 @@ export function drawProjected(ax) {
   }
 }
 
-export function draw() {
+export function draw(cameraOnly) {
   if (!E.open || !E.cx || !E.vw) return;
   if (E.mode === "3d" && !E.thumbPass) {
     E.cx.clearRect(0, 0, E.vw || 0, E.vh || 0);
@@ -610,7 +621,7 @@ export function draw() {
      for a rail that is not there wastes a fifth of a phone screen. */
   var cmp = E.host && E.host.classList.contains("cb-compact") || E.thumbPass;
   var it = E.it,
-    L = layoutCab(it),
+    L = cameraOnly === true && E.view?.L.it === it ? E.view.L : layoutCab(it),
     c = E.cx,
     W = E.vw,
     H = E.vh,
@@ -619,7 +630,7 @@ export function draw() {
     // to avoid, and the tools shrink to one row of icons
     gut = E.split && !cmp ? 118 : 0,
     padT = E.thumbPass ? 34 : cmp ? 54 : E.split ? 72 : 112, // desktop: the labelled 2×2 tool group floats here
-    padB = E.thumbPass ? 30 : cmp ? 46 + dockClearance() : 84, // room for the width dimension and the hint pill
+    padB = E.thumbPass ? 30 : cmp ? 46 + dockClearance() : hintPad(84), // room for the width dimension and the hint pill
     k = Math.min((W - gut - padX * 2) / it.w, (H - padT - padB) / it.h) * viewZoom,
     ox = gut + (W - gut) / 2 + viewPanX,
     /* oy is the BASELINE of the drawing (Y = oy - my*k). Desktop hangs it from
@@ -1184,13 +1195,15 @@ function drawDoorRun(c, L, col, X, Y, k, dr, run) {
 
 /* ================= elevation interaction ================= */
 
-/* One repaint per frame, however many pointer moves arrive in it. */
-export function queueDraw() {
+/* One repaint per frame, however many pointer moves arrive in it. A frame
+   that only moved the camera (pinch / pan) reuses the last front layout. */
+export function queueDraw(cameraOnly) {
+  E.cameraDraw = cameraOnly === true && (!E.rafPending || E.cameraDraw);
   if (E.rafPending) return;
   E.rafPending = true;
   requestAnimationFrame(function () {
     E.rafPending = false;
-    draw();
+    draw(E.cameraDraw);
   });
 }
 
@@ -1370,7 +1383,7 @@ export function wireCanvas() {
         viewPanX += mx;
         viewPanY += my;
       }
-      queueDraw();
+      queueDraw(true);
     }, { passive: false });
     function end(e) {
       if (e.touches.length < 2) pinch = null;

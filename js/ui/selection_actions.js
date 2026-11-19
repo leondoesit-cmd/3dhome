@@ -3,9 +3,10 @@
    shares the editor's state through live imports from ../ui.js and
    ./ui_locals.js. */
 import { executeCommand } from "../commands/index.js";
-import { itemsInRoom, roomByKey, roomFloor } from "../geometry.js";
+import { hiddenSets, itemsInRoom, roomByKey, roomFloor } from "../geometry.js";
+import { layoutSetId, layoutSetMembers, setLayoutSetId } from "../group_frame.js";
 import { currentHistoryId, pushHistory } from "../history.js";
-import { t } from "../i18n.js";
+import { getLang, onLangChange, t } from "../i18n.js";
 import { addSpace, autoArrangeAll, deleteSel, dupSel, rotateRoom } from "../interaction.js";
 import { alignItems, distributeItems, matchRotation } from "../item_align.js";
 import { refaceItem, rotStep } from "../item_orient.js";
@@ -23,16 +24,54 @@ import { addParam, runRoomConAction } from "../ui_params.js";
 import { fillProps } from "../ui_props.js";
 import { refreshTree, updateCost, withoutRoomPrompts } from "../ui_tree.js";
 import { renderWarnPanel } from "../ui_warn.js";
-import { UI_COMMAND_HISTORY, applyRoomFloor, flash, openModal, setLockStruct, turnItem } from "../ui.js";
+import { UI_COMMAND_HISTORY, applyRoomFloor, flash, openModal, select, setLockStruct, turnItem } from "../ui.js";
+import { itemUserUnpickable } from "../user_layers.js";
 import { uiLocals } from "./ui_locals.js";
 
 export const RUN_SELECTION_ACTIONS = new Set([
   "addFloor", "lockStruct", "deleteSel", "slabFromStairs", "dupSel", "roomFloor", "prodSize",
   "pvAdd", "rcArea", "rcMinDim", "rcRect", "alLeft", "alRight", "alCenterX", "alTop", "alBottom",
-  "alCenterZ", "alDistX", "alDistZ", "alSameRot", "groupItems", "ungroupItems", "autoGenerate",
+  "alCenterZ", "alDistX", "alDistZ", "alSameRot", "groupItems", "ungroupItems", "selectLayoutSet", "autoGenerate",
   "autoArrange", "addroom", "addcorr", "makeSeamless", "matchFloor", "rotL", "rotR", "rotSel90",
   "faceAuto", "roomRotL", "roomRotR", "lockItem", "lockRoom", "lockRoomItems", "itemOnWall",
 ]);
+
+function selectableLayoutMembers() {
+  if (S.sel?.kind !== "item" || layoutSetId(S.sel.ref) == null) return [];
+  const hidden = hiddenSets().items;
+  return layoutSetMembers(S.items, S.sel.ref).filter(it => !hidden[it.id] && !itemUserUnpickable(it));
+}
+
+function selectLayoutSet() {
+  const refs = selectableLayoutMembers();
+  if (refs.length > 1) {
+    select({ kind: "items", refs });
+    render2D();
+  }
+}
+
+function showLayoutSetAction() {
+  const panel = document.getElementById("itemProps");
+  if (!panel) return;
+  let button = panel.querySelector("[data-layout-set]");
+  const visible = selectableLayoutMembers().length > 1;
+  if (!button && visible) {
+    button = document.createElement("button");
+    button.type = "button";
+    button.dataset.layoutSet = "";
+    button.onclick = () => runSelectionAction("selectLayoutSet");
+    panel.querySelector("#selname2").after(button);
+  }
+  if (button) {
+    button.style.display = visible ? "" : "none";
+    button.textContent = getLang() === "he" ? "בחירת הקבוצה" : "Select group";
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("planner-selection", showLayoutSetAction);
+  onLangChange(showLayoutSetAction);
+}
 
 /* "On wall" for the selected piece (js/interaction/wall_plane_drag.js
    toggleOnWall): hang it flush on the nearest wall at its height, so it is
@@ -117,17 +156,18 @@ async function runSelectionAction(act, ev) {
     S.dirty3D = true;
     fillProps(); render2D(); refreshTree(); updateCost();
     flash(t("al_done", { n: n }));
-  } else if (act === "groupItems") {
+  } else if (act === "selectLayoutSet") selectLayoutSet();
+  else if (act === "groupItems") {
     if (S.sel && S.sel.kind === "items") {
       pushHistory();
       var gid = uid();
-      S.sel.refs.forEach(function(it) { it.groupId = gid; });
+      S.sel.refs.forEach(function(it) { setLayoutSetId(it, null); it.groupId = gid; });
       flash("Items grouped");
     }
   } else if (act === "ungroupItems") {
     if (S.sel && S.sel.kind === "items") {
       pushHistory();
-      S.sel.refs.forEach(function(it) { delete it.groupId; });
+      S.sel.refs.forEach(function(it) { setLayoutSetId(it, null); delete it.groupId; });
       flash("Items ungrouped");
     }
   } else if (act === "autoGenerate") {

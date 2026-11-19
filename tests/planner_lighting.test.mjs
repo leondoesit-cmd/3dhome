@@ -38,21 +38,24 @@ test("no light reaches a room except through its openings", () => {
   assert.match(fit, /fitLightMasks\(\);/, "whatever is left without a shadow is masked to its room");
   const masks = fn("fitLightMasks");
   assert.match(masks, /lightMaskRoom\(rooms, l\.position\.x, l\.position\.z, l\.castShadow\)/, "window daylight");
-  assert.match(masks, /lightMaskRoom\(rooms, it\.x, it\.z, o\.castShadow\)/, "lamps");
+  assert.match(masks, /lightMaskRoom\(rooms, p\.x, p\.z, o\.castShadow\)/, "lamps");
   assert.match(masks, /hemi\.userData\.maskRoom = SKY_ONLY;/, "the sky light stops at the ceilings");
   assert.match(masks, /sun\.castShadow && renderer && renderer\.shadowMap\.enabled \? UNMASKED : SKY_ONLY/,
     "and so does a sun with no shadow map");
   assert.match(fn("buildBounceLights"), /fitLightMasks\(\);/,
     "renumbered rooms re-mask the lights");
   const ops = fn("applyItemOps").split("// Zero opacity keeps")[0];
-  assert.match(ops, /if \(lampMoved\) fitPracticalLights\(\);/, "a dragged lamp takes its mask and shadow along");
+  assert.match(ops, /fitPracticalLights\(movedLampGroups\)/, "a dragged lamp takes its mask and shadow along");
 });
 
 test("the shaders read the room map the masks are written in", async () => {
   // GPU-only: Node cannot build the node materials
   const rb = (await readFile(join(root, "js/room_bounce.js"), "utf8")).replace(/\r\n/g, "\n");
-  assert.match(rb, /TSL\.texture\(map, p\.sub\(origin\)\.div\(span\)\)\.level\(0\)/,
+  assert.match(rb, /planTexelNode = TSL\.texture\(map, TSL\.vec2\(u, v\)\)\.level\(0\)/,
     "mip 0 always: the environment pass samples at its roughness level, and the map has no other mips");
+  assert.match(rb, /var v = TSL\.clamp\(uv\.y, edge, 1 - edge\)\.add\(place\.x\)\.div\(STOREY_LAYERS\);/,
+    "each storey reads its own layer, never the next one's");
+  assert.match(rb, /return \(ud && ud\.lightPlace\) \|\| activePlace;/, "a mesh's storey comes from its own tag");
   assert.match(rb, /map\.magFilter = map\.minFilter = THREE\.NearestFilter;/, "room numbers are never blended");
   assert.match(rb, /nodes\.set\(THREE\.PointLight, maskedLightNode\(THREE\.PointLightNode\)\);/);
   assert.match(rb, /nodes\.set\(THREE\.SpotLight, maskedLightNode\(THREE\.SpotLightNode\)\);/);
@@ -64,11 +67,10 @@ test("the shaders read the room map the masks are written in", async () => {
 test("every casting light shares one budget under the 16-texture stage limit", () => {
   assert.match(src, /var MAX_SHADOW_MAPS = [1-8];/);
   const fit = fn("fitPracticalLights");
-  assert.match(fit, /MAX_SHADOW_MAPS - \(sun && sun\.castShadow \? 1 : 0\)/, "the sun takes a slot by day");
-  assert.match(fit, /if \(!night && \(over \? over\.day : \(S\.dayK \|\| 0\) > 0\.02\)\)/, "windows hand over to the practicals at dusk");
+  assert.match(fit, /budget - \(sun && sun\.castShadow \? 1 : 0\)/, "the sun takes a slot by day");
+  assert.doesNotMatch(fit, /S\.(artK|dayK|hour)/, "the same casters serve every hour");
   assert.match(fit, /!gameRendererLock/, "games never pay for the planner's shadows");
-  assert.match(fn("applyEnv"), /sun\.castShadow = on;/,
-    "a sun below the horizon casts nothing");
+  assert.doesNotMatch(fn("applyEnv"), /sun\.castShadow\s*=/);
 });
 
 test("a drag redraws only the shadows that reach it, at a capped rate", () => {
@@ -89,10 +91,11 @@ test("orbit frames skip per-object uniform refreshes", () => {
   assert.match(loop, /syncCameraVelocity\(\);/, "the camera history advances once per painted frame");
 });
 
-test("a sun patch is brighter than the sky light beside the window", () => {
+test("window lights receive the calibrated aperture illuminance and colour", () => {
   const env = fn("applyEnv");
-  const win = /o\.userData\.baseI \* ([\d.]+) \* dk/.exec(env);
-  assert.ok(win && Number(win[1]) <= 0.8, "window sky light no longer drowns the sun patch");
+  assert.ok(env.includes("var skyRGB = photometry.windowRGB"));
+  assert.ok(env.includes("o.intensity = o.userData.baseI * S.windowSkyK"));
+  assert.ok(env.includes("o.color.copy(sun.userData.windowSkyColor)"));
 });
 
 test("a rebuild keeps the shaders it already has", () => {
@@ -141,7 +144,7 @@ test("each lit room fills itself with the light that enters it", () => {
   // wiring only — the arithmetic and the no-leak rule are in room_bounce.test.mjs
   const fit = fn("fitBounceLights");
   assert.match(fit, /windowLights\.forEach/, "daylight entering through the room's windows");
-  assert.match(fit, /FURN\[it\.type\]\.lamp/, "and its lamps at night");
+  assert.match(fit, /fixtureLamp\(FURN\[it\.type\]\)/, "and its lamps at night");
   assert.match(fit, /roomBounce\.setIrradiance\(roomIrradiance\(/);
   assert.match(between("function build3D()", "ready3D = true;"),
     /roomBounce\.register\(renderer\);\n  roomBounce\.confineSky\(scene\);\n  scene\.add\(roomBounce\.light\);/,
@@ -170,24 +173,20 @@ test("the inspector preview draws the planner scene with the planner's light mas
   // each light keeps the mask it would have without a shadow map (effectiveMaskRoom)
   const fit = fn("fitLightMasks");
   assert.match(fit, /l\.userData\.maskRoomUnshadowed = lightMaskRoom\(rooms, l\.position\.x, l\.position\.z, false\);/);
-  assert.match(fit, /o\.userData\.maskRoomUnshadowed = lightMaskRoom\(rooms, it\.x, it\.z, false\);/);
+  assert.match(fit, /o\.userData\.maskRoomUnshadowed = lightMaskRoom\(rooms, p\.x, p\.z, false\);/);
   assert.match(fit, /sun\.userData\.maskRoomUnshadowed = SKY_ONLY;/);
 });
 
-test("the other shadow sets are built ahead, in the scene pass's own context", () => {
+test("the night sky is built ahead, in the scene pass's own context", () => {
   const block = fn("startPrewarm");
-  // every set the hour is not using, a mesh at a time, a frame between builds
-  assert.match(block, /SHADOW_SETS\.filter\(function \(s\) \{ return s\.night !== night \|\| s\.sun !== sun\.castShadow; \}\)/);
-  assert.match(block, /await compileForScenePass\(meshes\[i\], depth\);\s*await new Promise\(function \(r\) \{ requestAnimationFrame\(r\); \}\);/);
+  assert.match(block, /compileForScenePass\(stars, depth\)/);
   // the scene pass's target and MRT stay set until the build is done, and its call depth keys the context
   const compile = fn("compileForScenePass");
   assert.match(compile, /renderer\.setRenderTarget\(prewarmPass\.renderTarget\);\s*renderer\.setMRT\(prewarmPass\._mrt\);/);
   assert.match(compile, /d === undefined \? depth : d/);
   assert.match(compile, /return Promise\.resolve\(p\)\.then\(done, done\);/);
-  // a set switch with no draw since must not reuse the old lights key
-  assert.match(fn("applyShadowSet"), /forgetLightKeys\(renderer\);/);
   // nothing is drawn, rebuilt or relit while a shader is being built from the lights
-  const loop = between("var live = doorsMoving || humansLive || physicsLive || extLive;", "if (needsRender || live || settle > 0) {");
+  const loop = between("var live = doorsMoving", "if (needsRender || live || settle > 0) {");
   assert.match(loop, /if \(prewarmHolds\(\)\) return;/);
   assert.match(src, /if \(prewarmRun && \(S\.dirty3D \|\| S\.items3D\.size \|\| S\.mep3D\)\) \{\s*prewarmRun\.stop = true;\s*if \(!finishPrewarm\(\)\) return;/);
   assert.match(fn("applyEnv").split("shadowsDirty = true;")[0], /prewarmRun\.envPending = true;\s*return;/);

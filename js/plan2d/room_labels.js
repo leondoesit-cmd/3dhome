@@ -6,7 +6,7 @@
 import { fmtAreaM2, fmtLen } from "../display_units.js";
 import { pointInPoly, roomHidden, roomName } from "../geometry.js";
 import { t } from "../i18n.js";
-import { roomClearArea } from "../room_area.js";
+import { roomAreaPass } from "../room_area.js";
 import { S } from "../state.js";
 import { label, labelSize } from "../plan2d/constraints.js";
 import { roomInteriorSize } from "../plan2d/dim_chains.js";
@@ -60,13 +60,19 @@ function stampShift(r, nm, areaText, half, badges) {
   return off[0] || off[1] ? { dx: off[0], dy: off[1] } : undefined;
 }
 
-function drawRoomLabels(rooms) {
+function focusedRoomLabels(rooms) {
   var pts = labelFocusPoints(), keys = selectedRoomKeys();
+  return rooms.map(function (r) { return roomLabelFocused(r, pts, keys); });
+}
+
+function drawRoomLabels(rooms) {
+  var focused = focusedRoomLabels(rooms);
   var badges = mepStampObstacles();
-  rooms.forEach(function (r) {
-    if (roomLabelFocused(r, pts, keys)) return;
+  var areaFor = roomAreaPass(S);
+  rooms.forEach(function (r, i) {
+    if (focused[i]) return;
     var nm = roomName(r.key),
-      clearArea = roomClearArea(S, r),
+      clearArea = areaFor(r),
       areaText = clearArea.area == null
         ? t("room_area_reference_short", { area: fmtAreaM2(r.area / 10000) })
         : t("room_area_usable_short", { area: fmtAreaM2(clearArea.area) }),
@@ -85,6 +91,7 @@ function drawRoomLabels(rooms) {
     if (S.showDims)
       label(r.cx, r.cz + (nm ? half : 0), areaText, isHid ? "#a49c93" : "#46504f", !nm, shift);
   });
+  return focused;
 }
 
-export { drawRoomLabels, roomLabelFocused };
+export { drawRoomLabels, focusedRoomLabels, roomLabelFocused };

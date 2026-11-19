@@ -295,3 +295,31 @@ test("measureSides honours the plan's measure target (walls / objects / chosen w
   assert.ok(kinds({ target: "object" }).every((k) => k.startsWith("item:")));
   assert.deepEqual(kinds({ target: "manual", wallIds: [2] }), ["wall:2"]);
 });
+
+test("wallGap / floorClearances: walls beside a piece are read at its back end (a bed's head), a touching piece still reports the wall past it", () => {
+  const bed = box(200, 100, 190, 90); // x 105..295, z 55..145
+  assert.equal(Math.round(wallGap(bed, WALL).gap), 50);
+  // toward -x: the corner at x 105; toward +x: the one at x 295
+  assert.equal(Math.round(wallGap(bed, WALL, { x: -1, z: 0 }).from.x), 105);
+  assert.equal(Math.round(wallGap(bed, WALL, { x: 1, z: 0 }).from.x), 295);
+  // a bed with its head (back) at the west wall: both side walls measured at the head
+  const room = [
+    { id: "n", a: { x: 0, z: 0 }, b: { x: 400, z: 0 }, t: 10 },
+    { id: "s", a: { x: 0, z: 400 }, b: { x: 400, z: 400 }, t: 10 },
+    { id: "w", a: { x: 0, z: 0 }, b: { x: 0, z: 400 }, t: 10 },
+  ];
+  const head = itemOutline({ type: "box", x: 105, z: 180, w: 90, d: 190, rot: 270 }); // x 10..200
+  const hits = floorClearances({ poly: head, dirs: sideDirs(270, false), walls: room, others: [] });
+  const sides = hits.filter((h) => h.id === "n" || h.id === "s");
+  assert.equal(sides.length, 2);
+  sides.forEach((h) => assert.equal(Math.round(h.from.x), 10, h.id + " at the head"));
+  // a piece touching that side: no item number, but the wall past it still shows
+  const touching = { id: "t", poly: box(150, 110, 60, 50) }; // z 85..135, the bed's north edge at z 135
+  const t = floorClearances({ poly: head, dirs: sideDirs(270, false), walls: room, others: [touching], behind: true });
+  assert.ok(t.some((h) => h.id === "n" && h.behind), "the north wall past the touching piece");
+  assert.ok(!t.some((h) => h.id === "t" && h.kind === "item"));
+  // it only grazes the bed's long side: sweeping toward the foot it is not in the way (was a bogus 110)
+  const east = { id: "e", a: { x: 400, z: 0 }, b: { x: 400, z: 400 }, t: 10 };
+  const f = floorClearances({ poly: head, dirs: sideDirs(270, false), walls: [...room, east], others: [touching], behind: true });
+  assert.deepEqual(f.filter((h) => h.dir === "front").map((h) => [h.kind, h.id, Math.round(h.gap)]), [["wall", "e", 195]]);
+});

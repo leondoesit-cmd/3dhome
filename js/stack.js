@@ -22,6 +22,8 @@
 import { S, fin } from "./state.js";
 import { itemVSpan } from "./furniture.js";
 import { itemCorners } from "./measure.js";
+import { restoreLayoutSets } from "./group_frame.js";
+import { tabletopPlacement } from "./placement_resolver.js";
 
 /* A host has to be something you could actually put a thing ON: it needs a top
    that is off the floor and within reach. Below MIN_TOP a "host" is a rug or a
@@ -251,6 +253,28 @@ export function refreshSupport(it) {
 // Load-time sanity: drop links to pieces that did not survive, and any cycle
 // a hand-edited or older file might carry.
 export function normalizeStacks() {
+  restoreLayoutSets(S.items);
+  // Older generated homes serialized no physical attachment. Their desk
+  // accessories and bedside lamps have distinctive footprints wholly inside
+  // the supporting top. Preserve explicit mount heights and detached offsets.
+  for (const it of S.items) {
+    if (it.on != null || it.elev != null || it.hold || (it.type !== "tableLamp" && it.type !== "laptop")) continue;
+    const surface = tabletopPlacement(it, S.items, true);
+    if (!surface?.fits) continue;
+    const host = surface.host;
+    if (it.supportId != null && it.supportId !== host.id) continue;
+    if (host.type !== "desk" && !(it.type === "tableLamp" && host.type === "nightstand")) continue;
+    if (it.supportId == null) {
+      const deskLamp = host.type === "desk" && it.type === "tableLamp";
+      const dx = deskLamp ? -(host.w - it.w) / 2 + 4 : 0;
+      const dz = deskLamp ? -(host.d - it.d) / 2 + 4 : 0;
+      const a = (host.rot || 0) * Math.PI / 180;
+      const x = host.x + dx * Math.cos(a) - dz * Math.sin(a);
+      const z = host.z + dx * Math.sin(a) + dz * Math.cos(a);
+      if (Math.hypot(it.x - x, it.z - z) > 0.01 || it.rot !== host.rot) continue;
+    }
+    attach(it, host);
+  }
   orphanChildren(null);
   S.items.forEach(function (it) {
     if (it.on == null) return;

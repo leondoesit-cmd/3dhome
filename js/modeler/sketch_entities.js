@@ -43,7 +43,7 @@ import { exactDisplayBody, queueKernelBody, scheduleExactMesh } from "../modeler
 import { addedConstraintIds, appendToSketch, showSketchRefusal } from "../modeler/sketch_dimension_editor.js";
 import { chooseSketchReference, closeFeaturePanel, fitSketch, isCanonicalAuthoring, modelAreaText, modelLengthText, modelLengthUnit, referenceLabel, selectedSketchableFace, setTool } from "../modeler/sketch_workflow.js";
 import { layout3DHost } from "../modeler/view_modes.js";
-import { startSketchOnDefaultPlane } from "../modeler/welcome_coach.js";
+import { sketchPromptSpeaker, startSketchOnDefaultPlane, syncCoach } from "../modeler/welcome_coach.js";
 import { aiStatusHTML } from "../pro_shell.js";
 import { addCenterRectangle } from "../sketch_center_rectangle.js";
 import { addCenterSlot } from "../sketch_center_slot.js";
@@ -146,6 +146,10 @@ function syncHint() {
   if (hint.dataset.activeInstruction === "true") hint.classList.remove("ps-quiet");
   // A flash still on screen keeps the element; see flash() above.
   if (flashHolding()) return;
+  // inside a sketch one instruction speaks: this hint yields to the coach's next step
+  var speaker = sketchPromptSpeaker();
+  hint.classList.toggle("md-hint-yield", speaker === "coach");
+  if (speaker !== E._sketchPromptSpeaker) syncCoach();
   if (E.tool === "paint") {
     hint.textContent = t("paintHint");
     hint.classList.remove("on");

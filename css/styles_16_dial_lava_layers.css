@@ -695,6 +695,17 @@ body.pro-skin .ps-left-layers > #layer-chips .lchip-tag[data-kind="edit"] {
   background: var(--accent-soft);
   color: var(--accent);
 }
+/* every other row says its visibility, quieter than "Editing": an outline
+   for Visible, dimmer still for Faded and Hidden */
+body.pro-skin .ps-left-layers > #layer-chips .lchip-tag[data-kind="show"],
+body.pro-skin .ps-left-layers > #layer-chips .lchip-tag[data-kind="ghost"],
+body.pro-skin .ps-left-layers > #layer-chips .lchip-tag[data-kind="hide"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border-color);
+  font-weight: 500;
+}
+body.pro-skin .ps-left-layers > #layer-chips .lchip-tag[data-kind="ghost"] { opacity: 0.75; }
+body.pro-skin .ps-left-layers > #layer-chips .lchip-tag[data-kind="hide"] { opacity: 0.6; }
 
 /* Workspaces, counts, the floor reference and the user's own layers: the
    desktop Layers tab only, like the status line. The extra rows carry .lchip

@@ -18,7 +18,7 @@ import { addMarker, hitMarker } from "../markers.js";
 import { addNode, conduitsChanged, ensureMEP, hitMEP, mepXrayKey, snapMEPPoint, wallPath } from "../mep.js";
 import { openingDrawDefaults } from "../opening_draw_defaults.js";
 import { dropPoint, plan, render2D } from "../plan2d.js";
-import { inputBounds, inputIs3D, inputScale, wx, wz } from "../planner_input.js";
+import { inputBounds, inputIs3D, inputScale, plannerInputView, wx, wz } from "../planner_input.js";
 import { itemRotateDown } from "../interaction/item_rotate.js";
 import { hitSlabOpening } from "../slab_openings.js";
 import { S, WALL_H, clamp, fin, uid } from "../state.js";
@@ -26,16 +26,23 @@ import { planTouchPrecisionKind } from "../touch_precision.js";
 import { syncWallEnd } from "../ui_props.js";
 import { renderWarnPanel, syncWarnHighlight } from "../ui_warn.js";
 import { flash, placeFurnAt, refreshTree, select } from "../ui.js";
-import { itemUserUnpickable } from "../user_layers.js";
+import { itemUserUnpickable, refLocked } from "../user_layers.js";
 import {
   armDragProxy, beginSnapSession, interactionLocals, isElevation, pickCon,
   setPickSlop,
 } from "../interaction.js";
 
+function furniturePickAt(px, pz) {
+  const view = plannerInputView();
+  if (view?.id !== "3d" || !view.hit) return hitItem(px, pz);
+  const it = view.hit.kind === "item" && view.hit.ref;
+  return it && S.items.includes(it) && !hiddenSets().items[it.id] && !itemUserUnpickable(it) ? it : null;
+}
+
 // lifted out of initInteraction()
 function pointerDown(e) {
   interactionLocals.gestureSession = null;
-  armHistoryGesture(() => { interactionLocals.gestureSession = captureHistorySession(); });
+  armHistoryGesture(selection => { interactionLocals.gestureSession = captureHistorySession(false, selection); });
   // a finger from the 3D pane arrives as a "mouse" (no 2D loupe) marked coarse
   setPickSlop(e.coarse ? "touch" : e.pointerType);
   /* Open a snap session for the gesture. It pins which layers may contribute
@@ -594,7 +601,7 @@ function pointerDown(e) {
       }
     }
     if (layerRank("furniture") === pass) {
-      var hi = hitItem(px, pz);
+      var hi = furniturePickAt(px, pz);
       if (hi) {
         var toSelect = [hi];
         if (hi.groupId) {
@@ -605,7 +612,7 @@ function pointerDown(e) {
         }
 
         if (e.shiftKey) {
-          var cur = (S.sel && S.sel.kind === "items") ? S.sel.refs : (S.sel && S.sel.kind === "item" ? [S.sel.ref] : []);
+          var cur = (S.sel && S.sel.kind === "items") ? S.sel.refs.slice() : (S.sel && S.sel.kind === "item" ? [S.sel.ref] : []);
           toSelect.forEach(function(it) {
             if (cur.indexOf(it) === -1) cur.push(it);
           });
@@ -633,13 +640,11 @@ function pointerDown(e) {
         } else {
           S.dragOff = { x: px - hi.x, z: pz - hi.z };
         }
-        /* The selection above is made either way — the inspector fills for a
-           pinned sofa exactly as it does for a free one. Only the GESTURE is
-           withdrawn, and canDrag reads the selection that was actually made,
-           so a marquee is refused only when every piece in it is pinned. */
-        if (!canDrag(S.sel)) {
+        // The whole set stays selected. A pinned member anchors a group drag.
+        const pinned = S.sel.refs?.find(refLocked);
+        if (pinned || !canDrag(S.sel)) {
           S.action = null;
-          blockedDrag(S.sel);
+          blockedDrag(pinned ? { kind: "item", ref: pinned } : S.sel);
         }
         if (S.action) beginHistory();
         render2D();

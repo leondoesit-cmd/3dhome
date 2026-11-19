@@ -6,7 +6,7 @@ import { initPlanningGuide, openPlanningGuide } from "./ui_planning_guide.js";
 // Planner main-page chrome: modern layout by default, classic layout from the
 // same More menu as games / modeler / textures. Also owns the start screen,
 // floor tabs, left-sidebar panes, tool hints, and library drag-to-place.
-import { S } from "./state.js";
+import { S, DEFAULT_HOUR } from "./state.js";
 import { t, tTouch, onLangChange } from "./i18n.js";
 import {
   applyData,
@@ -21,7 +21,7 @@ import {
 import { emptyScene, FURN } from "./furniture.js";
 import { rebuildProject } from "./core/project.js";
 import { setTool } from "./interaction.js";
-import { resetLayers, saveLayers, workSetForNewFloor } from "./layers.js";
+import { resetLayers, saveLayers, workSetForNewFloor, enterFloorWorkSet } from "./layers.js";
 import { render2D, fitView, wx, wz, dropPoint, onAfterRender } from "./plan2d.js";
 import { loadMEP } from "./mep.js";
 import { renderPanel as refreshMEPPanel } from "./ui_mep.js";
@@ -201,6 +201,8 @@ export function renderFloorTabs() {
       // two storeys with content stay registered on screen: keep the view
       var hadContent = S.walls.length > 0 || S.items.length > 0;
       switchFloor(floor.id);
+      // an empty storey starts on Structure, with the ribbon on Build
+      if (enterFloorWorkSet(S)) syncWorkSetUI();
       followReferenceFloor(S.workspace);
       S.dirty3D = true;
       if (!hadContent || !planFrameOnScreen()) fitView();
@@ -223,8 +225,11 @@ export function renderFloorTabs() {
     var ref = document.createElement("button");
     ref.type = "button";
     ref.className = "floor-ref";
-    // the "over Ground floor" text is part of the toggle, so it is clickable too
-    ref.innerHTML = '<i class="ph ph-stack" aria-hidden="true"></i><span class="floor-ref-note" hidden></span>';
+    /* An explicit show/hide toggle for the floor-below underlay: an eye that
+       opens and closes with it (syncFloorRefToggle), aria-pressed for its
+       state. The "over Ground floor" text is part of the toggle, so it is
+       clickable too. */
+    ref.innerHTML = '<i class="ph ph-eye-slash" aria-hidden="true"></i><span class="floor-ref-note" hidden></span>';
     ref.addEventListener("click", toggleReferenceFromStrip);
     host.appendChild(ref);
     var all = document.createElement("button");
@@ -309,6 +314,9 @@ function syncFloorRefToggle() {
   var pressed = on ? "true" : "false";
   if (btn.getAttribute("aria-pressed") !== pressed) btn.setAttribute("aria-pressed", pressed);
   btn.classList.toggle("active", on);
+  var eye = btn.querySelector("i");
+  var eyeClass = "ph " + (on ? "ph-eye" : "ph-eye-slash");
+  if (eye && eye.className !== eyeClass) eye.className = eyeClass;
   var note = btn.querySelector(".floor-ref-note");
   if (note) {
     var text = on && ref ? floorText(isAbove ? "under" : "over", { name: floorDisplayName(ref, (ws.floors || []).indexOf(ref)) }) : "";
@@ -353,6 +361,13 @@ function renameFloorInline(button, floor, shown) {
   input.addEventListener("blur", function () { finish(true); });
 }
 
+/* The work set was reset for a storey: the layer chips and both panes hear it,
+   and `resync` asks the ribbon (js/pro_ribbon.js) to bring the work set's tab
+   forward even when the work set was Structure already. */
+function syncWorkSetUI() {
+  window.dispatchEvent(new CustomEvent("layers:changed", { detail: { resync: true } }));
+}
+
 // Also reachable as the "addFloor" action (File menu / the phone's More sheet),
 // because the strip that used to be the only way in is hidden on a compact
 // layout until a second floor exists.
@@ -375,7 +390,7 @@ export function addFloorFromUI() {
   }
   // a new storey starts with its walls: no pin, Structure is the work set
   workSetForNewFloor();
-  window.dispatchEvent(new CustomEvent("layers:changed"));
+  syncWorkSetUI();
   S.dirty3D = true;
   render2D();
   refreshTree();
@@ -463,7 +478,7 @@ function applyStart(kind) {
     S.roomMeta = {};
     var guidedStart = !!intention && intention !== "explore";
     S.workspace.guidance = normalizePlanningGuide({ enabled: guidedStart, intention: intention || "explore" });
-    S.hour = 13;
+    S.hour = DEFAULT_HOUR;
     S.northAngle = 0;
     loadMEP(null);
     setTool(intention === "explore" ? "select" : "rect");

@@ -148,7 +148,10 @@ export function createCadWorkerExecutor({bodyStore=createNativeBodyStore(),kerne
   }
   async function rebuild(document,options,progress) {
     const keys=cadWorkerGeometryKeys(document,document.features || [],options),cachedResults=new Map();
-    for(const feature of document.features || [])if(isWorkerCacheBody(feature.type)){
+    // Restore only what regeneration will run: the same rollback prefix as
+    // regenerateFeatures (a missing head rebuilds, so restores, everything).
+    const allFeatures=document.features || [],headIndex=options.rollbackId?allFeatures.findIndex(feature=>feature.id===options.rollbackId):-1;
+    for(const feature of headIndex<0?allFeatures:allFeatures.slice(0,headIndex+1))if(isWorkerCacheBody(feature.type)){
       const targets=Array.isArray(feature.references)?feature.references:feature.references?.topology;
       const key=keys.get(feature.id),previewKey=feature.type==='shell'?finishKey(keys.get(feature.inputs?.[0]),'shell',feature.params,targets):null;
       let payload=cache.get(key) || cache.get(previewKey);

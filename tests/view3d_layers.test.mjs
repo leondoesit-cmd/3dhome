@@ -106,7 +106,7 @@ test("structure geometry goes to structureRoot and the ground stays out of it", 
   assert.match(build, /dyn\.add\(gp\)/);
   assert.match(build, /pl\.userData\.win = true;[\s\S]{0,400}dyn\.add\(pl\)/);
   // walls, their framing and the room slabs all land on structureRoot
-  assert.match(view3d, /addWallFraming\(structureRoot, w, xray\)/);
+  assert.match(view3d, /addWallFraming\(structureRoot, H < Hfull \? Object\.assign\(\{\}, w, \{ height: H \}\) : w, xray\)/);
   assert.match(view3d, /g\.userData\.physicsRole = "static";\s*\n\s*structureRoot\.add\(g\)/);
 });
 

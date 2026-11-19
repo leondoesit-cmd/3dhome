@@ -3,13 +3,19 @@ import { generatedChangePermission } from "./redesign.js";
 import { roomTypeOf } from "./room_types.js";
 import {roomMeasurements} from './room_summary.js';
 import {assignChecklistRoom} from './planning_guide.js';
-import { S, uid, WALL_T, WALL_H } from "./state.js";
+import { S, uid, WALL_T, WALL_H, MOUNTH } from "./state.js";
 import { detectRooms, wallGeom, pointInPoly } from "./geometry.js";
-import { FURN } from "./furniture.js";
+import { FURN, itemVSpan, knownVSpan } from "./furniture.js";
+import { mountAtCeiling } from "./furniture_api.js";
+import { attach } from "./stack.js";
 import { wallDrawCommand, openingPlaceCommand, itemPlaceCommand, executeCommand } from "./commands/index.js";
 import { autoInfrastructure } from "./mep_auto.js";
 import { registeredMEPProfile } from "./mep_profile.js";
-import { FRONT_CLEARANCE, HABITABLE, frontZone, frontVector, doorClearZones, itemBox, boxesOverlap, partnersOf, bedSideZones } from "./apartment_rules.js";
+import { layoutSetId, setLayoutSetId } from "./group_frame.js";
+import { backToWallFit } from "./item_orient.js";
+import { holdToWall } from "./item_align.js";
+import { roomDoorGrid, doorRoutesClear } from "./layout_analysis.js";
+import { WALL_BACKED, FRONT_CLEARANCE, HABITABLE, halfExtents as halfXZ, frontZone, frontVector, doorClearZones, itemBox, boxesOverlap, partnersOf, bedSideZones } from "./apartment_rules.js";
 
 function generatedEnv(extra = {}) {
   return Object.assign({ domain: "planner", state: S, itemCatalog: FURN }, extra);
@@ -17,6 +23,10 @@ function generatedEnv(extra = {}) {
 
 function commitGeneratedItem(item) {
   if (!item) return null;
+  if (item.mounted || WALL_BACKED.has(item.type) || item.type === "sofa" || item.type === "tv") {
+    const fit = backToWallFit(item, item.x, item.z, 0.01, item.rot);
+    if (fit && fit.rot === item.rot) holdToWall(item, fit.wall, 0);
+  }
   var result = executeCommand(itemPlaceCommand, {
     type: item.type, x: item.x, z: item.z, rot: item.rot || 0,
   }, generatedEnv({
@@ -291,18 +301,33 @@ export function buildLayout(layout, replace, replaceInfrastructure) {
 // 3. Next to (מה ליד מה)
 // 4. Groups (קבוצה)
 
-// Rotation-aware half extents (orthogonal rotations only)
-function halfXZ(it) {
-  let r = ((it.rot || 0) % 180 + 180) % 180;
-  if (r >= 45 && r < 135) return { hx: it.d/2, hz: it.w/2 };
-  return { hx: it.w/2, hz: it.d/2 };
-}
-
 const NON_BLOCKING = {
   rug: 1, ceilingLight: 1, pendant: 1, trackLight: 1, lightStrip: 1,
   art: 1, wallMirror: 1, ac: 1, hood: 1, acDiffuser: 1, acReturn: 1,
   acCassette: 1, acDucted: 1, tvWall: 1, tableLamp: 1, laptop: 1,
 };
+
+// A flush light, the canopy of a pendant and a track all occupy the ceiling,
+// even while their meshes are still loading and only catalogue sizes exist.
+const CEILING_DROPS = { ceilingLight: 12, pendant: 80, trackLight: 25 };
+
+function furnishingSpan(it) {
+  const drop = CEILING_DROPS[it.type];
+  if (drop && it.elev == null) {
+    const ceiling = it.configuration?.ceilingTop ?? MOUNTH;
+    return knownVSpan(it) || { lo: ceiling - drop, hi: ceiling };
+  }
+  return itemVSpan(it);
+}
+
+function fixtureClash(item, box, other) {
+  if (item.type === "rug" || other.type === "rug") return false;
+  const bothCeiling = CEILING_DROPS[item.type] && CEILING_DROPS[other.type];
+  if (!aabbOverlap(box, itemBox(other), bothCeiling ? 12 : 0)) return false;
+  if (bothCeiling) return true;
+  const a = furnishingSpan(item), b = furnishingSpan(other);
+  return a.lo < b.hi - 0.05 && b.lo < a.hi - 0.05;
+}
 
 function roomBounds(roomPts, inset = 0) {
   return {
@@ -310,16 +335,6 @@ function roomBounds(roomPts, inset = 0) {
     x1: Math.max(...roomPts.map(p => p.x)) - inset,
     z0: Math.min(...roomPts.map(p => p.z)) + inset,
     z1: Math.max(...roomPts.map(p => p.z)) - inset,
-  };
-}
-
-function aabbOf(item, grow = 0) {
-  let he = halfXZ(item);
-  let hw = he.hx + grow;
-  let hd = he.hz + grow;
-  return {
-    x0: item.x - hw, x1: item.x + hw,
-    z0: item.z - hd, z1: item.z + hd
   };
 }
 
@@ -345,15 +360,39 @@ function finishedBounds(roomPts) {
   return roomBounds(roomPts, WALL_T / 2);
 }
 
+const furnishWalkGrids=new WeakMap();
+function prepareRoomWalkGrid(room) {
+  const walls=new Set(room.key.split(","));
+  const doors=S.openings.filter(o=>walls.has(String(o.wall))&&(o.type==="door"||o.type==="passage")&&!(o.sill>0)).map(o=>{
+    const wall=S.walls.find(w=>w.id===o.wall),g=wallGeom(wall);
+    return {x:g.a.x+g.ux*o.s,z:g.a.z+g.uz*o.s,tx:g.ux,width:o.width,thickness:wall.thickness||WALL_T};
+  });
+  const origin={x:Math.min(...S.nodes.map(n=>n.x)),z:Math.min(...S.nodes.map(n=>n.z))};
+  furnishWalkGrids.set(room.pts,roomDoorGrid(finishedBounds(room.pts),doors,origin));
+}
+function roomRouteFits(pts, proposed) {
+  const grid=furnishWalkGrids.get(pts);
+  if(!grid)return true;
+  const boxes=[];
+  for(const it of [...S.items,...proposed]){
+    if(it.type==="rug"||!pointInPoly(it.x,it.z,pts)||furnishingSpan(it).lo>=180-0.001)continue;
+    boxes.push(itemBox(it));
+  }
+  return doorRoutesClear(grid,boxes);
+}
+
 // Every candidate position is held to the rulebook in js/apartment_rules.js:
 // the piece sits on the finished floor, keeps `clearance` from other pieces,
 // leaves doorways and (for tall pieces) windows clear, keeps the floor in front
 // of it free to use, and does not step into the front zone of anything placed
 // before it. A clearance is a gap to other furniture, never to the wall behind.
 function canPlace(item, roomPts, clearance = 0, options = {}) {
-  let box = aabbOf(item);
+  let box = itemBox(item);
   let fb = finishedBounds(roomPts);
   if (box.x0 < fb.x0 - 0.5 || box.x1 > fb.x1 + 0.5 || box.z0 < fb.z0 - 0.5 || box.z1 > fb.z1 + 0.5) return false;
+  const approach = options.useZone;
+  if (approach && (approach.x0 < fb.x0 - 0.5 || approach.x1 > fb.x1 + 0.5 ||
+      approach.z0 < fb.z0 - 0.5 || approach.z1 > fb.z1 + 0.5)) return false;
   // Corners are tested a hair inside so an L-shaped room cannot hide a piece
   // in its re-entrant corner.
   if (!pointInPoly(box.x0 + 0.5, box.z0 + 0.5, roomPts) || !pointInPoly(box.x1 - 0.5, box.z0 + 0.5, roomPts) ||
@@ -362,20 +401,23 @@ function canPlace(item, roomPts, clearance = 0, options = {}) {
   if ((options.exclusionZones || []).some(zone => aabbOverlap(box, zone))) return false;
 
   let overlay = !!NON_BLOCKING[item.type];
+  if (CEILING_DROPS[item.type] || item.mounted) {
+    if (S.items.some(other => fixtureClash(item, box, other))) return false;
+  }
   let depth = FRONT_CLEARANCE[item.type];
   let myFront = !overlay && depth ? frontZone(item, depth) : null;
   if (myFront && (myFront.x0 < fb.x0 - 0.5 || myFront.x1 > fb.x1 + 0.5 || myFront.z0 < fb.z0 - 0.5 || myFront.z1 > fb.z1 + 0.5)) return false;
 
   if (!overlay) {
-    let grown = aabbOf(item, clearance / 2);
-    for (let i = 0; i < S.items.length; i++) {
-      let o = S.items[i];
+    let grown = itemBox(item, clearance / 2);
+    for (const o of options.staged ? S.items.concat(options.staged) : S.items) {
+      if ((o.mounted || CEILING_DROPS[o.type]) && fixtureClash(item, box, o)) return false;
       if (NON_BLOCKING[o.type] || o.supportId != null || o.mounted) continue;
       if (!pointInPoly(o.x, o.z, roomPts)) continue;
-      if (aabbOverlap(grown, aabbOf(o), options.itemGap == null ? 2 : options.itemGap)) return false;
+      if (aabbOverlap(grown, itemBox(o), options.itemGap == null ? 2 : options.itemGap)) return false;
       if (o.useZone && aabbOverlap(box, o.useZone)) return false;
       if (o.keepClear && o.keepClear.some(zone => aabbOverlap(box, zone))) return false;
-      if (options.useZone && aabbOverlap(options.useZone, aabbOf(o))) return false;
+      if (options.useZone && aabbOverlap(options.useZone, itemBox(o))) return false;
       let theirDepth = FRONT_CLEARANCE[o.type];
       if (theirDepth && !partnersOf(o, item) && boxesOverlap(frontZone(o, theirDepth), box)) return false;
       if (myFront && !partnersOf(item, o) && boxesOverlap(myFront, itemBox(o))) return false;
@@ -388,6 +430,12 @@ function canPlace(item, roomPts, clearance = 0, options = {}) {
   for (let i = 0; i < S.openings.length; i++) {
     let op = S.openings[i];
     let isDoor = (op.type === "door" || op.type === "passage");
+    if (item.mounted) {
+      const trim = openingZone(op, WALL_T / 2 + item.d + 2);
+      const sill = op.sill || 0, head = sill + (op.height || WALL_H);
+      if (trim && item.elev < head && item.elev + item.h > sill && aabbOverlap(box, trim)) return false;
+      continue;
+    }
     if (isDoor && !overlay) {
       let ruleDepth = op.type === "door" ? Math.min(op.width, 90) : 60;
       let zones = doorClearZones(op, S.walls, Math.max(ruleDepth, (options.doorDepth || 0) - WALL_T / 2) + 4);
@@ -400,7 +448,7 @@ function canPlace(item, roomPts, clearance = 0, options = {}) {
     }
   }
 
-  return true;
+  return overlay || item.type==="_clearFloor" || options.stageRoutes || roomRouteFits(roomPts,[...(options.staged||[]),item]);
 }
 
 // Whether a patch of floor (an axis-aligned box) is free to stand in: on the
@@ -425,11 +473,11 @@ function sideOrder(rule, bounds) {
 
 function wallCandidate(item, bounds, side, frac, clearance) {
   let he = halfXZ(item);
-  // Room polygons follow wall centre-lines. Half a wall plus a 1cm tolerance
+  // Room polygons follow wall centre-lines. Half a wall
   // puts the furniture back against the finished wall surface. Clearance is
   // checked against other pieces in canPlace; it never floats a piece off
   // its wall.
-  let inset = WALL_T / 2 + 1;
+  let inset = WALL_T / 2;
   if (side === "north") return { x: bounds.x0 + he.hx + (bounds.x1 - bounds.x0 - he.hx * 2) * frac, z: bounds.z0 + he.hz + inset, rot: 0 };
   if (side === "east") return { x: bounds.x1 - he.hx - inset, z: bounds.z0 + he.hz + (bounds.z1 - bounds.z0 - he.hz * 2) * frac, rot: 90 };
   if (side === "south") return { x: bounds.x0 + he.hx + (bounds.x1 - bounds.x0 - he.hx * 2) * frac, z: bounds.z1 - he.hz - inset, rot: 180 };
@@ -448,7 +496,7 @@ function placeWallMounted(type, room, anchor) {
   let bounds = roomBounds(room.pts, 0);
   let side = sideFromRotation(item.rot);
   let he = halfXZ(item);
-  let gap = WALL_T / 2 + 1;
+  let gap = WALL_T / 2;
   if (side === "north" || side === "south") {
     item.x = Math.max(bounds.x0 + he.hx + 2, Math.min(bounds.x1 - he.hx - 2, anchor.x));
     item.z = side === "north" ? bounds.z0 + he.hz + gap : bounds.z1 - he.hz - gap;
@@ -456,22 +504,15 @@ function placeWallMounted(type, room, anchor) {
     item.x = side === "west" ? bounds.x0 + he.hx + gap : bounds.x1 - he.hx - gap;
     item.z = Math.max(bounds.z0 + he.hz + 2, Math.min(bounds.z1 - he.hz - 2, anchor.z));
   }
-  if (!canPlace(item, room.pts, 0, { avoidWindows: true, doorDepth: 22 })) return null;
   item.mounted = true;
+  // Keep a mirror above the mixer even during 2D-only boot, when the
+  // catalogue vanity height describes its worktop and omits the faucet.
+  const low = type === "wallMirror" ? 110 : 115;
+  item.elev = Math.max(low, itemVSpan(anchor).hi + 8, anchor.h + (anchor.type === "vanity" ? 35 : 8));
+  if (item.elev + item.h > WALL_H || !canPlace(item, room.pts, 0, { avoidWindows: true })) return null;
   item.anchorId = anchor.id;
   item.functionalZone = anchor.functionalZone;
   return commitGeneratedItem(item);
-}
-
-function frontUseZone(item, depth, width) {
-  let rad = (item.rot || 0) * Math.PI / 180;
-  let front = { x: -Math.sin(rad), z: Math.cos(rad) };
-  let right = { x: Math.cos(rad), z: Math.sin(rad) };
-  let cx = item.x + front.x * (item.d / 2 + depth / 2);
-  let cz = item.z + front.z * (item.d / 2 + depth / 2);
-  let hx = Math.abs(right.x) * width / 2 + Math.abs(front.x) * depth / 2;
-  let hz = Math.abs(right.z) * width / 2 + Math.abs(front.z) * depth / 2;
-  return { x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz };
 }
 
 function placeBathroomFixture(type, room, rule) {
@@ -486,7 +527,7 @@ function placeBathroomFixture(type, room, rule) {
     let lo = side === "north" || side === "south" ? bounds.x0 : bounds.z0;
     let hi = side === "north" || side === "south" ? bounds.x1 : bounds.z1;
     if (rule.sideClearance && (along - lo < rule.sideClearance || hi - along < rule.sideClearance)) continue;
-    let useZone = frontUseZone(item, rule.clearDepth, rule.clearWidth);
+    let useZone = frontZone(item, rule.clearDepth, (rule.clearWidth - item.w) / 2);
     if (!canPlace(item, room.pts, rule.clearance || 0, {
       avoidWindows: !!rule.avoidWindows,
       doorDepth: rule.doorDepth || 48,
@@ -509,6 +550,7 @@ function placeItem(type, room, rule) {
   let rx0 = bounds.x0, rx1 = bounds.x1, rz0 = bounds.z0, rz1 = bounds.z1;
   
   let item = { type: type, x: 0, z: 0, w: w, d: d, h: h, rot: 0 };
+  if (CEILING_DROPS[type]) mountAtCeiling(item, room.ceilH);
 
   let clearance = rule.clearance || 0;
 
@@ -525,13 +567,17 @@ function placeItem(type, room, rule) {
 
   if (rule.onTopOf) {
     let targets = S.items.filter(i => i.type === rule.onTopOf && pointInPoly(i.x, i.z, room.pts));
-    let target = targets.find(t => !S.items.some(i => i.type === type && i.supportId === t.id));
+    let target = targets.find(t => !S.items.some(i => i.type === type && (i.on ?? i.supportId) === t.id));
     if (!target && rule.allowShared) target = targets[0];
     if (target) {
       item.rot = target.rot;
       item.x = target.x;
       item.z = target.z;
-      item.supportId = target.id;
+      if (type === "pendant") {
+        if (!canPlace(item, room.pts)) return null;
+        item.supportId = target.id; // ceiling fixture aligned over this table
+      }
+      else attach(item, target);
       return commitGeneratedItem(item);
     }
   }
@@ -545,11 +591,14 @@ function placeItem(type, room, rule) {
       let frontX = -Math.sin(rad);
       let frontZ = Math.cos(rad);
       let rightX = Math.cos(rad), rightZ = Math.sin(rad);
-      let lateral = rule.lateral || [0, item.w * 0.75, -item.w * 0.75, item.w * 1.5, -item.w * 1.5];
+      let lateral = rule.lateral || (rule.faceTarget ? [0] : [0, item.w * 0.75, -item.w * 0.75, item.w * 1.5, -item.w * 1.5]);
       for (let shift of lateral) {
         item.x = target.x + frontX * offset + rightX * shift;
         item.z = target.z + frontZ * offset + rightZ * shift;
-        if (canPlace(item, room.pts, clearance, rule)) return commitGeneratedItem(item);
+        if (canPlace(item, room.pts, clearance, rule)) {
+          if (rule.faceTarget) item.facesId = target.id;
+          return commitGeneratedItem(item);
+        }
       }
     }
   }
@@ -639,7 +688,7 @@ function markZone(items, zone) {
 
 function kitchenWorkZone(items) {
   if (!items || !items.length) return null;
-  let boxes = items.map(it => aabbOf(it));
+  let boxes = items.map(it => itemBox(it));
   let zone = {
     x0: Math.min(...boxes.map(b => b.x0)), x1: Math.max(...boxes.map(b => b.x1)),
     z0: Math.min(...boxes.map(b => b.z0)), z1: Math.max(...boxes.map(b => b.z1)),
@@ -657,22 +706,23 @@ function kitchenWorkZone(items) {
 // A kitchen is a continuous work run, not a collection of cabinets that each
 // independently hunt for a wall. The full run is committed only when every
 // module fits and the fridge/oven do not cover a window.
-function placeKitchenRun(room, preferredSides) {
+function placeKitchenRun(room, preferredSides, allowSecondWall = false) {
   let sequences = [
     ["fridge", "base", "sink", "dishwasher", "base", "cooktop", "oven"],
     ["fridge", "sink", "dishwasher", "base", "cooktop", "oven"],
     ["fridge", "base", "sink", "base", "cooktop"],
     ["fridge", "sink", "base", "cooktop"],
+    ...(allowSecondWall ? [["sink", "base", "cooktop"]] : []),
     ["fridge", "sink", "cooktop"],
   ];
-  let bounds = roomBounds(room.pts, WALL_T / 2 + 1);
+  let bounds = finishedBounds(room.pts);
   let order = sideOrder({ preferredSides }, bounds);
   for (let types of sequences) for (let side of order) for (let reversed of [false, true]) for (let alignment of [0.5, 0, 1, 0.25, 0.75]) {
     let list = (reversed ? types.slice().reverse() : types).map(type => makeCatalogItem(type, side === "north" ? 0 : side === "east" ? 90 : side === "south" ? 180 : 270));
     if (list.some(x => !x)) continue;
     let horizontal = side === "north" || side === "south";
     let widths = list.map(it => horizontal ? halfXZ(it).hx * 2 : halfXZ(it).hz * 2);
-    let total = widths.reduce((a, b) => a + b, 0) + (list.length - 1) * 2;
+    let total = widths.reduce((a, b) => a + b, 0);
     let available = horizontal ? bounds.x1 - bounds.x0 : bounds.z1 - bounds.z0;
     if (total > available) continue;
     let cursor = (horizontal ? bounds.x0 : bounds.z0) + (available - total) * alignment;
@@ -686,18 +736,26 @@ function placeKitchenRun(room, preferredSides) {
         it.x = side === "west" ? bounds.x0 + halfXZ(it).hx : bounds.x1 - halfXZ(it).hx;
         it.z = cursor + span / 2;
       }
-      if (!canPlace(it, room.pts, 0, { itemGap: 0, avoidWindows: it.h > 120, doorDepth: 95 })) break;
-      it = commitGeneratedItem(it);
-      if (!it) break;
+      if (!canPlace(it, room.pts, 0, { itemGap: 0, staged, avoidWindows: it.h > 120, doorDepth: 95 })) break;
       staged.push(it);
-      cursor += span + 2;
+      cursor += span;
     }
     if (staged.length === list.length) {
-      let groupId = uid();
-      staged.forEach(it => it.groupId = groupId);
+      // Keep the sink and hob joined by a preparation surface even when the
+      // refrigerator needs a second wall. Check both aisles at the corner.
+      let fridge;
+      if (!types.includes("fridge")) {
+        const hob = staged.find(it => it.type === "cooktop");
+        fridge = placeItem("fridge", room, { wall: true, preferredSides: order.filter(s => s !== side),
+          staged, avoidWindows: true, doorDepth: 95, exclusionZones: [itemBox(hob, 30)] });
+        if (!fridge) continue;
+      }
+      staged.forEach(commitGeneratedItem);
+      if (fridge) staged.push(fridge);
+      let id = uid();
+      staged.forEach(it => setLayoutSetId(it, id));
       return markZone(staged, "kitchen");
     }
-    staged.forEach(it => S.items.splice(S.items.indexOf(it), 1));
   }
   // Tight fallback: preserve the functional triangle even when a supplied
   // custom room is too small for a full standard run.
@@ -705,6 +763,10 @@ function placeKitchenRun(room, preferredSides) {
   for (let type of ["fridge", "sink", "cooktop"]) {
     let it = placeItem(type, room, { wall: true, preferredSides, clearance: 4, avoidWindows: type === "fridge" });
     if (it) essentials.push(it);
+  }
+  if (essentials.length > 1) {
+    let id = uid();
+    essentials.forEach(it => setLayoutSetId(it, id));
   }
   return markZone(essentials, "kitchen");
 }
@@ -723,7 +785,7 @@ function placeBed(type, room, preferredSides) {
     // room. Keep the headboard axis on centre lines for wallCandidate's inset.
     let along = side === "north" || side === "south" ? { ...bounds, x0: fb.x0, x1: fb.x1 } : { ...bounds, z0: fb.z0, z1: fb.z1 };
     Object.assign(bed, wallCandidate(bed, along, side, frac, 0));
-    let b = aabbOf(bed);
+    let b = itemBox(bed);
     let gaps = side === "north" || side === "south" ? [b.x0 - fb.x0, fb.x1 - b.x1] : [b.z0 - fb.z0, fb.z1 - b.z1];
     let minGap = Math.min(...gaps), maxGap = Math.max(...gaps);
     if (maxGap < 60) continue;
@@ -733,11 +795,12 @@ function placeBed(type, room, preferredSides) {
     if (!canPlace(bed, room.pts, 0, { avoidWindows: true, doorDepth: 72 })) continue;
     // the walk-around zone at the foot of the bed
     if (!floorZoneFree(frontZone(bed, 60), room.pts)) continue;
+    let footSpace = (side === "north" || side === "south" ? fb.z1 - fb.z0 : fb.x1 - fb.x0) - bed.d;
     let score = (minGap >= 50 ? 100 : 0) - Math.abs(gaps[0] - gaps[1]) * 0.05 - sideOrder({ preferredSides }, bounds).indexOf(side) * 5;
-    candidates.push({ bed, score });
+    candidates.push({ bed, score, tightFoot: footSpace < 70 });
   }
   if (!candidates.length) return null;
-  candidates.sort((a, b) => b.score - a.score);
+  candidates.sort((a, b) => a.tightFoot - b.tightFoot || b.score - a.score);
   let bed = candidates[0].bed;
   // Later pieces must leave the getting-in sides and the foot of the bed free.
   bed.keepClear = [frontZone(bed, 60)].concat(bedSideZones(bed).filter(zone =>
@@ -761,7 +824,8 @@ function placeNightstands(bed, room) {
     ns.z = Math.round((bed.z - front.z * back + right.z * lateral * dir) * 100) / 100;
     if (!canPlace(ns, room.pts, 0, { itemGap: 2, doorDepth: 60 })) continue;
     ns.functionalZone = "sleeping";
-    ns.groupId = bed.groupId || (bed.groupId = uid());
+    if (layoutSetId(bed) == null) setLayoutSetId(bed, uid());
+    setLayoutSetId(ns, layoutSetId(bed));
     placed.push(commitGeneratedItem(ns));
   }
   return placed;
@@ -777,13 +841,13 @@ function placeKitchenTaskLight(room, run) {
   let f = frontVector(modules[0].rot);
   let cx = modules.reduce((a, it) => a + it.x, 0) / modules.length;
   let cz = modules.reduce((a, it) => a + it.z, 0) / modules.length;
-  let light = makeCatalogItem("trackLight", modules[0].rot);
+  let light = mountAtCeiling(makeCatalogItem("trackLight", modules[0].rot), room.ceilH);
   let reach = modules[0].d / 2 + 15;
   light.x = cx + f.x * reach;
   light.z = cz + f.z * reach;
   if (!canPlace(light, room.pts, 0, {})) return null;
   light.functionalZone = "kitchen";
-  light.groupId = modules[0].groupId;
+  setLayoutSetId(light, layoutSetId(modules[0]));
   return commitGeneratedItem(light);
 }
 
@@ -796,7 +860,7 @@ function placeDeskLamp(desk) {
   let lateral = desk.w / 2 - lamp.w / 2 - 4, back = desk.d / 2 - lamp.d / 2 - 4;
   lamp.x = desk.x - right.x * lateral - f.x * back;
   lamp.z = desk.z - right.z * lateral - f.z * back;
-  lamp.supportId = desk.id;
+  attach(lamp, desk);
   lamp.functionalZone = desk.functionalZone || "work";
   return commitGeneratedItem(lamp);
 }
@@ -823,7 +887,7 @@ function seatDiningSet(table, room, exclusionZones) {
     chair.z = table.z + spot.v.z * spot.dist;
     // 20cm behind every chair to pull it out and sit down
     let pull = frontZone(Object.assign({}, chair, { rot: (chair.rot + 180) % 360 }), 20);
-    if (canPlace(chair, room.pts, 8, { doorDepth: 90, exclusionZones: exclusionZones.concat(chairs.map(c => aabbOf(c))) }) &&
+    if (canPlace(chair, room.pts, 8, { stageRoutes:true,doorDepth: 90, exclusionZones: exclusionZones.concat(chairs.map(c => itemBox(c))) }) &&
         floorZoneFree(pull, room.pts, { exclusionZones }))
       chairs.push(chair);
   });
@@ -848,14 +912,14 @@ function placeDiningSet(room, exclusionZones = []) {
 function findDiningSet(room, exclusionZones) {
   let best = bestDiningSet(room, exclusionZones);
   if (!best) return null;
-  let groupId = uid();
-  let table = commitGeneratedItem(Object.assign(best.table, { functionalZone: "dining", groupId }));
-  best.chairs.forEach(chair => commitGeneratedItem(Object.assign(chair, { groupId, functionalZone: "dining", facesId: table.id })));
+  let id = uid();
+  let table = commitGeneratedItem(setLayoutSetId(Object.assign(best.table, { functionalZone: "dining" }), id));
+  best.chairs.forEach(chair => commitGeneratedItem(setLayoutSetId(Object.assign(chair, { functionalZone: "dining", facesId: table.id }), id)));
   placeItem("pendant", room, { onTopOf: "table" });
   return table;
 }
 
-function bestDiningSet(room, exclusionZones) {
+function bestDiningSet(room, exclusionZones, staged=[]) {
   let bounds = finishedBounds(room.pts);
   let spans = { x: bounds.x1 - bounds.x0, z: bounds.z1 - bounds.z0 };
   let candidates = [];
@@ -876,11 +940,20 @@ function bestDiningSet(room, exclusionZones) {
   for (let c of candidates) {
     let table = makeCatalogItem("table", c.rot);
     table.x = c.x; table.z = c.z;
-    if (!canPlace(table, room.pts, 40, { doorDepth: 90, exclusionZones })) continue;
+    if (!canPlace(table, room.pts, 40, { stageRoutes:true,doorDepth: 90, exclusionZones })) continue;
     let chairs = seatDiningSet(table, room, exclusionZones);
     if (chairs.length < 2) continue;
-    let score = chairs.length * 100 - c.off * 40;
-    if (!best || score > best.score) best = { table, chairs, score };
+    const seatOptions=[chairs];
+    for(let i=0;i<seatOptions.length;i++){
+      const seats=seatOptions[i];
+      const opposite=seats.some(a=>seats.some(b=>Math.abs(a.rot-b.rot)===180));
+      const score=seats.length*100+(opposite?5:0)-c.off*40;
+      if(best&&score<=best.score)continue;
+      if(roomRouteFits(room.pts,[...staged,table,...seats])){best={table,chairs:seats,score};continue;}
+      // A single chair can close an otherwise usable aisle. Keep the rest
+      // of the dining set when they fit and leave at least a pair of seats.
+      if(seats.length>2)for(const dropped of seats)seatOptions.push(seats.filter(s=>s!==dropped));
+    }
   }
   return best;
 }
@@ -900,7 +973,7 @@ function* livingPairCandidates(room, combined, exclusionZones, minView) {
     if (!canPlace(sofa, room.pts, 20, { doorDepth: 105, exclusionZones })) continue;
     let front = frontVector(sofa.rot);
     let tvSpec = makeCatalogItem("tv", sofa.rot), tvHalf = halfXZ(tvSpec);
-    let wallGap = WALL_T / 2 + 1, base = sofa.d / 2 + tvSpec.d / 2;
+    let wallGap = WALL_T / 2, base = sofa.d / 2 + tvSpec.d / 2;
     let maxDist = front.x > 0.5 ? bounds.x1 - wallGap - tvHalf.hx - sofa.x
       : front.x < -0.5 ? sofa.x - (bounds.x0 + wallGap + tvHalf.hx)
       : front.z > 0.5 ? bounds.z1 - wallGap - tvHalf.hz - sofa.z
@@ -912,10 +985,10 @@ function* livingPairCandidates(room, combined, exclusionZones, minView) {
         let key = Math.round(dist);
         if (tried.has(key)) break;
         tried.add(key);
-        let tv = makeCatalogItem("tv", sofa.rot);
+        let tv = makeCatalogItem("tv", (sofa.rot + 180) % 360);
         tv.x = sofa.x + front.x * dist;
         tv.z = sofa.z + front.z * dist;
-        if (canPlace(tv, room.pts, 8, { doorDepth: 78, exclusionZones })) { yield { sofa, tv }; break; }
+        if (canPlace(tv, room.pts, 8, { staged:[sofa],doorDepth: 78, exclusionZones })) { yield { sofa, tv }; break; }
       }
     }
   }
@@ -929,7 +1002,7 @@ function placeLivingPair(room, combined, exclusionZones, withDining) {
   for (let minView of [150, 100]) {
     for (let cand of livingPairCandidates(room, combined, exclusionZones, minView)) {
       fallback = fallback || cand;
-      if (!withDining || bestDiningSet(room, exclusionZones.concat([aabbOf(cand.sofa, 22), aabbOf(cand.tv, 22), viewingZone(cand.sofa, cand.tv)]))) { chosen = cand; break; }
+      if (!withDining || bestDiningSet(room, exclusionZones.concat([itemBox(cand.sofa, 22), itemBox(cand.tv, 22), viewingZone(cand.sofa, cand.tv)]),[cand.sofa,cand.tv])) { chosen = cand; break; }
     }
     if (chosen) break;
   }
@@ -946,7 +1019,7 @@ function placeLivingPair(room, combined, exclusionZones, withDining) {
 // tv-sightline rule in js/apartment_rules.js: as wide as the narrower of the
 // two pieces, centred on their shared axis.
 function viewingZone(sofa, tv) {
-  let a = aabbOf(sofa), b = aabbOf(tv), f = frontVector(sofa.rot), half = Math.min(sofa.w, tv.w) / 2;
+  let a = itemBox(sofa), b = itemBox(tv), f = frontVector(sofa.rot), half = Math.min(sofa.w, tv.w) / 2;
   if (Math.abs(f.z) > 0.5) return { x0: sofa.x - half, x1: sofa.x + half, z0: Math.min(a.z0, b.z0), z1: Math.max(a.z1, b.z1) };
   return { x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1), z0: sofa.z - half, z1: sofa.z + half };
 }
@@ -1015,7 +1088,6 @@ function furnishLiving(room, combined, exclusionZones = [], withDining = false) 
 }
 
 function furnishRoom(roomMeta, dr) {
-  placeItem("ceilingLight", dr, { center: true });
   const type = roomTypeOf(roomMeta);
 
   if (type === "livingKitchen") {
@@ -1047,7 +1119,7 @@ function furnishRoom(roomMeta, dr) {
     placeItem("armchair", dr, { wall: true, preferredSides: ["south", "west"], clearance: 20, doorDepth: 90 });
     placeItem("plant", dr, { wall: true, preferredSides: ["west", "south"], clearance: 10 });
   } else if (type === "kitchen") {
-    let run = placeKitchenRun(dr, ["west", "north", "south", "east"]);
+    let run = placeKitchenRun(dr, ["west", "north", "south", "east"], true);
     let b = roomBounds(dr.pts);
     if ((b.x1 - b.x0) * (b.z1 - b.z0) > 210000) {
       let island = placeItem("island", dr, { center: true, clearance: 90, doorDepth: 100 });
@@ -1084,11 +1156,15 @@ function furnishRoom(roomMeta, dr) {
     placeItem("shoeCab", dr, { wall: true, preferredSides: ["west", "east"], clearance: 12, doorDepth: 80 });
     placeItem("coatRack", dr, { nextTo: "shoeCab", dist: 12 });
     placeItem("mirror", dr, { wall: true, preferredSides: ["west", "east"], clearance: 10 });
-  } else if (type === "bathroom" || type === "ensuite") {
+  } else if (type === "laundry" || type === "serviceBalcony") {
+    placeItem("washer", dr, { wall: true, clearance: 4 });
+  } else if (type === "closet" || type === "storage") {
+    placeItem(type === "closet" ? "wardrobe" : "bookshelf", dr, { wall: true, avoidWindows: true });
+  } else if (type === "bathroom" || type === "ensuite" || type === "wc") {
     // Residential minimums: keep 53cm usable in front of sanitary fixtures
     // and the WC centre at least 38cm from a side obstruction. Clear approach
     // zones may overlap each other, but no physical fixture may occupy one.
-    placeBathroomFixture("shower", dr, {
+    if (type !== "wc") placeBathroomFixture("shower", dr, {
       preferredSides: ["west", "north", "east"], wallFractions: [0.18, 0.82, 0.35, 0.65],
       clearDepth: 60, clearWidth: 90, clearance: 4, doorDepth: 48,
     });
@@ -1108,11 +1184,51 @@ function furnishRoom(roomMeta, dr) {
   }
 }
 
+// Reserve the general light's normal id and order, but choose its position
+// after the task lights have been placed. All ceiling meshes use room.ceilH
+// (the highest bounding wall); the catalogue's native mounting height is 248.
+function furnishWithCeilingLight(meta, room) {
+  const light = mountAtCeiling(makeCatalogItem("ceilingLight", 0), room.ceilH);
+  light.id = uid();
+  const index = S.items.length;
+  furnishRoom(meta, room);
+  if (!positionCeilingLight(light, room)) return;
+  commitGeneratedItem(light);
+  S.items.splice(index, 0, S.items.pop());
+}
+
+function positionCeilingLight(light, room) {
+  const bounds = finishedBounds(room.pts), halfX = light.w / 2, halfZ = light.d / 2;
+  const cx = (bounds.x0 + bounds.x1) / 2, cz = (bounds.z0 + bounds.z1) / 2;
+  light.x = cx;
+  light.z = cz;
+  if (canPlace(light, room.pts)) return true;
+  // If the centre is occupied, try the edges of each obstruction and the
+  // finished walls. A narrow available strip may lie between two grid points.
+  const xs = new Set([cx, bounds.x0 + halfX, bounds.x1 - halfX]);
+  const zs = new Set([cz, bounds.z0 + halfZ, bounds.z1 - halfZ]);
+  for (const it of S.items) {
+    if (!pointInPoly(it.x, it.z, room.pts)) continue;
+    const box = itemBox(it), gap = CEILING_DROPS[it.type] ? 12 : 0;
+    xs.add(box.x0 - halfX - gap); xs.add(box.x1 + halfX + gap);
+    zs.add(box.z0 - halfZ - gap); zs.add(box.z1 + halfZ + gap);
+  }
+  const candidates = [];
+  for (const x of xs) for (const z of zs) candidates.push({ x, z, distance: Math.hypot(x - cx, z - cz) });
+  candidates.sort((a, b) => a.distance - b.distance);
+  return candidates.some(({ x, z }) => {
+    light.x = x;
+    light.z = z;
+    return canPlace(light, room.pts);
+  });
+}
+
 function applyApartmentLayout(layout, replace, furnish = true, replaceInfrastructure = false) {
 
   buildLayout(layout, replace, replaceInfrastructure);
   if (!furnish) return;
 
+  const firstNewItem = S.items.length;
   let detected = detectRooms();
   detected.forEach(dr => {
     // In append mode, furnish only the apartment that was just added. Existing
@@ -1121,12 +1237,13 @@ function applyApartmentLayout(layout, replace, furnish = true, replaceInfrastruc
     if (!belongsToNewLayout) return;
     let rm = S.roomMeta[dr.key];
     if (rm) {
-      furnishRoom(rm, dr);
+      prepareRoomWalkGrid(dr);
+      furnishWithCeilingLight(rm, dr);
     }
   });
   // keep-clear zones only steer this run; they are stale the moment the user
   // moves a bed, so they are not saved with the document
-  S.items.forEach(it => { delete it.keepClear; });
+  S.items.slice(firstNewItem).forEach(it => { delete it.keepClear; });
 }
 
 export const apartmentGenerateCommand = Object.freeze({

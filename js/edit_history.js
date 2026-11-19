@@ -49,6 +49,21 @@
 
 const DEFAULT_CAP = 60;
 
+function copyHistorySession(session, portable) {
+  if (portable) return structuredClone(session);
+  // settle() replaces snap, idx and targets together. Edits and labels also
+  // change by replacement. Only the node record and kids are edited in place.
+  const nodes = new Map(), known = new Map();
+  for (const [id, node] of session.nodes) {
+    // Boxed operation labels follow the same clone semantics as a portable
+    // restore (in particular, transient coalescing tags are dropped).
+    const op = typeof node.op === 'object' ? structuredClone(node.op) : node.op;
+    nodes.set(id, { ...node, op, kids: node.kids.slice() });
+  }
+  for (const [id, object] of session.known) known.set(id, { ...object });
+  return { ...session, nodes, known };
+}
+
 export function createHistory(opts) {
   opts = opts || {};
   var get = opts.get,
@@ -201,8 +216,8 @@ export function createHistory(opts) {
     settle(n, snapStr);
   }
   // the live model IS node `pos`; keep that node honest before moving away
-  function sync() {
-    if (pos != null) settle(cur(), get());
+  function sync(liveSnapshot) {
+    if (pos != null) settle(cur(), liveSnapshot === undefined ? get() : liveSnapshot);
   }
   /* Add a step for an operation about to happen (push) or already done
      (observe). The node it hangs off keeps whatever the model looked like when
@@ -623,12 +638,12 @@ export function createHistory(opts) {
     editRevision: function (scope) {
       return (cur()?.edits || rootEdits)[scope] || 0;
     },
-    saveSession: function () {
-      sync();
-      return structuredClone({nodes,known,seq,root,pos,provisional,lastKey,lastFull,editSequence,rootEdits});
+    saveSession: function (portable = true, liveSnapshot) {
+      sync(liveSnapshot);
+      return copyHistorySession({nodes,known,seq,root,pos,provisional,lastKey,lastFull,editSequence,rootEdits}, portable);
     },
-    loadSession: function (saved) {
-      const copy = structuredClone(saved);
+    loadSession: function (saved, portable = true) {
+      const copy = copyHistorySession(saved, portable);
       generation++;
       editSequence=Math.max(editSequence,copy.editSequence || 0);
       rootEdits=copy.rootEdits || {};

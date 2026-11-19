@@ -100,6 +100,9 @@ function updateSeeThrough(instant) {
      when furniture moved under itemsRoot (see updateHumans). */
   if (!structureRoot) return;
   var cam = camera.position, aim = on ? seeAim() : tgt, keep = on ? keptWalls() : null;
+  // one identity set per pass: an indexOf per wall group was quadratic on
+  // every orbit step
+  var live = new Set(S.walls);
   structureRoot.children.forEach(function (g) {
     var w = g.userData && g.userData.wall;
     if (!w) return;
@@ -108,7 +111,7 @@ function updateSeeThrough(instant) {
        stale mesh must not resolve its old node indices against the new floor.
        The live wall objects are authoritative; the old group disappears on
        the rebuild immediately afterwards. */
-    if (S.walls.indexOf(w) < 0) return;
+    if (!live.has(w)) return;
     var was = !!g.userData.seeThrough, cut = false;
     if (on && keep.indexOf(w) < 0) {
       var gm = wallGeom(w);

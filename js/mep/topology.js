@@ -19,6 +19,7 @@ export function migrateMEPTopology(model = ensureMEP()) {
   nodes.forEach(function(source) {
     var def = nodeKindDef(source.sys, source.k);
     if (!def || !def.hub) return;
+    if (!nodes.some(n => n !== source && n.sys === source.sys && n.sourceId == null)) return;
     var reachedNodes = new Set([source.id]), reachedRuns = new Set(), changed = true;
     while (changed) {
       changed = false;

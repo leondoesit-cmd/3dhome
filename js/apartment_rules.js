@@ -7,7 +7,8 @@
 // Plan units are centimetres. Item rotations are orthogonal: rot 0 puts the
 // back of a piece toward -z and its front toward +z.
 import { S, WALL_T } from "./state.js";
-import { detectRooms, wallGeom, pointInPoly } from "./geometry.js";
+import { detectRooms, wallGeom, pointInPoly, wallPointAt, wallTangentAt } from "./geometry.js";
+import { canonicalPlacementWall, itemCorners, polygonInsideRoom, polygonsOverlap, wallSolidOverlap } from "./placement_resolver.js";
 import { roomTypeOf } from "./room_types.js";
 
 export const HABITABLE = new Set(["living", "livingKitchen", "kitchen", "dining", "bedroom", "masterBedroom", "kidsRoom", "office"]);
@@ -36,7 +37,6 @@ export const WALL_BACKED = new Set(["bed", "bunk", "wardrobe", "dresser", "books
 const PARTNERS = {
   desk: ["officeChair", "chair"], table: ["chair"], island: ["barstool"], sofa: ["coffee"],
 };
-const KITCHEN_MODULES = new Set(["fridge", "base", "sink", "dishwasher", "cooktop", "oven"]);
 const LIGHTS = new Set(["ceilingLight", "pendant", "trackLight", "lightStrip", "floorLamp", "tableLamp"]);
 
 const MIN_ROOM = {
@@ -52,8 +52,8 @@ const MIN_ROOM = {
 };
 
 export function halfExtents(it) {
-  let r = ((it.rot || 0) % 180 + 180) % 180;
-  return r >= 45 && r < 135 ? { hx: (it.d || 0) / 2, hz: (it.w || 0) / 2 } : { hx: (it.w || 0) / 2, hz: (it.d || 0) / 2 };
+  const f = frontVector(it.rot), c = Math.abs(f.z), s = Math.abs(f.x);
+  return { hx: (c*(it.w || 0) + s*(it.d || 0))/2, hz: (s*(it.w || 0) + c*(it.d || 0))/2 };
 }
 export function itemBox(it, grow = 0) {
   let h = halfExtents(it);
@@ -64,27 +64,23 @@ export function boxesOverlap(a, b, gap = 0) {
 }
 export function frontVector(rot) {
   let rad = (rot || 0) * Math.PI / 180;
-  return { x: Math.round(-Math.sin(rad) * 1e6) / 1e6, z: Math.round(Math.cos(rad) * 1e6) / 1e6 };
+  const x = -Math.sin(rad), z = Math.cos(rad);
+  return { x: Math.abs(x) < 1e-12 ? 0 : x, z: Math.abs(z) < 1e-12 ? 0 : z };
 }
 // Axis-aligned box of the strip `depth` deep directly in front of a piece.
 export function frontZone(it, depth, widthPad = 0) {
-  let f = frontVector(it.rot), h = halfExtents(it);
-  let along = (Math.abs(f.x) > 0.5 ? h.hz : h.hx) + widthPad;
-  if (f.z > 0.5) return { x0: it.x - along, x1: it.x + along, z0: it.z + h.hz, z1: it.z + h.hz + depth };
-  if (f.z < -0.5) return { x0: it.x - along, x1: it.x + along, z0: it.z - h.hz - depth, z1: it.z - h.hz };
-  if (f.x > 0.5) return { x0: it.x + h.hx, x1: it.x + h.hx + depth, z0: it.z - along, z1: it.z + along };
-  return { x0: it.x - h.hx - depth, x1: it.x - h.hx, z0: it.z - along, z1: it.z + along };
+  const f = frontVector(it.rot), offset = (it.d + depth) / 2;
+  return itemBox({x: it.x + f.x*offset, z: it.z + f.z*offset, w: it.w + 2*widthPad, d: depth, rot: it.rot});
 }
 // The strips beside a bed you step into it from: 60cm wide, from just past the
 // nightstands to the foot.
 export function bedSideZones(bed, width = 60) {
-  let f = frontVector(bed.rot), b = itemBox(bed), head = 45;
-  if (Math.abs(f.z) > 0.5) {
-    let z0 = f.z > 0 ? b.z0 + head : b.z0, z1 = f.z > 0 ? b.z1 : b.z1 - head;
-    return [{ x0: b.x0 - width, x1: b.x0, z0, z1 }, { x0: b.x1, x1: b.x1 + width, z0, z1 }];
-  }
-  let x0 = f.x > 0 ? b.x0 + head : b.x0, x1 = f.x > 0 ? b.x1 : b.x1 - head;
-  return [{ x0, x1, z0: b.z0 - width, z1: b.z0 }, { x0, x1, z0: b.z1, z1: b.z1 + width }];
+  const f = frontVector(bed.rot), head = Math.min(45, bed.d);
+  return [-1, 1].map(side => {
+    const offset = side * (bed.w + width)/2;
+    return itemBox({ x: bed.x + f.z*offset + f.x*head/2, z: bed.z - f.x*offset + f.z*head/2,
+      w: width, d: bed.d - head, rot: bed.rot });
+  });
 }
 function roomBox(room) {
   let xs = room.pts.map(p => p.x), zs = room.pts.map(p => p.z);
@@ -98,31 +94,42 @@ export function interiorBox(room) {
 function boxInside(inner, outer, tol = 1) {
   return inner.x0 >= outer.x0 - tol && inner.x1 <= outer.x1 + tol && inner.z0 >= outer.z0 - tol && inner.z1 <= outer.z1 + tol;
 }
-function boxInRoom(box, room, tol = 1) {
-  return boxInside(box, interiorBox(room), tol) &&
-    [[box.x0, box.z0], [box.x1, box.z0], [box.x1, box.z1], [box.x0, box.z1]].every(([x, z]) =>
-      pointInPoly(Math.min(Math.max(x, box.x0 + tol), box.x1 - tol), Math.min(Math.max(z, box.z0 + tol), box.z1 - tol), room.pts));
-}
 export function polyArea(pts) {
   let a = 0;
   for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) a += (pts[j].x + pts[i].x) * (pts[j].z - pts[i].z);
   return Math.abs(a / 2);
 }
 // Distance from a piece's back face to the nearest finished wall face.
-function backGap(it, room) {
-  let b = itemBox(it), ib = interiorBox(room), f = frontVector(it.rot);
-  if (f.z > 0.5) return b.z0 - ib.z0;
-  if (f.z < -0.5) return ib.z1 - b.z1;
-  if (f.x > 0.5) return b.x0 - ib.x0;
-  return ib.x1 - b.x1;
+function backGap(it, walls) {
+  const f = frontVector(it.rot);
+  let nearest = Infinity;
+  for (const wall of walls) {
+    if (!wall.physical) continue;
+    const { points, thickness } = wall.material || wall;
+    for (let i=1; i<points.length; i++) {
+      const a = points[i-1], b = points[i], dx = b.x-a.x, dz = b.z-a.z;
+      const length = Math.hypot(dx,dz);
+      if (!length) continue;
+      const tx = dx/length, tz = dz/length;
+      const alignment = -tz*f.x + tx*f.z;
+      if (Math.abs(alignment) < 0.95) continue;
+      const along = (it.x-a.x)*tx + (it.z-a.z)*tz;
+      if (along < -0.1 || along > length+0.1) continue;
+      const normal = -(it.x-a.x)*tz + (it.z-a.z)*tx;
+      if (normal*alignment <= 0) continue;
+      nearest = Math.min(nearest, Math.abs(normal) - thickness/2 - it.d*Math.abs(alignment)/2);
+    }
+  }
+  return nearest;
 }
 
 function openingGeometry(op, walls) {
   let w = walls.find(x => x.id === op.wall);
   if (!w) return null;
   let g = wallGeom(w);
-  let c = { x: g.a.x + g.ux * op.s, z: g.a.z + g.uz * op.s };
-  return { wall: w, g, c, n: { x: -g.uz, z: g.ux }, along: { x: g.ux, z: g.uz } };
+  let c = wallPointAt(w, op.s), along = wallTangentAt(w, op.s);
+  if (!c || !along) return null;
+  return { wall: w, g, c, n: { x: -along.z, z: along.x }, along };
 }
 function roomAt(rooms, x, z) {
   return rooms.find(r => pointInPoly(x, z, r.pts)) || null;
@@ -140,11 +147,13 @@ export function openingSides(op, walls, rooms) {
 export function doorClearZones(op, walls, depth) {
   let geo = openingGeometry(op, walls);
   if (!geo) return [];
-  let half = op.width / 2 + 5, t = WALL_T / 2;
+  let half = op.width / 2 + 5, t = (geo.wall.thickness ?? WALL_T) / 2;
   return [1, -1].map(side => {
-    let p0 = { x: geo.c.x + geo.along.x * half + geo.n.x * side * t, z: geo.c.z + geo.along.z * half + geo.n.z * side * t };
-    let p1 = { x: geo.c.x - geo.along.x * half + geo.n.x * side * (t + depth), z: geo.c.z - geo.along.z * half + geo.n.z * side * (t + depth) };
-    return { x0: Math.min(p0.x, p1.x), x1: Math.max(p0.x, p1.x), z0: Math.min(p0.z, p1.z), z1: Math.max(p0.z, p1.z) };
+    const offset = side * (t + depth/2);
+    const x = geo.c.x + geo.n.x*offset, z = geo.c.z + geo.n.z*offset;
+    const hx = Math.abs(geo.along.x)*half + Math.abs(geo.n.x)*depth/2;
+    const hz = Math.abs(geo.along.z)*half + Math.abs(geo.n.z)*depth/2;
+    return { x0: x-hx, x1: x+hx, z0: z-hz, z1: z+hz };
   });
 }
 
@@ -152,7 +161,7 @@ function blocking(it) {
   return !OVERLAY.has(it.type) && it.supportId == null && !it.mounted;
 }
 export function partnersOf(a, b) {
-  return (PARTNERS[a.type] || []).includes(b.type) || (a.groupId != null && a.groupId === b.groupId && !KITCHEN_MODULES.has(b.type)) ||
+  return (PARTNERS[a.type] || []).includes(b.type) ||
     (a.facesId != null && a.facesId === b.id) || (b.facesId != null && b.facesId === a.id);
 }
 
@@ -164,6 +173,9 @@ export function partnersOf(a, b) {
 export function auditApartment(state = S, options = {}) {
   let walls = state.walls || [], openings = state.openings || [], items = state.items || [];
   let rooms = options.rooms || detectRooms();
+  const solids = walls.map(w => canonicalPlacementWall(w, { wallGeom, wallPointAt })).filter(Boolean);
+  const footprint = it => itemCorners(it, it.x, it.z, it.rot);
+  const onFloor = (poly, room) => polygonInsideRoom(poly, room) && !solids.some(w => wallSolidOverlap(w, poly));
   let violations = [];
   let add = (rule, severity, room, message, itemIds = []) =>
     violations.push({ rule, severity, room: room ? room.key : null, roomName: room ? nameOf(room) : null, message, items: itemIds });
@@ -253,12 +265,13 @@ export function auditApartment(state = S, options = {}) {
     let here = inRoom(room), floor = here.filter(blocking);
     let has = t => here.some(it => it.type === t);
 
+    const footprints = new Map(floor.map(it => [it, footprint(it)]));
     // ---- physical fit ----
     floor.forEach(it => {
-      if (!boxInRoom(itemBox(it), room)) add("inside-room", "error", room, it.type + " pokes through a wall", [it.id]);
+      if (!onFloor(footprints.get(it), room)) add("inside-room", "error", room, it.type + " pokes through a wall", [it.id]);
     });
     for (let i = 0; i < floor.length; i++) for (let j = i + 1; j < floor.length; j++) {
-      if (boxesOverlap(itemBox(floor[i]), itemBox(floor[j])))
+      if (polygonsOverlap(footprints.get(floor[i]), footprints.get(floor[j])))
         add("overlap", "error", room, floor[i].type + " overlaps " + floor[j].type, [floor[i].id, floor[j].id]);
     }
     // ---- doors and windows stay usable ----
@@ -281,14 +294,15 @@ export function auditApartment(state = S, options = {}) {
     floor.forEach(it => {
       let depth = FRONT_CLEARANCE[it.type];
       if (!depth) return;
-      let zone = frontZone(it, depth);
-      if (!boxInside(zone, interiorBox(room), 1)) { add("access", "error", room, it.type + " has no room in front of it", [it.id]); return; }
-      let blocker = floor.find(o => o !== it && !partnersOf(it, o) && !(KITCHEN_MODULES.has(it.type) && KITCHEN_MODULES.has(o.type) && o.groupId === it.groupId) && boxesOverlap(zone, itemBox(o)));
+      const f = frontVector(it.rot), off = (it.d + depth)/2;
+      const zone = footprint({ ...it, d: depth, x: it.x + f.x*off, z: it.z + f.z*off });
+      if (!onFloor(zone, room)) { add("access", "error", room, it.type + " has no room in front of it", [it.id]); return; }
+      let blocker = floor.find(o => o !== it && !partnersOf(it, o) && polygonsOverlap(zone, footprints.get(o)));
       if (blocker) add("access", "error", room, blocker.type + " blocks the front of " + it.type, [it.id, blocker.id]);
     });
     floor.filter(it => WALL_BACKED.has(it.type)).forEach(it => {
       if (it.type === "nightstand") return;
-      if (backGap(it, room) > 8) add("against-wall", "warn", room, it.type + " floats away from the wall", [it.id]);
+      if (backGap(it, solids) > 8) add("against-wall", "warn", room, it.type + " floats away from the wall", [it.id]);
     });
 
     // ---- room-specific composition ----
@@ -302,8 +316,9 @@ export function auditApartment(state = S, options = {}) {
         let stands = here.filter(it => it.type === "nightstand");
         stands.forEach(ns => {
           // a bedside table sits beside the pillows, its back on the headboard wall
-          let along = Math.abs(f.z) > 0.5 ? Math.abs(ns.z - bed.z + f.z * (bed.d / 2 - ns.d / 2)) : Math.abs(ns.x - bed.x + f.x * (bed.d / 2 - ns.d / 2));
-          let lateral = Math.abs(f.z) > 0.5 ? Math.abs(ns.x - bed.x) : Math.abs(ns.z - bed.z);
+          const dx = ns.x - bed.x, dz = ns.z - bed.z;
+          const along = Math.abs(dx*f.x + dz*f.z + (bed.d - ns.d)/2);
+          const lateral = Math.abs(dx*f.z - dz*f.x);
           if (along > 12 || lateral > bed.w / 2 + ns.w / 2 + 20)
             add("nightstand", "error", room, "A nightstand is not beside the head of the bed", [ns.id, bed.id]);
         });
@@ -313,6 +328,8 @@ export function auditApartment(state = S, options = {}) {
     let sofa = here.find(it => it.type === "sofa"), tv = here.find(it => it.type === "tv");
     if (sofa && tv) {
       let f = frontVector(sofa.rot), dx = tv.x - sofa.x, dz = tv.z - sofa.z, L = Math.hypot(dx, dz);
+      const screen = frontVector(tv.rot);
+      if (L > 0 && (-dx*screen.x-dz*screen.z)/L < 0.98) add("tv-axis", "error", room, "The TV screen faces away from the sofa", [tv.id, sofa.id]);
       if (L < 1 || (dx * f.x + dz * f.z) / L < 0.98) add("tv-axis", "error", room, "The sofa does not face the TV", [sofa.id, tv.id]);
       else {
         let w = Math.min(sofa.w, tv.w) / 2;

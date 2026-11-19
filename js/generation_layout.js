@@ -161,9 +161,11 @@ function randomLayout(seed) {
 
 
 export function generationPlan(size, replace, state, seed, constraints={}) {
+  const occupied = replace ? [] : [...state.nodes, ...(state.items || []).flatMap(item => footprint(item))]
+    .filter(p => Number.isFinite(p.x) && Number.isFinite(p.z));
+  const appendX = occupied.length ? Math.max(...occupied.map(p => p.x)) + 500 : 2000;
   if(constraints.requirements?.length){
-    const occupied=[...state.nodes,...(state.items||[]).flatMap(item=>footprint(item))].filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.z));
-    const x=replace?0:occupied.length?Math.max(...occupied.map(n=>n.x))+500:2000;
+    const x=replace?0:appendX;
     const result=requirementDraft(constraints.requirements,constraints.boundary,{x,z:0});
     if(!result.ok)throw new Error(result.reason+(result.unplaced?': '+result.unplaced:''));
     if(!replace&&constraints.boundary&&occupied.length){
@@ -183,16 +185,7 @@ export function generationPlan(size, replace, state, seed, constraints={}) {
   }
 
   if (!replace) {
-     let shiftX = 2000;
-     let shiftZ = 0;
-     
-     // Find max X in current scene to append next to it
-     if (state.nodes.length > 0) {
-        let maxx = Math.max(...state.nodes.map(n => n.x));
-        shiftX = maxx + 500;
-     }
-
-     layout.rooms.forEach(r => { r.x0+=shiftX; r.x1+=shiftX; r.z0+=shiftZ; r.z1+=shiftZ; });
+     layout.rooms.forEach(r => { r.x0 += appendX; r.x1 += appendX; });
   }
 
   return layout;

@@ -192,7 +192,8 @@ test('same coach button changes both accessible and visible action from finish s
  const E={open:true,coachEnabled:true,tour:{active:false},docType:'part',mode:'3d'};
  let suggestion={icon:'ph-check',text:'finish',act:'Finish sketch',run:()=> 'finish'};
  const bindings={root:{querySelector:id=>nodes[id]},E,clearCoachTarget(){},coachSuggestion:()=>suggestion,t:key=>key,
-  isCanonicalAuthoring:()=>true,currentWorkflowStep:()=> 'history',syncEmptyStart(){},syncModelerMobile(){}};
+  isCanonicalAuthoring:()=>true,currentWorkflowStep:()=> 'history',syncEmptyStart(){},syncModelerMobile(){},
+  coachAvailable:()=>true,sketchPromptSpeaker:()=> 'both'};
  const sync=new Function(...Object.keys(bindings),sourceFunctionText(source,'syncCoach')+';return syncCoach;')(...Object.values(bindings));
  sync();const button=nodes['#mdCoachGo'];assert.equal(button['aria-label'],'Finish sketch');assert.match(button.innerHTML,/Finish sketch/);
  suggestion={icon:'ph-save',text:'save',act:'Save to library',run:()=> 'save'};sync();

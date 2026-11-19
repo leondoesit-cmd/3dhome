@@ -9,7 +9,7 @@ import { computeMEPFlow, computeMEPStatus } from "../mep/routing.js";
 import { nodePos, runLength, withNodePosMemo } from "../mep/topology.js";
 import { S, clamp, fin } from "../state.js";
 import {
-  _aliveCount, _mepRot, _sig, _state, ensureMEP, mepLayerVisible, mepVisible,
+  _aliveCount, _mepRot, _sig, _state, ensureMEP,
   nodeKindDef, runKindDef, runPointY, set__aliveCount, set__mepRot, set__sig,
   set__state,
 } from "../mep.js";
@@ -356,11 +356,14 @@ export function hitMEP(px, pz, scale=S.SC) {
   if (layerRank("mep") === Infinity) return null;
   if (!isFinite(scale) || scale <= 0) scale = 1;
   var m = ensureMEP();
+  // mepVisible()/mepLayerVisible() on this one normalized `m` (each call re-ran ensureMEP)
+  var sysOn = function (sys) { return m.show && m.vis[sys] !== false; };
+  var layerOn = function (layer) { return m.show && m.layerVis[layer || "wall"] !== false; };
   var tolN = 12 / scale, tolV = 9 / scale, tolR = 8 / scale;
   // nodes (visible systems only), nearest first
   var bn = null, bd = tolN;
   m.nodes.forEach(function (n) {
-    if (!mepVisible(n.sys) || !mepLayerVisible(n.layer)) return;
+    if (!sysOn(n.sys) || !layerOn(n.layer)) return;
     var p = nodePos(n), d = Math.hypot(px - p.x, pz - p.z);
     if (d < bd) { bd = d; bn = n; }
   });
@@ -371,7 +374,7 @@ export function hitMEP(px, pz, scale=S.SC) {
   var bv = null, bvd = tolV;
   var br = null, brd = tolR;
   m.runs.forEach(function (r) {
-    if (!mepVisible(r.sys) || !mepLayerVisible(r.layer) || !r.pts) return;
+    if (!sysOn(r.sys) || !layerOn(r.layer) || !r.pts) return;
     for (var i = 0; i < r.pts.length; i++) {
       var d = Math.hypot(px - r.pts[i].x, pz - r.pts[i].z);
       if (d < bvd) { bvd = d; bv = { r: r, vi: i }; }

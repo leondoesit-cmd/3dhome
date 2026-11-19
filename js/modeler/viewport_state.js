@@ -23,7 +23,11 @@ function refreshDecorations(render = true) {
   if (retainExactPreview()) return;
   if (!E.pv) return;
   var currentHover = E.hoverTopology;
-  decoGroups.forEach(function (entry) {
+  /* Decided for every entry first: a hover-only refresh (nothing dirty, the
+     same selection, the group still built) hands addTopologyPickEdges the
+     groups still to be refreshed after it, which it needs to keep the edge
+     lines in place without changing their draw order (see edge_retain.js). */
+  var plans = decoGroups.map(function (entry) {
     var selectionStamp = JSON.stringify((E.topologySelection || []).filter(function (ref) { return isEntryAffectedByHover(entry, ref); }));
     var needsRebuild = entry.group.children.length === 0
       || entry.dirty
@@ -31,11 +35,19 @@ function refreshDecorations(render = true) {
       || entry.hadHighlight
       || isEntryAffectedByHover(entry, currentHover)
       || isEntryAffectedByHover(entry, lastDecoratedHover);
-    if (!needsRebuild) return;
-    clearGroup(entry.group);
+    var hoverOnly = needsRebuild && !(entry.group.children.length === 0 || entry.dirty || entry.selectionStamp !== selectionStamp);
+    return { entry: entry, selectionStamp: selectionStamp, needsRebuild: needsRebuild, hoverOnly: hoverOnly };
+  });
+  var pending = new Set();
+  plans.forEach(function (plan) { if (plan.needsRebuild) pending.add(plan.entry.group); });
+  plans.forEach(function (plan) {
+    var entry = plan.entry, selectionStamp = plan.selectionStamp;
+    if (!plan.needsRebuild) return;
+    pending.delete(entry.group);
+    if (!plan.hoverOnly) clearGroup(entry.group);
     E.buildComponent = entry.component || null;
     try {
-      addTopologyPickEdges(entry.group, entry.part, entry.mesh);
+      addTopologyPickEdges(entry.group, entry.part, entry.mesh, plan.hoverOnly ? { pending: pending } : null);
       addFaceHighlights(entry.group, entry.part, entry.mesh);
       addTemporaryAxes(entry.group,entry.part);
     } finally {

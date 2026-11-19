@@ -85,12 +85,13 @@ test("furniture: every model builds, fits its footprint, and owns its materials"
     assert.ok(variants > 200, "built " + variants + " variants");
 
     // cylinders and spheres honour trans/opacity/cast like boxes do: the
-    // clock glass and the pendant's glass globe are see-through, not opaque
+    // clock glass is clear; the opal pendant scatters the view of its bulb.
     for (const [type, variant] of [["clock"], ["pendant", "globe"]]) {
       const f = FURN[type], g = new THREE.Group();
       buildItem(g, { type, variant, w: f.w, d: f.d, h: f.h, x: 0, z: 0, rot: 0 });
       let clear = null;
-      g.traverse((o) => { if (o.isMesh && o.material.transparent && o.material.opacity < 0.6) clear = o; });
+      g.traverse((o) => { if (o.isMesh && o.material.transparent && (type === "clock"
+          ? o.material.opacity < 0.6 : o.material.userData.lampShade === "opal" && o.material.opacity < 1)) clear = o; });
       assert.ok(clear, type + " has its see-through part");
       assert.equal(clear.castShadow, false, type + " glass casts no shadow");
     }

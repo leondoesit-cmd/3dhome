@@ -241,13 +241,12 @@ test('Bug 13: layer panel creates valid wall or item selections and tolerates ab
 
 test('Bug 14: a faded user layer can be selected from its name while hidden room/layer items stay excluded',()=>{
   const {source,ast}=moduleSource('js/ui_layers.js');
-  const listeners=nodesMatching(ast,n=>n.type==='CallExpression'&&n.callee.type==='MemberExpression'&&
-    n.callee.object.name==='name'&&n.callee.property.name==='addEventListener'&&
-    n.arguments[0]?.value==='click'&&source.slice(n.start,n.end).includes('itemsOnUserLayer(L.id)'));
+  const listeners=nodesMatching(ast,n=>n.type==='CallExpression'&&n.callee.name==='userRowButton'&&
+    n.arguments[0]?.value==='lchip-name');
   assert.equal(listeners.length,1);
-  const callback=listeners[0].arguments[1],items=[{id:1},{id:2}];
+  const callback=listeners[0].arguments[2],items=[{id:1},{id:2}];
   let selection;
-  const services={L:{id:'faded',vis:'ghost'},itemsOnUserLayer:()=>items,
+  const services={id:'faded',itemsOnUserLayer:()=>items,
     hiddenSets:()=>({items:{2:true}}),itemUserUnpickable:()=>true,selectRefs:refs=>{selection=refs;}};
   const click=runInNewContext('('+source.slice(callback.start,callback.end)+')',services);
   click();assert.deepEqual(ids(selection),[1]);

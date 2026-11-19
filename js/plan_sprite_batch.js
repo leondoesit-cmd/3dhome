@@ -3,6 +3,47 @@
    its pixels, and when a background bake may start. No DOM, no three: tested
    in Node (tests/plan_sprite_batch.test.mjs). */
 
+// One queue entry per picture. Each item's current and next zoom requests
+// can independently change key without cancelling another item's picture.
+export class PictureQueue extends Map {
+  slots = new Map();
+
+  request(slot, req) {
+    this.cancel(slot);
+    const group = this.get(req.key)?.members || new Map();
+    group.set(slot, req);
+    this.slots.set(slot, req.key);
+    this.select(req.key, group);
+  }
+
+  select(key, members) {
+    let best;
+    for (const req of members.values()) if (!best || req.pri > best.pri) best = req;
+    super.set(key, { ...best, members });
+  }
+
+  cancel(slot) {
+    const key = this.slots.get(slot);
+    if (key === undefined) return;
+    const group = this.get(key).members;
+    this.slots.delete(slot);
+    group.delete(slot);
+    if (group.size) this.select(key, group);
+    else super.delete(key);
+  }
+
+  delete(key) {
+    const group = this.get(key)?.members;
+    if (group) for (const slot of group.keys()) this.slots.delete(slot);
+    return super.delete(key);
+  }
+
+  clear() {
+    this.slots.clear();
+    super.clear();
+  }
+}
+
 /* The next bake batch: up to `n` requests, highest priority first, taken out
    of `queue` (item id -> {key, pri, ...}).
 

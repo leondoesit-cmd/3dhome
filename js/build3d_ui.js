@@ -1,7 +1,9 @@
 /* The 3D pane's building chrome (js/planner_3d.js owns the pane):
 
-   - Preview: a button in .planner-navigation (pn-preview) and its popover,
-     Transparent / Solid / Outline plus an opacity slider for Transparent
+   - Display: a button in .planner-navigation (pn-preview) and its popover.
+     Walls: Solid | See-through is the wall X-ray the Services panel also
+     toggles (js/wall_xray.js); Tool preview: Transparent / Solid / Outline
+     plus an opacity slider for Transparent, how a draw tool's ghost looks
      (js/build3d_prefs.js keeps the choice). On the Round-6 phone layout the
      navigation bar is hidden, so the hint chip carries the same button.
    - The action strip at the pane's bottom centre while a chain is live:
@@ -13,7 +15,7 @@
 import { S } from "./state.js";
 import { getLang, onLangChange, t, tTouch } from "./i18n.js";
 import { buildText } from "./build3d_strings.js";
-import { build3dPrefs, setBuild3dPrefs, OPACITY_MAX, OPACITY_MIN } from "./build3d_prefs.js";
+import { build3dPrefs, setBuild3dPrefs, setWallXrayOpacity, wallXrayOpacity, OPACITY_MAX, OPACITY_MIN, WALL_OPACITY_MAX, WALL_OPACITY_MIN } from "./build3d_prefs.js";
 import { chainState, isCabinetItem, selectionBar, toolHintKey, wallDragHint } from "./build3d_input.js";
 import { isOnWall, onWallByType } from "./item_orient.js";
 import { wallPlaneText } from "./wall_plane_strings.js";
@@ -23,7 +25,9 @@ import { fitText } from "./fit_cabinet_strings.js";
 import { commitRoute, finishDraw, wallPoint } from "./interaction/mep_tools.js";
 import { escapePlanDraft } from "./interaction/pointer_up.js";
 import { cancelFitCab, fitCabDraftView } from "./interaction/fit_cabinet_tool.js";
-import { cancelRoute } from "./mep.js";
+import { cancelRoute, ensureMEP } from "./mep.js";
+import { setWallXray, wallXrayOn } from "./wall_xray.js";
+import { renderPanel as refreshMEPPanel } from "./ui_mep.js";
 import { undo } from "./history.js";
 import { wallById } from "./geometry.js";
 import { resetDrawDirLock } from "./wall_draw.js";
@@ -35,6 +39,7 @@ let pane = null, previewBtn = null, pop = null, strip = null, chip = null, chipT
 const stripButtons = {};
 let lastStrip = "", lastChip = "";
 const MODES = [["ghost", "modeGhost", "ph-cube-transparent"], ["solid", "modeSolid", "ph-cube"], ["outline", "modeOutline", "ph-bounding-box"]];
+const WALL_MODES = [["solid", "wallsSolid", "ph-wall"], ["xray", "wallsXray", "ph-selection"]];
 
 function el(tag, cls, html) {
   const e = document.createElement(tag);
@@ -57,30 +62,51 @@ function setLabel(b, label, title) {
   b.setAttribute("aria-label", label);
 }
 
-/* ---- Preview popover ----------------------------------------------------- */
+/* ---- Display popover ----------------------------------------------------- */
 
 function syncPopover() {
   if (!pop) return;
   const p = build3dPrefs();
+  const walls = wallXrayOn(S) ? "xray" : "solid";
+  pop.querySelectorAll("[data-b3d-walls]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.b3dWalls === walls)));
   pop.querySelectorAll("[data-b3d-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.b3dMode === p.mode)));
-  const row = pop.querySelector(".b3d-opacity");
+  const row = pop.querySelector(".b3d-opacity.b3d-ghost-opacity");
   if (row) row.hidden = p.mode !== "ghost";
-  const range = pop.querySelector("input[type=range]");
+  const range = row && row.querySelector("input[type=range]");
   if (range && Number(range.value) !== p.opacity) range.value = String(p.opacity);
-  const out = pop.querySelector("output");
+  const out = row && row.querySelector("output");
   if (out) out.textContent = Math.round(p.opacity * 100) + "%";
+  const wallRow = pop.querySelector(".b3d-wall-opacity");
+  if (wallRow) {
+    const wo = wallXrayOpacity();
+    wallRow.hidden = walls !== "xray";
+    const wr = wallRow.querySelector("input[type=range]");
+    if (wr && Number(wr.value) !== wo) wr.value = String(wo);
+    const wout = wallRow.querySelector("output");
+    if (wout) wout.textContent = Math.round(wo * 100) + "%";
+  }
 }
 function labelPopover() {
   if (!pop) return;
   pop.setAttribute("aria-label", buildText("preview"));
+  pop.querySelectorAll("[data-b3d-section]").forEach((h) => { h.textContent = buildText(h.dataset.b3dSection); });
+  pop.querySelectorAll("[data-b3d-section-group]").forEach((g) => g.setAttribute("aria-label", buildText(g.dataset.b3dSectionGroup)));
+  pop.querySelectorAll("[data-b3d-walls]").forEach((b) => {
+    const m = WALL_MODES.find((x) => x[0] === b.dataset.b3dWalls);
+    if (m) setLabel(b, buildText(m[1]));
+  });
   pop.querySelectorAll("[data-b3d-mode]").forEach((b) => {
     const m = MODES.find((x) => x[0] === b.dataset.b3dMode);
     if (m) setLabel(b, buildText(m[1]));
   });
-  const lab = pop.querySelector(".b3d-opacity span");
-  if (lab) lab.textContent = buildText("opacity");
-  const range = pop.querySelector("input[type=range]");
-  if (range) range.setAttribute("aria-label", buildText("opacity"));
+  pop.querySelectorAll(".b3d-opacity").forEach((r) => {
+    const key = r.classList.contains("b3d-wall-opacity") ? "wallOpacity" : "opacity";
+    const lab = r.querySelector("span"), range = r.querySelector("input[type=range]");
+    if (lab) lab.textContent = buildText(key);
+    if (range) range.setAttribute("aria-label", buildText(key));
+  });
+  const note = pop.querySelector(".b3d-note");
+  if (note) note.textContent = buildText("previewNote");
   [previewBtn, chipPreview].forEach((b) => b && setLabel(b, buildText("preview"), buildText("previewTip")));
 }
 function openPopover(open, anchor, byKeyboard) {
@@ -96,24 +122,71 @@ function openPopover(open, anchor, byKeyboard) {
   const first = byKeyboard && pop.querySelector("[aria-pressed=true]");
   if (first) first.focus({ preventScroll: true });
 }
+/* The same flip as the Services panel's X-Ray Walls box: the flag, a 3D
+   rebuild, the plan, and that panel redrawn so its box agrees. */
+function setWalls(mode) {
+  ensureMEP();
+  if (setWallXray(S, mode === "xray")) {
+    S.dirty3D = true;
+    render2D();
+    refreshMEPPanel();
+    requestRender();
+  }
+  syncPopover();
+}
+/* The walls rebuild with their new opacity a moment after the slider stops,
+   not on every input event (a rebuild re-creates every wall mesh). */
+let wallOpacityTimer = 0;
+function setWallOpacity(value) {
+  setWallXrayOpacity(value);
+  syncPopover();
+  clearTimeout(wallOpacityTimer);
+  wallOpacityTimer = setTimeout(() => {
+    if (!wallXrayOn(S)) return;
+    S.dirty3D = true;
+    requestRender();
+  }, 120);
+}
+function opacityRow(cls, min, max, onValue) {
+  const row = el("label", "b3d-opacity " + cls);
+  const range = el("input");
+  range.type = "range"; range.min = String(min); range.max = String(max); range.step = "0.05";
+  range.oninput = () => { onValue(Number(range.value)); syncPopover(); };
+  row.append(el("span"), range, el("output"));
+  return row;
+}
+function sectionLabel(key) {
+  const h = el("div", "b3d-sec");
+  h.dataset.b3dSection = key;
+  h.setAttribute("aria-hidden", "true");
+  return h;
+}
 function buildPopover() {
   pop = el("div", "b3d-preview-pop");
   pop.setAttribute("role", "dialog");
   pop.hidden = true;
+  const wallSeg = el("div", "b3d-seg b3d-walls");
+  wallSeg.setAttribute("role", "group");
+  wallSeg.dataset.b3dSectionGroup = "sectionWalls";
+  for (const [mode, , icon] of WALL_MODES) {
+    const b = iconButton("b3d-mode", icon);
+    b.dataset.b3dWalls = mode;
+    b.onclick = () => setWalls(mode);
+    wallSeg.append(b);
+  }
   const seg = el("div", "b3d-seg");
   seg.setAttribute("role", "group");
+  seg.dataset.b3dSectionGroup = "sectionPreview";
   for (const [mode, , icon] of MODES) {
     const b = iconButton("b3d-mode", icon);
     b.dataset.b3dMode = mode;
     b.onclick = () => { setBuild3dPrefs({ mode }); syncPopover(); };
     seg.append(b);
   }
-  const row = el("label", "b3d-opacity");
-  const range = el("input");
-  range.type = "range"; range.min = String(OPACITY_MIN); range.max = String(OPACITY_MAX); range.step = "0.05";
-  range.oninput = () => setBuild3dPrefs({ opacity: Number(range.value) });
-  row.append(el("span"), range, el("output"));
-  pop.append(seg, row);
+  const row = opacityRow("b3d-ghost-opacity", OPACITY_MIN, OPACITY_MAX, (v) => setBuild3dPrefs({ opacity: v }));
+  const wallRow = opacityRow("b3d-wall-opacity", WALL_OPACITY_MIN, WALL_OPACITY_MAX, setWallOpacity);
+  const note = el("div", "b3d-note");
+  pop.append(sectionLabel("sectionWalls"), wallSeg, wallRow, sectionLabel("sectionPreview"), note, seg, row);
   pane.append(pop);
   // outside tap / Esc closes it (Esc then does not also cancel the draft)
   document.addEventListener("pointerdown", (e) => {
@@ -250,6 +323,9 @@ export function initBuild3DUI(paneEl, bar) {
   pane = paneEl;
   if (bar) {
     previewBtn = iconButton("pn-preview", "ph-cube-transparent");
+    const caret = el("i", "ph ph-caret-down b3d-caret");
+    caret.setAttribute("aria-hidden", "true");
+    previewBtn.append(caret);
     previewBtn.setAttribute("aria-haspopup", "dialog");
     previewBtn.onclick = (e) => openPopover(null, previewBtn, e.detail === 0);
     bar.append(previewBtn);
@@ -296,7 +372,7 @@ export function updateBuild3DUI(hidden) {
     stripButtons.design.hidden = !(bar && bar.design);
     syncSelectionBar(bar);
   }
-  // the Round-6 phone layout hides the navigation bar: the chip carries Preview there
+  // the Round-6 phone layout hides the navigation bar: the chip carries Display there
   if (chipPreview.hidden === compact) chipPreview.hidden = !compact;
   const fam = in3D && S.tool === "fitcab";
   if (chipFamily.hidden === fam) chipFamily.hidden = !fam;

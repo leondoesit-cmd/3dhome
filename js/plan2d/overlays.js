@@ -8,8 +8,9 @@ import { flabel, isLamp } from "../furniture.js";
 import { jointInfo, pendingCuts, wallById, wallClearLength, wallCuts, wallDimSide, wallGeom, wallPointAt, wallTangentAt } from "../geometry.js";
 import { t } from "../i18n.js";
 import { hitMarker, markerInfo, markerItem, markerLabel, markers } from "../markers.js";
-import { itemCorners, measure4 } from "../measure.js";
-import { liveClearances } from "../measure_cache.js";
+import { itemCorners, measure4, withMeasureObstacles } from "../measure.js";
+import { groupMembers, liveClearances, liveGroupClearances, verticalReach } from "../measure_cache.js";
+import { groupLead } from "../group_frame.js";
 import { beginPaint, pillLabel2D } from "../keep_paint.js";
 import { reachName } from "../wall_plane_strings.js";
 import { labelSpots } from "../clearance.js";
@@ -576,8 +577,14 @@ function drawMeasureOverlay() {
       pc.restore();
     }
   }
-  // a selected item always shows its clearances (even mid-drag)
+  // a selected item always shows its clearances (even mid-drag); a set moved
+  // as one (a kitchen run, a table with its chairs) measures as one block
+  var group = null;
   if (S.sel && S.sel.kind === "item") add(S.sel.ref, null, null, true);
+  else if (S.sel && S.sel.kind === "items" && S.sel.refs && S.sel.refs.length > 1) {
+    group = S.sel.refs;
+    group.forEach(function (it) { seen.push(it); });
+  }
   /* Placeholder points are placed precisely so their clearances can be read,
      so they carry the overlay permanently rather than only while hovered —
      that IS the point of a point. `showDims` is the switch for anyone who
@@ -597,7 +604,10 @@ function drawMeasureOverlay() {
   // over empty floor -> distances from the cursor point itself
   if (!S.action && S.tool === "select") {
     if (S.hoverItem) {
-      if (seen.indexOf(S.hoverItem) === -1) add(S.hoverItem, null, null, true);
+      // a grouped piece is picked with its group, so it reads out as the group
+      var hg = !group && seen.indexOf(S.hoverItem) === -1 ? groupMembers(S.hoverItem) : null;
+      if (hg) { group = hg; hg.forEach(function (it) { seen.push(it); }); }
+      else if (seen.indexOf(S.hoverItem) === -1) add(S.hoverItem, null, null, true);
     } else if (S.hoverPt && !hitMarker(S.hoverPt.x, S.hoverPt.z) && !S.wallProbe) {
       // resting the cursor ON a point would draw a second, nearly identical set
       // of leaders over the point's own — and the point's is the better one
@@ -608,10 +618,14 @@ function drawMeasureOverlay() {
       add(null, S.hoverPt);
     }
   }
-  origins.forEach(function (o) {
-    if (o.sides) drawItemSides(o.it);
-    else if (o.it) drawMeasureFrom(o.it.x, o.it.z, itemCorners(o.it), o.skip);
-    else drawMeasureFrom(o.pt.x, o.pt.z, null, o.skip);
+  if (group) drawItemSides(groupLead(group), liveGroupClearances(group));
+  // every origin of this paint casts against one set of obstacle footprints (js/measure.js)
+  withMeasureObstacles(function () {
+    origins.forEach(function (o) {
+      if (o.sides) drawItemSides(o.it);
+      else if (o.it) drawMeasureFrom(o.it.x, o.it.z, itemCorners(o.it), o.skip);
+      else drawMeasureFrom(o.pt.x, o.pt.z, null, o.skip);
+    });
   });
 }
 /* Leaders from a bare POINT (the hovered floor, the drafting cursor) are a
@@ -751,14 +765,15 @@ function drawMeasureFrom(ox, oz, ownCs, skip) {
    pane paints: leaders between the contact points (square to a wall), plus
    the closest-points lines to the near pieces. A piece on a wall measures along
    the wall instead (js/interaction/wall_plane_guides.js), so none here. */
-function drawItemSides(it) {
-  if (isOnWall(it)) return;
-  // measured once per pose and scene, shared with the 3D pane (js/measure_cache.js)
-  var live = liveClearances(it), hits = live.hits;
+function drawItemSides(it, group) {
+  if (!it || (!group && isOnWall(it))) return;
+  // measured once per pose and scene, shared with the 3D pane (js/measure_cache.js); `group`: a set's (liveGroupClearances)
+  var live = group || liveClearances(it), hits = live.hits;
   pc.save();
   pc.lineWidth = 1.5;
   pc.setLineDash([4, 4]);
-  hits.forEach(function (h) {
+  // a wall behind a blocking piece first: the piece's own (nearer) leader stays on top along the shared stretch
+  hits.filter(function (h) { return h.behind; }).concat(hits.filter(function (h) { return !h.behind; })).forEach(function (h) {
     pc.strokeStyle = h.kind === "wall" ? "rgba(63, 107, 120, 0.7)" : h.kind === "opening" ? "rgba(13, 128, 96, 0.8)" : "rgba(180, 83, 9, 0.75)";
     pc.beginPath(); pc.moveTo(sx(h.from.x), sz(h.from.z)); pc.lineTo(sx(h.to.x), sz(h.to.z)); pc.stroke();
   });
@@ -775,7 +790,9 @@ function drawItemSides(it) {
   var v = live.up;
   var up = v.filter(function (h) { return h.dir === "up" && h.kind !== "opening"; })[0], dn = v.filter(function (h) { return h.dir === "down"; })[0],
     sill = v.filter(function (h) { return h.kind === "opening"; })[0];
-  var txt = [up && "↑ " + Math.round(up.gap), sill && "↑ " + Math.round(sill.gap) + " " + reachName(sill.what), dn && "↓ " + Math.round(dn.gap)].filter(Boolean).join("  ");
+  // each says what it reached (ceiling, floor, the piece over it, a window sill)
+  var txt = [up && "↑ " + Math.round(up.gap) + " " + verticalReach(up), sill && "↑ " + Math.round(sill.gap) + " " + verticalReach(sill),
+    dn && "↓ " + Math.round(dn.gap) + " " + verticalReach(dn)].filter(Boolean).map(function (s) { return s.trim(); }).join("  ·  ");
   if (txt) pillLabel2D(it, [dn, sill, up], it.x, it.z, txt, "#3f6b78");
 }
 

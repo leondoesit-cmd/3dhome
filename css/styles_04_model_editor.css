@@ -1614,6 +1614,8 @@ body.compact-nav #modeler.md-isdrawing #md-sheet .md-sheet-fields > .md-head-inp
   transition: opacity .2s ease, visibility .2s ease, transform .2s ease;
 }
 #modeler .md-hint.idle-dismissed { opacity: 0; visibility: hidden; transform: translateY(6px); }
+/* in a sketch with no tool armed the coach bar is the one instruction; a flash still shows */
+#modeler .md-hint.md-hint-yield:not(.flash) { opacity: 0; visibility: hidden; }
 #modeler .md-polygon-controls {
   position: absolute; inset-inline-end: 12px; top: 48px; z-index: 7;
   display: flex; align-items: center; gap: 8px; padding: 4px 8px;

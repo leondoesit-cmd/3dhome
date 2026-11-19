@@ -164,7 +164,7 @@ test("the order within a pass is exactly the order it always was", () => {
     "hitNode(px, pz)",
     "hitMarker(px, pz, inputScale())",
     "hitOpening(px, pz)",
-    "hitItem(px, pz)",
+    "furniturePickAt(px, pz)",
     "hitSlabOpening(px, pz)",
     "hitWall(px, pz)",
     "hitRoom(px, pz)",
@@ -178,8 +178,8 @@ test("the order within a pass is exactly the order it always was", () => {
   /* The two that are easiest to "tidy" into the wrong place, called out by
      name: a device standing on furniture stays grabbable, and a ~12px point
      standing inside its own object's footprint is not buried by it. */
-  assert.ok(chain.indexOf("hitMEP(px, pz, inputScale())") < chain.indexOf("hitItem(px, pz)"));
-  assert.ok(chain.indexOf("hitMarker(px, pz, inputScale())") < chain.indexOf("hitItem(px, pz)"));
+  assert.ok(chain.indexOf("hitMEP(px, pz, inputScale())") < chain.indexOf("furniturePickAt(px, pz)"));
+  assert.ok(chain.indexOf("hitMarker(px, pz, inputScale())") < chain.indexOf("furniturePickAt(px, pz)"));
   assert.ok(chain.indexOf("hitMarker(px, pz, inputScale())") < chain.indexOf("hitOpening(px, pz)"));
 });
 

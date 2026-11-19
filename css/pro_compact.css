@@ -476,7 +476,8 @@ body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-user {
 body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-ref .lchip-name { cursor: default; }
 body.pro-compact .walls-pop .walls-keys { display: none; }
 /* the lit row already says which layer is being edited; its name needs the room */
-body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-tag[data-kind="edit"] { display: none; }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-tag[data-kind="edit"],
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-tag[data-kind="show"] { display: none; }
 
 /* the model editor's head also carries three mode icons: at phone widths
    they give back 9px, which is what "New model" was short of */

@@ -165,8 +165,11 @@ function explainLayout(std) {
 }
 
 /* Rebuild the sheet from the live plan. Same markup → no DOM work, so the
-   debounced re-render after every 2D paint costs one string build. */
-function render() {
+   debounced re-render after every 2D paint costs one string build. `entry`
+   (showDrawingView): the view is coming back, so an unchanged sheet keeps its
+   parsed SVG but still gets everything else a fresh one would — selection
+   mark, Paper/Scale reasons, sources and the fit. */
+function render(entry) {
   if (!V.pane) return;
   // an undo or a loaded project can change the standard under the view
   const pick = control("standard"), saved = S.workspace && S.workspace.draftingStandard;
@@ -175,7 +178,10 @@ function render() {
   const std = resolve(pick.value);
   const svg = sheetFor({ standard: std, paper: control("paper").value, scale: control("scale").value, furniture: V.furniture });
   V.pane.dataset.standard = std.id;
-  if (svg === V.svg) return;
+  if (svg === V.svg) {
+    if (entry === true && V.page) { markPicked(); explainLayout(std); fillSources(std); fit(); }
+    return;
+  }
   const page = sheetPageMm(svg), resized = !V.page || page.w !== V.page.w || page.h !== V.page.h;
   V.svg = svg;
   V.page = page;
@@ -396,9 +402,8 @@ export function showDrawingView(host = document.getElementById("center-canvas"))
   // the plan's drawing tools have nothing to draw on here (css dims them)
   document.body.classList.add("sheet-view-on");
   fillChoices();
-  V.svg = "";
   V.fitted = true;
-  render();
+  render(true);
   requestAnimationFrame(() => { if (V.active && V.fitted) fit(); });
   V.pane.querySelector(".sheet-viewport").focus({ preventScroll: true });
   return V.pane;

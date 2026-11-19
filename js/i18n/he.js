@@ -1589,6 +1589,8 @@ export default {
   load: "טען",
   menu_file: "קובץ",
   menu_export: "ייצוא",
+  clear_cache: "ניקוי מטמון",
+  clear_cache_t: "פיתוח: מחיקת העותקים השמורים של האפליקציה וטעינה מחדש",
   menu_edit: "עריכה",
   menu_more: "עוד",
   new_plan: "תוכנית חדשה…",
