@@ -131,8 +131,16 @@ test("invalid Detail parent cycles and orphans never fabricate base geometry", (
     createView("iso", { id: "b", detail: { from: "a", u: 0, v: 0, radius: 5 } }),
     createView("iso", { id: "orphan", detail: { from: "missing", u: 0, v: 0, radius: 5 } })];
   const project = createProjector(doc, bodies(BOX));
-  for (const view of doc.views) assert.equal(project(view), null);
-  assert.doesNotThrow(() => buildSheetScene(doc, { projection: project }));
+  const scene = buildSheetScene(doc, { projection: project });
+  for (const view of doc.views) {
+    const projection = project(view);
+    assert.match(projection.parentError, /parent missing or cyclic/i);
+    assert.equal(projection.bounds, null);
+    assert.deepEqual(projection.visible, []);
+    assert.deepEqual(projection.hidden, []);
+    assert.ok(scene.diagnostics.some(d => d.viewId === view.id && d.code === "view-source-unavailable"));
+    assert.ok(!scene.items.some(item => item.viewId === view.id && item.style === "outline"));
+  }
 });
 
 test("ordinary Crop authoring stores an editable closed spline on the same view; removal and undo restore it",()=>{
@@ -707,6 +715,32 @@ test("a dimension bound to a named edge rewrites itself when the model rebuilds"
   const svg = rig.controller.svg();
   assert.ok(svg.includes(">140<"), "the export reads what the canvas reads");
   assert.ok(!svg.includes(">100<"), "and nothing anywhere still says the old size");
+});
+
+test("switching away and back preserves a host edge dimension through a cold reopen", () => {
+  const rig = table(plateDoc());
+  const doc = rig.document.drawing, top = doc.views.find(view => view.dir === "top");
+  const dim = {id:"depth", viewId:top.id, type:"vertical", offset:12, refs:[depthRef("a"),depthRef("b")]};
+  doc.dims.push(dim);
+  rig.controller.select({kind:"view",id:top.id});
+  assert.equal(labelOf(rig.controller,dim.id),"100");
+  rig.controller.setSheetOption("viewSource",{kind:"part",key:"cm_other"});
+  assert.equal(rig.controller.scene().dims.get(dim.id).dangling,true);
+  rig.controller.setSheetOption("viewSource",null);
+  assert.equal(rig.controller.scene().dims.get(dim.id).dangling,false);
+  assert.equal(dim.sourceBinding,undefined);
+  const cold = table(JSON.parse(JSON.stringify(rig.document)));
+  cold.document.parts[0].to=9;
+  assert.equal(labelOf(cold.controller,dim.id),"140");
+  assert.deepEqual(cold.document.drawing.dims[0].refs,[depthRef("a"),depthRef("b")]);
+
+  // A drawing saved by the affected version carries this empty foreign stamp.
+  const affected = JSON.parse(JSON.stringify(cold.document));
+  affected.drawing.dims[0].sourceBinding={source:{kind:"part",key:"cm_other"},anchors:[]};
+  const repaired = table(affected);
+  assert.equal(repaired.controller.scene().dims.get(dim.id).dangling,false);
+  assert.equal(labelOf(repaired.controller,dim.id),"140");
+  assert.equal(repaired.document.drawing.dims[0].sourceBinding,undefined);
 });
 
 test("a legacy dimension with no persistent ids keeps measuring exactly as it did", () => {

@@ -214,7 +214,7 @@ test("a real 2D item drop emits full sync state for the item and its rider", opt
     });
     assert.deepEqual(result.singleOps.map((op) => op.id), [result.parentId, result.childId]);
     assert.deepEqual(Object.keys(result.singleOps[0]).sort(),
-      ["elev", "hold", "id", "on", "rot", "rotUser", "type", "x", "z"].sort());
+      ["elev", "hold", "id", "keep", "on", "rot", "rotUser", "type", "x", "z"].sort());
     assert.equal(result.singleOps[1].on, result.parentId);
     assert.ok(result.singleOps[1].x > 120, "the rider's emitted pose follows the dragged parent");
     assert.deepEqual(result.multiOps.map((op) => op.id),

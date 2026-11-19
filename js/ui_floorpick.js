@@ -16,6 +16,8 @@
  * not become.
  */
 import { floorSwatch } from "./primitives.js";
+import { materialById, materialThumbUrl } from "./material_library.js";
+import { materialLibraryEnabled } from "./material_tier.js";
 import { escapeHTML } from "./safe.js";
 import { t } from "./i18n.js";
 import { openModal } from "./ui.js";
@@ -44,8 +46,13 @@ function option(node) {
   return { value: node.value, label: (node.textContent || node.value).trim() };
 }
 
+/* The baked material ball when the library has this floor AND the 3D view
+   will render it (materialLibraryEnabled), the painted swatch otherwise — a
+   swatch must show what the floor will look like — and the painted one as
+   the fallback when the ball cannot load. */
 function tile(entry, current) {
-  var url = floorSwatch(entry.value, 128);
+  var baked = materialLibraryEnabled() && materialById("floor_" + entry.value);
+  var url = baked ? materialThumbUrl("floor_" + entry.value) : floorSwatch(entry.value, 128);
   var on = entry.value === current;
   return (
     '<button type="button" class="floor-tile' + (on ? " on" : "") +
@@ -81,6 +88,13 @@ export function openFloorPicker(current, onPick, opts) {
     })
     .join("");
   dlg.body.appendChild(body);
+  body.addEventListener("error", function (e) {
+    var img = e.target;
+    if (!img || img.tagName !== "IMG" || img.dataset.fallback) return;
+    var hit = img.closest("[data-floor]");
+    img.dataset.fallback = "1";
+    if (hit) img.src = floorSwatch(hit.dataset.floor, 128);
+  }, true);
 
   body.addEventListener("click", function (e) {
     var hit = e.target.closest("[data-floor]");

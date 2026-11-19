@@ -21,6 +21,7 @@ import {
   applyDims, fmtDims, hostOf, toCm, unitFactor, normalizeText, labeledDims, compactDims, foldAxes,
 } from "./prodsize.js";
 import { fmtLen, unitLabel } from "./display_units.js";
+import { safeHref } from "./safe.js";
 
 var CACHE_KEY = "home3d_prodsize";
 var CACHE_TTL = 30 * 24 * 3600e3;
@@ -70,8 +71,9 @@ export function fillSpecRow(it) {
   }
   row.style.display = "flex";
   var a = el("a", "ps-spec-name", it.spec.title || it.spec.query || "");
-  if (it.spec.url) {
-    a.href = it.spec.url;
+  var href = safeHref(it.spec.url);
+  if (href) {
+    a.href = href;
     a.target = "_blank";
     a.rel = "noreferrer noopener";
     a.title = it.spec.url;
@@ -321,9 +323,10 @@ export function openProdSizeDialog() {
       var src = el("div", "ps-src");
       var host = el("span", null, (r.sources || [r.host]).join(", "));
       src.appendChild(host);
-      if (r.url) {
+      var href = safeHref(r.url);
+      if (href) {
         var a = el("a", null, t("ps_open"));
-        a.href = r.url;
+        a.href = href;
         a.target = "_blank";
         a.rel = "noreferrer noopener";
         a.onclick = function (e) { e.stopPropagation(); };

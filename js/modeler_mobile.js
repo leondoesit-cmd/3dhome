@@ -202,7 +202,7 @@ function syncFoldRail() {
   });
 }
 function renderFoldPanel() {
-  if (!sheet) return;
+  if (!sheet || !window.__proToolTabs) return;
   if (!foldPanel) {
     foldPanel = document.createElement("section");
     foldPanel.id = "md-fold-tools";
@@ -332,7 +332,8 @@ function ctxActions() {
   }
   // The selection's own verbs, which otherwise live in a floating toolbar that
   // a finger covers the moment it makes the selection.
-  api.contextItems().forEach(function (item) {
+  (api.contextItems?.() || []).forEach(function (item) {
+    if (!item) return;
     if (out.length >= CTX_MAX_ACTIONS) return;
     push({
       icon: item.id || item.icon,
@@ -356,7 +357,6 @@ function renderSelectionBar() {
   if (!selected) { selectionBar.innerHTML = ""; return; }
   var filters = ["all", "face", "edge", "body"];
   var labels = { all: "selFilterAll", face: "selFilterFace", edge: "selFilterEdge", body: "selFilterBody" };
-  var at = filters.indexOf(st.selFilter);
   selectionBar.innerHTML = '<strong>' + selected + " " + t("selCountTipTouch") + "</strong>";
   selectionBar.appendChild(btn({
     ph: st.addSelection ? "ph-selection" : "ph-selection-plus",
@@ -368,7 +368,10 @@ function renderSelectionBar() {
   if (modelPicks) selectionBar.appendChild(btn({
     ph: "ph-funnel",
     label: t(labels[st.selFilter] || "selFilterAll"),
-    run: function () { api.setSelFilter(filters[(at + 1) % filters.length]); },
+    run: function () {
+      var cur = filters.indexOf(api.state()?.selFilter);
+      api.setSelFilter(filters[((cur >= 0 ? cur : 0) + 1) % filters.length]);
+    },
   }));
   selectionBar.appendChild(btn({
     ph: "ph-x-circle",
@@ -502,6 +505,8 @@ function release() {
   borrowed.node.querySelectorAll(".md-command-group-label[aria-expanded]").forEach(function (h) {
     h.removeAttribute("aria-expanded");
     h.removeAttribute("aria-describedby");
+    h.removeAttribute("aria-label");
+    delete h.dataset.groupLabel;
     h.removeAttribute("role");
     h.removeAttribute("tabindex");
   });
@@ -598,7 +603,7 @@ function ensureSheet() {
     e.preventDefault();
     e.stopPropagation();
     grp.classList.toggle("md-group-open");
-    openCommandGroups[head.textContent.trim()] = grp.classList.contains("md-group-open");
+    openCommandGroups[head.dataset.groupLabel] = grp.classList.contains("md-group-open");
     head.setAttribute("aria-expanded", grp.classList.contains("md-group-open") ? "true" : "false");
   });
 
@@ -767,6 +772,8 @@ function markGroupDrawers() {
     if (!head) return;
     var oldSummary = head.querySelector(".md-group-summary");
     if (oldSummary) oldSummary.remove();
+    head.dataset.groupLabel = head.textContent.trim();
+    head.setAttribute("aria-label", head.dataset.groupLabel);
     var count = grp.querySelectorAll("[data-command]").length;
     var summary = document.createElement("small");
     summary.className = "md-group-summary";
@@ -776,7 +783,7 @@ function markGroupDrawers() {
     summary.id = summary.id || "md-grp-" + Math.random().toString(36).slice(2, 8);
     head.appendChild(summary);
     head.setAttribute("aria-describedby", summary.id);
-    grp.classList.toggle("md-group-open", !!openCommandGroups[head.textContent.trim()]);
+    grp.classList.toggle("md-group-open", !!openCommandGroups[head.dataset.groupLabel]);
     head.setAttribute("role", "button");
     head.setAttribute("tabindex", "0");
     head.setAttribute("aria-expanded", grp.classList.contains("md-group-open") ? "true" : "false");
@@ -929,9 +936,14 @@ function buildViewSheet() {
     }),
   );
   g3.appendChild(gridBtn(icon("modelEdges"), t("modelEdges"), st.edges, api.toggleEdges));
-  g3.appendChild(
-    gridBtn('<i class="ph ph-house-line"></i>', t("contextRoom"), st.contextRoom, api.toggleContextRoom),
-  );
+  var roomButton = gridBtn('<i class="ph ph-house-line"></i>', t("contextRoom"), st.contextRoom, function () {
+    api.toggleContextRoom();
+    var checked = api.state().contextRoom;
+    roomButton.classList.toggle("on", checked);
+    roomButton.setAttribute("aria-pressed", String(checked));
+  });
+  roomButton.setAttribute("aria-pressed", String(st.contextRoom));
+  g3.appendChild(roomButton);
 
   if (!short) section(t("selFilter"));
   var g4 = grid("m-grid-5 m-icon-grid");
@@ -1243,7 +1255,7 @@ export function showModelerSheet(key, targetSelector) {
         var head = grp.querySelector(".md-command-group-label");
         if (head) {
           head.setAttribute("aria-expanded", "true");
-          openCommandGroups[head.textContent.trim()] = true;
+          openCommandGroups[head.dataset.groupLabel] = true;
         }
       }
     }

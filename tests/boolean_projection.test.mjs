@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {deduplicateBooleanProjections} from '../js/core/boolean_projection.js';
@@ -6,7 +7,7 @@ import vm from 'node:vm';
 import {historyEntryRolled} from '../js/core/parametric_document.js';
 import {leavesInputStanding} from '../js/core/rebuild.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const start=source.indexOf('function cutTargetFeatureId('),end=source.indexOf('\n/* Bodies come only',start);
 const head=vm.runInNewContext('('+source.slice(start,end).replace('document = E.def','document')+')',{historyEntryRolled,leavesInputStanding,Set,Map});
 function fixture(){

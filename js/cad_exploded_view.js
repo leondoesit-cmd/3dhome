@@ -1,4 +1,5 @@
 // Exploded Views & Step Animations for Assemblies.
+import { replayComponentPatterns } from './core/assembly_component_pattern.js';
 import { composePlacement, isSubassembly } from './core/assembly_structure.js';
 
 let explodedIdSequence=0;
@@ -111,6 +112,27 @@ export function addExplodeStep(explodedView, componentIds, direction = { x: 0, y
   };
   explodedView.steps.push(step);
   return step;
+}
+
+// A drawing can evaluate a saved presentation while the assembly editor is
+// collapsed or mid-animation. Copy the occurrence tree and mutable recipe IDs,
+// sharing part definitions and their (potentially large) native mesh buffers.
+export function drawingAssemblyPose(assembly, state) {
+  if (!state) return assembly;
+  if (state !== 'assembled' && !assembly.explodedViews?.some(view => view.id === state)) return null;
+  const copyTree = source => {
+    const copy = {...source, components:(source.components || []).map(component => {
+      const occurrence = {...component, transform:{...component.transform}};
+      if (isSubassembly(component)) occurrence.asm = copyTree(component.asm);
+      return occurrence;
+    })};
+    replayComponentPatterns(copy);
+    return copy;
+  };
+  const pose = copyTree(assembly);
+  pose.explodedViews = structuredClone(assembly.explodedViews || []);
+  applyExplodedView(pose, state === 'assembled' ? null : state);
+  return pose;
 }
 
 export function applyExplodedView(assembly, explodedViewId, factor = 1.0, stepFactors = null) {

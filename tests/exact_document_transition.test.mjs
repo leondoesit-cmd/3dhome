@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 test('document transition releases stale work without marking imported geometry as cancelled',()=>{
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('function abandonDocumentExactWork()'),end=source.indexOf('\nfunction exactRunStamp()',start);
   const part={id:'body',exactPending:true},E={def:{parts:[part]},kernelBusy:true};
   const timers=new Map([[part,42]]),events=[];

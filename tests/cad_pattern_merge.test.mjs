@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import { toolFeatureRecipe } from "../js/core/tool_recipe.js";
 /* Pattern "Merge instances" — the seventh and last declared-but-ignored control.
  *
@@ -31,7 +32,7 @@ import {
   loadCadKernel, makeBrepPrimitive, placeBrep, shellBrep,
 } from "../js/cad_kernel.js";
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const modeler = modelerSource().replace(/\r\n/g, "\n");
 const partGeometry = readFileSync(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const strings = readFileSync(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 

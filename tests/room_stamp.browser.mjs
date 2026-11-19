@@ -229,6 +229,7 @@ test("a selected room can be resized by pulling its side, and stops before colla
   const page = await openPage({ width: 1280, height: 900, mobile: false, touch: false });
   try {
     await planner(page);
+    await (await import('./helpers/planner_units.mjs')).useCentimetres(page);
     const out = await page.eval(async () => {
       const q = window.__rs, S = q.S;
       q.blank();

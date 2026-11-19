@@ -59,7 +59,7 @@ export function filletGrowDirection(descriptor) {
   var ax = Math.abs(num(axis.x, 0)), ay = Math.abs(num(axis.y, 1)), az = Math.abs(num(axis.z, 0));
   if (ay >= ax && ay >= az) return { x: num(origin.x, 0) >= 0 ? 1 : -1, y: 0, z: 0 };
   if (ax >= az) return { x: 0, y: num(origin.y, 0) >= 0 ? 1 : -1, z: 0 };
-  return { x: origin.x >= 0 ? 1 : -1, y: 0, z: 0 };
+  return { x: num(origin.x, 0) >= 0 ? 1 : -1, y: 0, z: 0 };
 }
 
 export function filletHandlePose(point, radius, direction) {
@@ -126,6 +126,10 @@ export function projectDeltaOnAxis(delta, direction) {
    fillet radius or shell thickness is not a direction, it is a value that does
    not exist, and there the clamp IS the honest answer. */
 function flipDepth(params, depth) {
+  if (params.endCondition === "mid-plane" || params.symmetric === true) {
+    params.depth = Math.max(1e-6, Math.abs(depth));
+    return params;
+  }
   if (depth >= 1e-6) { params.depth = depth; return params; }
   params.direction = params.direction === "reverse" ? "forward" : "reverse";
   params.depth = Math.max(1e-6, -depth);
@@ -149,7 +153,8 @@ export function applyHandleDrag(type, params, worldDelta, direction) {
     if (params.mode === "circular") params.angle = Math.max(1, Math.min(360, num(params.angle, 90) + along));
     else params.spacingX = Math.max(0.1, num(params.spacingX, 20) + along);
   } else if (type === "revolve") {
-    params.angle = Math.max(1e-6, Math.min(360, num(params.angle, 360) + along * 4));
+    var nextAngle = num(params.angle, 360) + along * 4;
+    params.angle = Number.isFinite(nextAngle) ? Math.max(1e-6, Math.min(360, nextAngle)) : 360;
   }
   return params;
 }

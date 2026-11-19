@@ -3,7 +3,10 @@ export function shapePoints(type,{x=0,z=0,width=400,depth=400,arm=150,points=[]}
  let polygon;
  if(type==='custom')polygon=points.map(p=>({x:Number(p.x),z:Number(p.z)}));
  else{
-  if(![x,z,width,depth,arm].every(Number.isFinite)||width<20||depth<20||arm<20||arm>=Math.min(width,depth)/2)return null;
+  if(![x,z,width,depth,arm].every(Number.isFinite)||width<20||depth<20||arm<20)return null;
+  if(type==='L'&&arm>=Math.min(width,depth)-20)return null;
+  if(type==='U'&&(arm*2>=width-20||arm>=depth-20))return null;
+  if(type==='T'&&(arm>=width-40||arm>=depth-20))return null;
   const w=width,d=depth,a=arm;
   const coords=type==='L'?[[0,0],[w,0],[w,a],[a,a],[a,d],[0,d]]:
    type==='T'?[[0,0],[w,0],[w,a],[(w+a)/2,a],[(w+a)/2,d],[(w-a)/2,d],[(w-a)/2,a],[0,a]]:

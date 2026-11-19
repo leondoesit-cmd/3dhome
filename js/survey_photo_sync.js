@@ -1,4 +1,5 @@
 import {surveyStore} from './survey_store.js';
+import {acceptRemote} from './net.js';
 // Transfers are scoped to attachment IDs already referenced by this project.
 // Chunks stay below relay limits; binary data never enters undo snapshots.
 const requested=new Map(),incoming=new Map();
@@ -17,12 +18,15 @@ export async function requestSurveyPhotos(survey,peer,projectId,send){
  for(const photo of survey?.photos||[]){const id=photo.attachmentId,key=projectId+':'+id;if(requested.has(key)||await surveyStore('get',id)||requested.has(key))continue;requested.set(key,{at:Date.now(),peer});try{send({k:'survey_photo_request',projectId,id},peer);}catch(error){requested.delete(key);throw error;}}
 
 }
-export async function handleSurveyPhoto(data,peer,survey,projectId,send){
+export async function handleSurveyPhoto(data,peer,survey,projectId,send,ctx){
  expireTransfers();
  if(!data.k?.startsWith('survey_photo_'))return false;
+ // Live callers supply room authority; storage-only callers can exercise assembly separately.
+ const allowed=()=>!ctx||acceptRemote(data.k,peer,typeof ctx==='function'?ctx():ctx);
+ if(!allowed())return true;
  if(data.projectId!==projectId||!survey?.photos?.some(p=>p.attachmentId===data.id))return true;
  if(data.k==='survey_photo_request'){
-  const photo=await surveyStore('get',data.id);if(!photo?.data||photo.data.length>maxLength)return true;
+  const photo=await surveyStore('get',data.id);if(!allowed()||!photo?.data||photo.data.length>maxLength)return true;
   const count=Math.ceil(photo.data.length/chunkSize);
   for(let index=0;index<count;index++)send({k:'survey_photo_chunk',projectId,id:data.id,index,count,part:photo.data.slice(index*chunkSize,(index+1)*chunkSize)},peer);
  }else if(data.k==='survey_photo_chunk'){

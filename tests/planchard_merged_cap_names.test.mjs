@@ -1,3 +1,5 @@
+import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -35,7 +37,7 @@ test('a face moved within the tolerance still keeps its name', () => {
 });
 
 test('exact topology naming applies the plane gate before assigning a name', () => {
-  const src = readFileSync(new URL('../js/cad_kernel.js', import.meta.url), 'utf8');
-  const body = src.slice(src.indexOf('export function extractBrepTopology'), src.indexOf('export function resolveBrepSubshape'));
+  const src = moduleSource("js/cad_kernel.js");
+  const body = sourceFunctionText(src, 'extractBrepTopology');
   assert.match(body, /planarFaceNameAgrees\(reference, /);
 });

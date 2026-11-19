@@ -1,7 +1,8 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const helperStart=source.indexOf('function dismissCommittedDimensionEditor(');
 const helper=source.slice(helperStart,source.indexOf('\nfunction dimensionEditorUnit(',helperStart));
 const start=source.indexOf('inp.addEventListener("change", function () {',source.indexOf('// A driving dimension is editable in place'));

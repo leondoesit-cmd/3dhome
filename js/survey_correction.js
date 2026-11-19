@@ -6,7 +6,7 @@ import { detectRooms, setWallEnd, wallClearLength, wallGeom } from './geometry.j
 import { isLayerLocked, layerOf } from './layers.js';
 import { fitWallClearLength } from './constraint_engine.js';
 import { solveWallCons, conSatisfied } from './wall_constraints.js';
-import { surveyTarget, surveyValueCm, surveyFingerprint } from './survey.js';
+import { surveyTarget, surveyScene, surveyValueCm } from './survey.js';
 
 const fields=['markers','nodes','walls','wallTypes','openings','items','roomMeta','wallCons','roomCons','planVars'];
 const clone=v=>JSON.parse(JSON.stringify(v));
@@ -20,11 +20,16 @@ function withGeometry(geometry,fn) {
   finally {for(const key of fields)S[key]=previous[key];S.spatial.revision=revision;}
 }
 export function currentSurveyDimension(target,field,state=S) {
+  const scene=surveyScene(state,target?.floorId);
   const obj=surveyTarget(state,target);if(!obj)return null;
-  if(target.kind==='room'&&['width','depth'].includes(field))return withGeometry(surveyGeometrySnapshot(state),()=>roomMeasurements(S,detectRooms().find(r=>r.key===roomKey(S,target)))?.interior?.[field]??null);
-  if(target.kind==='wall'&&field==='length')return withGeometry(surveyGeometrySnapshot(state),()=>wallClearLength(S.walls.find(w=>String(w.id)===String(target.id))));
+  if(target.kind==='room'&&['width','depth'].includes(field))return withGeometry(surveyGeometrySnapshot(scene),()=>roomMeasurements(S,detectRooms().find(r=>r.key===roomKey(S,target)))?.interior?.[field]??null);
+  if(target.kind==='wall'&&field==='length')return withGeometry(surveyGeometrySnapshot(scene),()=>wallClearLength(S.walls.find(w=>String(w.id)===String(target.id))));
   const aliases={width:target.kind==='item'?'w':'width',height:target.kind==='item'?'h':'height',depth:'d',elevation:'elev'};
   const value=obj[aliases[field]||field];return Number.isFinite(value)?value:null;
+}
+function correctionSignature(state){
+  return JSON.stringify([surveyGeometrySnapshot(state),state.workspace?.activeFloor,state.workspace?.role,
+    state.structLocked,state.layers,state.workspace?.constraints]);
 }
 export function prepareSurveyCorrection(state,observation) {
   if(state.workspace?.role==='viewer')return {ok:false,reason:'READ_ONLY'};
@@ -79,9 +84,9 @@ export function prepareSurveyCorrection(state,observation) {
   });}catch(error){reason=error.message;}
   if(reason)return {ok:false,reason};
   const changedWalls=after.walls.filter(w=>{const old=before.walls.find(o=>o.id===w.id);return JSON.stringify([w,after.nodes[w.a],after.nodes[w.b]])!==JSON.stringify([old,before.nodes[old?.a],before.nodes[old?.b]]);}).map(w=>w.id);
-  return {ok:true,before,after,changedWalls,observation:clone(observation),fingerprint:surveyFingerprint(state,{kind:'floor',floorId:target.floorId,id:target.floorId})};
+  return {ok:true,before,after,changedWalls,observation:clone(observation),fingerprint:correctionSignature(state)};
 }
 export function applySurveyCorrection(state,prepared) {
-  if(!prepared?.ok||prepared.fingerprint!==surveyFingerprint(state,{kind:'floor',floorId:prepared.observation.target.floorId,id:prepared.observation.target.floorId}))throw new Error('SURVEY_PREVIEW_STALE');
+  if(!prepared?.ok||prepared.fingerprint!==correctionSignature(state))throw new Error('SURVEY_PREVIEW_STALE');
   for(const key of fields)state[key]=clone(prepared.after[key]);
 }

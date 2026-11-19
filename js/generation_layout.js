@@ -38,7 +38,7 @@ const LAYOUTS = {
       { name: "Study", roomType: "office", x0: 1400, z0: 520, x1: 1680, z1: 1000, floor: "parquet" }
     ],
     doors: [
-      { from: "Hall", to: "Living Room", width: 120, s: 60, isPassage: true },
+      { from: "Hall", to: "Dining", width: 120, s: 60, isPassage: true },
       { from: "Living Room", to: "Dining", width: 200, s: 160, isPassage: true },
       { from: "Dining", to: "Kitchen", width: 220, s: 150, isPassage: true },
       { from: "Hall", to: "Master Bedroom", width: 90, s: 40 },
@@ -129,7 +129,7 @@ function randomLayout(seed) {
   const kx = ri(w * 0.3, w * 0.42, random);        // kitchen / living split
   const zSplit = ri(Math.max(400, d * 0.42), d * 0.5, random); // enough depth for usable bedrooms/bath
   const bx1 = kx + ri(230, 260, random);           // service core wide enough for real fixtures
-  const corridorDepth = ri(100, 130, random);      // usable circulation without wasting bedroom area
+  const corridorDepth = ri(120, 140, random);      // fits an 80cm bedroom door plus its frame returns
   const corrZ = zSplit - corridorDepth;
   return {
     w, d,
@@ -161,9 +161,11 @@ function randomLayout(seed) {
 
 
 export function generationPlan(size, replace, state, seed, constraints={}) {
+  const occupied = replace ? [] : [...state.nodes, ...(state.items || []).flatMap(item => footprint(item))]
+    .filter(p => Number.isFinite(p.x) && Number.isFinite(p.z));
+  const appendX = occupied.length ? Math.max(...occupied.map(p => p.x)) + 500 : 2000;
   if(constraints.requirements?.length){
-    const occupied=[...state.nodes,...(state.items||[]).flatMap(item=>footprint(item))].filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.z));
-    const x=replace?0:occupied.length?Math.max(...occupied.map(n=>n.x))+500:2000;
+    const x=replace?0:appendX;
     const result=requirementDraft(constraints.requirements,constraints.boundary,{x,z:0});
     if(!result.ok)throw new Error(result.reason+(result.unplaced?': '+result.unplaced:''));
     if(!replace&&constraints.boundary&&occupied.length){
@@ -177,22 +179,13 @@ export function generationPlan(size, replace, state, seed, constraints={}) {
   if (size === "random") {
     layout = randomLayout(seed);
   } else {
-    layout = LAYOUTS[size] || LAYOUTS["small"];
+    layout = LAYOUTS[size] || LAYOUTS["large"];
     // Clone layout because we might shift it
     layout = JSON.parse(JSON.stringify(layout));
   }
 
   if (!replace) {
-     let shiftX = 2000;
-     let shiftZ = 0;
-     
-     // Find max X in current scene to append next to it
-     if (state.nodes.length > 0) {
-        let maxx = Math.max(...state.nodes.map(n => n.x));
-        shiftX = maxx + 500;
-     }
-
-     layout.rooms.forEach(r => { r.x0+=shiftX; r.x1+=shiftX; r.z0+=shiftZ; r.z1+=shiftZ; });
+     layout.rooms.forEach(r => { r.x0 += appendX; r.x1 += appendX; });
   }
 
   return layout;

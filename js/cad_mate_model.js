@@ -401,8 +401,9 @@ export function rotationFromTo(from, to) {
 }
 
 export function wrapAngle(a) {
-  while (a > Math.PI) a -= Math.PI * 2;
-  while (a < -Math.PI) a += Math.PI * 2;
+  a %= Math.PI * 2;
+  if (a > Math.PI) a -= Math.PI * 2;
+  if (a < -Math.PI) a += Math.PI * 2;
   return a;
 }
 

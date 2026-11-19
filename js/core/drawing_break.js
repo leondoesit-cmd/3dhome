@@ -1,11 +1,22 @@
 // A Break changes drawing presentation only. All returned geometry stays in
 // original model centimetres; the piecewise map is applied at paper placement.
+import { sameDrawingSource, viewSourceOwner } from './drawing_view_source.js';
 import {viewAxes} from './hidden_line.js';
 
 export function canBreakView(view, doc={views:[]}) {
   return !!view && ['front','back','left','right','top','bottom'].includes(view.dir)
     && !view.section && !view.alignedSection && !view.detail && !view.cropSketch && !view.brokenOut
     && !view.auxiliary && !view.alternatePosition && !view.exploded && !['shaded','shadedEdges'].includes(view.displayStyle);
+}
+
+export function breakSourceViews(doc, selected) {
+  const selectedOwner = viewSourceOwner(doc,selected);
+  if (!selectedOwner) throw new Error('Repair the missing drawing view parent before applying a Break');
+  return doc.views.filter(view => {
+    const owner = viewSourceOwner(doc,view);
+    return owner && sameDrawingSource(owner.source,selectedOwner.source)
+      && (owner.assemblyState || null) === (selectedOwner.assemblyState || null);
+  });
 }
 
 function projectedAxis(view,worldAxis) {
@@ -18,8 +29,12 @@ function projectedAxis(view,worldAxis) {
 // One Front principal cluster; independent derived views never inherit a Break.
 // Return a complete, validated plan before the controller mutates any document.
 export function alignedBreakPlan(doc,selected,modifier,projections,k,scale) {
-  const principal=doc.views.find(v=>v.primary)||doc.views[0];
-  if(doc.views.length===1) {
+  const views = breakSourceViews(doc, selected);
+  const principal = views.find(v=>v.primary) || views.find(v=>v.dir==='front') || views[0];
+  const owner = viewSourceOwner(doc,selected);
+  modifier = { ...modifier, ...(owner.source && {source:owner.source}),
+    ...(owner.assemblyState && {assemblyState:owner.assemblyState}) };
+  if(views.length===1) {
     breakProjection(projections.get(selected.id),modifier,k);
     return new Map([[selected.id,modifier]]);
   }
@@ -28,7 +43,7 @@ export function alignedBreakPlan(doc,selected,modifier,projections,k,scale) {
   const a=viewAxes(selected.dir),direction=modifier.axis==='u'?a.horizontal:a.vertical;
   if(!['x','y'].includes(direction.axis))throw new Error('This principal cluster supports width or height Breaks');
   const worldFrom=direction.sign>0?modifier.from:-modifier.to,worldTo=direction.sign>0?modifier.to:-modifier.from;
-  const candidates=doc.views.filter(v=>['front','back','left','right','top','bottom'].includes(v.dir));
+  const candidates=views.filter(v=>['front','back','left','right','top','bottom'].includes(v.dir));
   for(const v of candidates) {
     if(!canBreakView(v) || v.configurationId!==selected.configurationId)throw new Error('Aligned principal views need the same configuration and ordinary edge projections');
     if(v.scale && v.scale!==scale)throw new Error('Aligned Break needs the same view scale in the principal cluster');
@@ -53,19 +68,25 @@ export function alignedBreakPlan(doc,selected,modifier,projections,k,scale) {
 }
 
 export function validateAlignedBreak(view,doc) {
+  const saved = view.breakView?.source;
+  const owner = viewSourceOwner(doc,view);
+  if (!owner || !sameDrawingSource(saved, owner.source)) throw new Error('Break source changed; reapply the Break');
+  if ((view.breakView?.assemblyState || null) !== (owner.assemblyState || null))
+    throw new Error('Break assembly state changed; reapply the Break');
   const g=view.breakView?.group;if(!g)return;
   if(!['x','y'].includes(g.worldAxis)||![g.from,g.to,g.lo,g.hi].every(Number.isFinite)
     ||!(g.lo<g.from&&g.from<g.to&&g.to<g.hi)||!Array.isArray(g.members)||!g.members.includes(view.id))throw new Error('Invalid aligned Break metadata');
-  const principal=doc.views.find(v=>v.primary)||doc.views[0];
+  const views = breakSourceViews(doc, view);
+  const principal = views.find(v=>v.primary) || views.find(v=>v.dir==='front') || views[0];
   if(principal?.id!==g.id || principal.dir!=='front')throw new Error('Aligned Break principal changed; reapply the Break');
-  const candidates=doc.views.filter(v=>['front','back','left','right','top','bottom'].includes(v.dir));
+  const candidates=views.filter(v=>['front','back','left','right','top','bottom'].includes(v.dir));
   if(candidates.some(v=>!canBreakView(v)||v.configurationId!==view.configurationId||(v.scale && v.scale!==g.scale)))throw new Error('Aligned principal cluster changed; reapply the Break');
   const expected=candidates.filter(v=>projectedAxis(v,g.worldAxis));
   if(expected.length!==g.members.length)throw new Error('Aligned Break cluster changed; reapply the Break');
   for(const v of expected) {
     const m=v.breakView,a=projectedAxis(v,g.worldAxis);
     if(!canBreakView(v)||v.configurationId!==view.configurationId||v.scale!==g.scale||!g.members.includes(v.id)
-      ||JSON.stringify(m?.group)!==JSON.stringify(g)||m.groupSign!==a.sign||m.axis!==a.axis||m.from!==(a.sign>0?g.from:-g.to)||m.to!==(a.sign>0?g.to:-g.from)
+      ||JSON.stringify(m?.group)!==JSON.stringify(g)||(m.assemblyState || null)!==(owner.assemblyState || null)||m.groupSign!==a.sign||m.axis!==a.axis||m.from!==(a.sign>0?g.from:-g.to)||m.to!==(a.sign>0?g.to:-g.from)
       ||m.gapMm!==view.breakView.gapMm||m.style!==view.breakView.style)throw new Error('Aligned Break members differ; reapply the Break');
   }
 }

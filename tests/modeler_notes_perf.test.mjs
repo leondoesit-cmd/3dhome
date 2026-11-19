@@ -6,11 +6,13 @@
  * "this must not happen on every frame" is to check that the call is not
  * written there. Each one below records a defect that shipped.
  */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 
-const md = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const md = modelerSource();
 const layers = await readFile(new URL("../js/ui_layers.js", import.meta.url), "utf8");
 
 function body(source, start, end) {
@@ -27,7 +29,7 @@ test("note cards are built once, not rebuilt on every rendered frame", () => {
      there re-parsed markup 60 times a second AND destroyed the card's own
      subtree mid-gesture, so its delete button lost hover and any in-flight
      pointer press — a correctness bug wearing a performance costume. */
-  const fn = body(md, "function syncNotesCards(", "\nfunction bindNoteCardEvents(");
+  const fn = sourceFunctionText(md, "syncNotesCards");
   assert.doesNotMatch(fn, /card\.innerHTML\s*=/, "card content must not be rebuilt per frame");
   assert.doesNotMatch(fn, /svg\.innerHTML\s*=\s*linesHtml/, "the connectors must not be re-parsed per frame");
   assert.doesNotMatch(fn, /new THREE\./, "and nothing may be allocated per frame");
@@ -39,7 +41,7 @@ test("note cards are built once, not rebuilt on every rendered frame", () => {
 test("the afterRender path allocates nothing", () => {
   /* Both callbacks on that hook — syncNotesCards and syncInstant3dValue — run
      per frame, so a `new` in either is a per-frame allocation. */
-  const chip = body(md, "function syncInstant3dValue(", "\nfunction addInstant3dHandles(");
+  const chip = sourceFunctionText(md, "syncInstant3dValue");
   assert.doesNotMatch(chip, /new THREE\./, "syncInstant3dValue must reuse scratch vectors");
   assert.match(chip, /instantScratch\(\)/);
 });
@@ -47,16 +49,17 @@ test("the afterRender path allocates nothing", () => {
 test("erasing a swipe of markup is one undo step, not one per stroke", () => {
   /* eraseMarkupAt runs from a pointermove handler. Committing there meant
      wiping five strokes cost five undo entries — and five presses to undo. */
-  const fn = body(md, "function eraseMarkupAt(", "\nfunction pickNoteAction(");
+  const fn = sourceFunctionText(md, "eraseMarkupAt");
   assert.doesNotMatch(fn, /pushUndo\(/, "the gesture commits, not each hit");
   assert.match(fn, /return true;/, "it reports what it removed so the caller can count");
 
-  const drag = body(md, "function beginMarkupDrag(", "\nfunction eraseMarkupAt(");
-  assert.match(drag, /if \(erased\) pushUndo\(/, "one undo step, at pointerup");
+  const drag = sourceFunctionText(md, "beginMarkupDrag");
+  assert.match(drag, /if \(!erased\) pushUndo\(/, "one undo step, before the first removal");
+  assert.ok(fn.indexOf("beforeErase();") < fn.indexOf("E.def.markups.splice("), "capture history before mutating the stroke list");
 });
 
 test("dragging the paint tool coalesces its rebuilds to one per frame", () => {
-  /* MODEL_EDITOR_PERF_PLAN.md forbids uncoalesced rebuild work on
+  /* docs/plans/MODEL_EDITOR_PERF_PLAN.md forbids uncoalesced rebuild work on
      pointermove. Painting called updatePreview() and refreshParts()
      synchronously for every newly touched face. */
   const fn = body(md, "  var paintedCount = 0;", "\n  paintTarget(hit);");

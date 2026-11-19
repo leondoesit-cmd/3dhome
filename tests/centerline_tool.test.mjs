@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { sketchRegions } from "../js/sketch_regions.js";
 import { toggleConstruction } from "../js/sketch_trim.js";
 
-const source = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const source = modelerSource();
 const start = source.indexOf("function makeWallSegment(");
 const end = source.indexOf("\nfunction finishWallChain(", start);
 

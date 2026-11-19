@@ -320,6 +320,66 @@ export function syncClears() {
     if (!fin(w.clearL)) captureClear(w);
   });
 }
+/* The measuring rule the stored clearL values were captured under. 2: a
+   straight-through joint measures to the face of an arm on the measured side
+   (js/wall_junctions.js faceClearShift); before it, such a joint measured to
+   the node. A document is stamped with it when saved (sceneObject). */
+export const CLEAR_RULE = 2;
+/* A document was just loaded (ui.js applyData): give every wall its held
+   measurements, and when the file was saved under an older measuring rule
+   re-read every stated interior length from the geometry as it stands. The
+   geometry is the truth; holding the old numbers would make the first
+   whole-plan reconcile move walls to "repair" half a thickness that was never
+   wrong. Undo/redo restores its own snapshots and never comes through here. */
+export function loadClears(doc) {
+  syncLocks();
+  if (!doc || doc.clearRule !== CLEAR_RULE)
+    S.walls.forEach(function (w) {
+      captureClear(w);
+      if (isLocked(w)) captureLock(w);
+    });
+  syncClears();
+  S.clearRule = CLEAR_RULE;
+}
+
+/* A wall was just added to a draw run (`runIds`, the run's walls so far):
+   restore the run's stated interior lengths WITHOUT touching the plan that was
+   already there. Every node that is not used by the run's walls alone is
+   pinned, so only corners created in this run may slide (`slide` false: none
+   at all, for a wall that split a host). A stated length that cannot be met
+   that way (the wall closes onto existing corners) becomes a derived length:
+   re-read from the geometry. So is any wall standing at one of the run's
+   nodes whose face the new wall really did cut (a free end that just became a
+   corner): the existing plan is not moved to defend it.
+
+   `holdNodes` is the wall tool mid-run: it passes the ends of the wall just
+   clicked, so a corner stays where it was clicked and only EARLIER corners of
+   the run slide (the next click lands on an absolute, snapped position and
+   has to line up with it). The run's own walls then keep their stated
+   lengths until the run ends — a later corner may still restore them, exactly
+   as before this function existed — and finishDraw() re-reads whatever is
+   left (a call without `holdNodes`). Walls from before the run are re-read
+   at once. */
+export function settleNewWalls(runIds, slide, holdNodes) {
+  var run = {}, touched = {}, foreign = {}, pinned = (holdNodes || []).slice();
+  (runIds || []).forEach(function (id) { run[id] = 1; });
+  S.walls.forEach(function (w) {
+    var mark = run[w.id] ? touched : foreign;
+    mark[w.a] = 1;
+    mark[w.b] = 1;
+  });
+  for (var i = 0; i < S.nodes.length; i++)
+    if (!slide || !touched[i] || foreign[i]) pinned.push(i);
+  if (slide) preserveClear(pinned);
+  else syncClears();
+  if (!interiorDims()) return;
+  S.walls.forEach(function (w) {
+    if ((!touched[w.a] && !touched[w.b]) || (holdNodes && run[w.id])) return;
+    if (fin(w.clearL) && Math.abs(wallClearLength(w) - w.clearL) < CLEAR_TOL) return;
+    captureClear(w);
+    if (isLocked(w)) captureLock(w);
+  });
+}
 
 /* Restore every wall's stated interior length after the CUTS around it changed.
 

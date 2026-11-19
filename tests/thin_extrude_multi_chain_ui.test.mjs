@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -12,7 +13,7 @@ import {shapeMassProperties} from '../js/cad_kernel.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {canonicalFeatureTopologyReferences} from '../js/core/feature_input_stage.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function sketch(){return {id:'guides',plane:'top',offset:.5,points:[{id:'a',x:.5,y:-1},{id:'b',x:2.5,y:-1},{id:'c',x:.5,y:1},{id:'d',x:2.5,y:1}],entities:[{id:'lower',type:'line',a:'a',b:'b'},{id:'upper',type:'line',a:'c',b:'d'}],constraints:[]};}
 const params={thinFeature:true,thickness:.3,thinMode:'forward',thinChainModes:{lower:'reverse',upper:'forward'}};
 const load=(name,context)=>new Function(...Object.keys(context),sourceFunctionText(source,name)+';return '+name+';')(...Object.values(context));

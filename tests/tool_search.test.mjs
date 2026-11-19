@@ -1,10 +1,11 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { TOOL_SEARCH_ENTRIES, searchToolEntries } from "../js/tool_search.js";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const css = stylesSource();
 
 test("top toolbar exposes an accessible tool search combobox", () => {
   assert.match(html, /id="toolSearch"/);

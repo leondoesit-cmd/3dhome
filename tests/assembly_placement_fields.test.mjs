@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const element=(tag)=>({tag,children:[],events:{},appendChild(child){this.children.push(child);},
   addEventListener(name,handler){this.events[name]=handler;},setAttribute(){}});
 const makeRow=(track)=>new Function('el','fin','pushUndo','refreshAll','t','propGen',

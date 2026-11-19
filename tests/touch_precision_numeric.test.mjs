@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -5,7 +6,7 @@ import { sourceFunctionText } from './helpers/source_function.mjs';
 import { dispatchPrecisionCommit, precisionModelPoint } from '../js/touch_precision_ui.js';
 
 const ui=readFileSync(new URL('../js/touch_precision_ui.js',import.meta.url),'utf8');
-const modeler=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const modeler=modelerSource();
 
 test('explicit numeric target preserves off-canvas projection and ignores drag locks',()=>{
   const state={lock:'v',initialX:20};
@@ -46,11 +47,15 @@ test('native precision event carries numeric intent and ordinary touch remains s
 
 test('Confirm without coordinate edits preserves the rough pointer target',()=>{
   const state={coordinatesEdited:false,exactModel:null};
+  const inputA={value:'0'},inputB={value:'3'};
   let projected=0;
-  const apply=Function('state','options','inputA','inputB','setTarget','return ('+sourceFunctionText(ui,'applyInputs')+')')(
-    state,{modelToScreen:()=>{projected++;return{x:20,y:30};}},{value:'0'},{value:'3'},()=>{},
+  const apply=Function('state','options','inputA','inputB','setTarget','shownA','shownB','return ('+sourceFunctionText(ui,'applyInputs')+')')(
+    state,{modelToScreen:()=>{projected++;return{x:20,y:30};}},inputA,inputB,()=>{},'0','3',
   );
   apply();assert.equal(projected,0);
   state.coordinatesEdited=true;
   apply();assert.equal(projected,1);
+  state.coordinatesEdited=false;inputA.value='125';
+  apply();assert.equal(projected,2,'Confirm reads the latest value even before input/change is dispatched');
+  inputA.value='';apply();assert.equal(projected,2,'an empty coordinate is not silently converted to zero');
 });

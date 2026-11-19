@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {beltMateSpec,beltRatio,beltDiameterValue} from '../js/cad_belt_mate.js';
@@ -8,7 +9,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 test('actual Belt form creates semantic canonical data and rejects invalid input',()=>{
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const form=source.slice(source.indexOf('function openMateBeltForm()'),source.indexOf('function openMateDistanceForm()'));
   let specification,created;
   const context={beltMateSpec,t:key=>key,flash:()=>{},openQuickForm:spec=>{specification=spec;},

@@ -1,10 +1,12 @@
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
 
-const planSource = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
-const interactionSource = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+const planSource = moduleSource("js/plan2d.js");
+const interactionSource = moduleSource("js/interaction.js");
 const measureSource = await readFile(new URL("../js/measure.js", import.meta.url), "utf8");
 const cadHudSource = await readFile(new URL("../js/cad_hud.js", import.meta.url), "utf8");
 
@@ -20,10 +22,7 @@ test("the wall tool tracks a live preview point before the first click", () => {
 });
 
 test("the plan overlay measures from the wall-tool cursor even before drawing", () => {
-  const overlay = planSource.slice(
-    planSource.indexOf("function drawMeasureOverlay"),
-    planSource.indexOf("function drawLiveMeasureCross"),
-  );
+  const overlay = sourceFunctionText(planSource, "drawMeasureOverlay");
   assert.match(
     overlay,
     /\(S\.tool === "wall" \|\| S\.tool === "arcwall" \|\| S\.tool === "rect" \|\| S\.tool === "slabvoid"\) && S\.previewPt/,

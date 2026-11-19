@@ -53,6 +53,11 @@ function orthonormal(axis) {
 }
 
 export function normalizeHelixSpec(spec = {}) {
+  const axis = typeof spec.axis === 'string' && ['x','y','z'].includes(spec.axis)
+    ? {x:Number(spec.axis==='x'),y:Number(spec.axis==='y'),z:Number(spec.axis==='z')}
+    : spec.axis || { x: 0, y: 1, z: 0 };
+  const axisLength = Math.hypot(axis.x, axis.y, axis.z);
+  if (!Number.isFinite(axisLength) || axisLength === 0) throw new Error('Helix axis must be finite and nonzero');
   const regions=spec.pitchMode==='variable' ? normalizeHelixRegions(spec.pitchRegions,2*Number(spec.radius ?? spec.radiusStart)) : null;
   const derivedPitch = spec.pitch == null && Number(spec.turns)>0 && Number.isFinite(Number(spec.height)) ? Number(spec.height)/Number(spec.turns) : Number(spec.pitch);
   const pitch = Math.max(1e-6, derivedPitch || 0);
@@ -63,7 +68,7 @@ export function normalizeHelixSpec(spec = {}) {
   const handed = spec.handedness === "lh" || spec.handedness === "left" ? "lh" : "rh";
   return {
     origin: vec(spec.origin?.x, spec.origin?.y, spec.origin?.z),
-    axis: normalizeVec(spec.axis || { x: 0, y: 1, z: 0 }),
+    axis: normalizeVec(axis),
     radius: radiusStart,
     radiusStart,
     radiusEnd,
@@ -107,7 +112,7 @@ export function helixSegmentsPerTurn(spec) {
 
 export function sampleHelix(spec, options = {}) {
   const h = normalizeHelixSpec(spec);
-  const perTurn = helixSegmentsPerTurn({ ...h, segmentsPerTurn: options.segmentsPerTurn });
+  const perTurn = helixSegmentsPerTurn({ ...h, segmentsPerTurn: options.segmentsPerTurn ?? spec.segmentsPerTurn });
   const count = Math.max(2, Math.round(perTurn * Math.max(h.turns, 1e-6)) + 1);
   const steps=new Set(Array.from({length:count},(_,i)=>i/(count-1)));
   for(const row of h.pitchRegions || [])steps.add(row.revolution/h.turns);
@@ -153,6 +158,7 @@ export function helixLength(spec) {
 
 export function helixFrameAt(spec, t) {
   const h = normalizeHelixSpec(spec);
+  t = Math.max(0, Math.min(1, Number(t) || 0));
   const a = helixPoint(h, Math.max(0, t - 1e-4));
   const b = helixPoint(h, Math.min(1, t + 1e-4));
   const tangent = normalizeVec({ x: b.x - a.x, y: b.y - a.y, z: b.z - a.z });
@@ -163,7 +169,7 @@ export function helixFrameAt(spec, t) {
 }
 
 export function circularHelixSweepProfile(spec,diameter) {
-  if(!(Number(diameter)>0))throw new Error('Circular profile diameter must be positive');
+  if(!Number.isFinite(Number(diameter)) || !(Number(diameter)>0))throw new Error('Circular profile diameter must be positive and finite');
   const frame=helixFrameAt(spec,0),n=frame.tangent,dot=frame.radial.x*n.x+frame.radial.y*n.y+frame.radial.z*n.z;
   const u=normalizeVec({x:frame.radial.x-dot*n.x,y:frame.radial.y-dot*n.y,z:frame.radial.z-dot*n.z});
   const v=normalizeVec({x:n.y*u.z-n.z*u.y,y:n.z*u.x-n.x*u.z,z:n.x*u.y-n.y*u.x}),r=Number(diameter)/2;

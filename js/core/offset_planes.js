@@ -145,7 +145,8 @@ function planeSketchFrame(frame,origin,normal,offset) {
 // Resolve parent planes before their children, then move attached sketch frames.
 // No document changes are made until the whole plane graph is valid.
 export function resolveOffsetPlanes(document, resolveRef){
- const planes=new Map((document.references || []).filter(r=>r.type==='plane').map(r=>[r.id,r]));
+ const originalPlanes=new Map((document.references || []).filter(r=>r.type==='plane').map(r=>[r.id,r]));
+ const planes=new Map([...originalPlanes].map(([id,plane])=>[id,{...plane}]));
  /* A plane's reference entry and its reference-geometry twin can drift apart.
     HOUSING's BatteryLoftPlane reference lost its offset while the geometry
     still held 1.300 in, so this resolver read 0, placed the plane ON its face,
@@ -170,7 +171,7 @@ export function resolveOffsetPlanes(document, resolveRef){
   visiting.delete(id);resolved.set(id,result);return result;
  }
  try{for(const id of planes.keys())visit(id);}catch(error){return {ok:false,issues:[{severity:'error',code:'reference-plane-dependency',message:error.message}]};}
- for(const [id,result] of resolved){Object.assign(planes.get(id),result);const geometry=(document.referenceGeometry || []).find(r=>r.id===id);if(geometry)Object.assign(geometry,{origin:result.origin,normal:result.normal,offset:result.offset,support:result.support,baseReferenceId:result.baseReferenceId,name:result.name,refType:result.refType,throughVertex:result.throughVertex,throughEdges:result.throughEdges,threePoints:result.threePoints,angle:result.angle,angleAxis:result.angleAxis,angleOrigin:result.angleOrigin,angleDirection:result.angleDirection});}
+ for(const [id,result] of resolved){Object.assign(originalPlanes.get(id),result);const geometry=(document.referenceGeometry || []).find(r=>r.id===id);if(geometry)Object.assign(geometry,{origin:result.origin,normal:result.normal,offset:result.offset,support:result.support,baseReferenceId:result.baseReferenceId,name:result.name,refType:result.refType,throughVertex:result.throughVertex,throughEdges:result.throughEdges,threePoints:result.threePoints,angle:result.angle,angleAxis:result.angleAxis,angleOrigin:result.angleOrigin,angleDirection:result.angleDirection});}
  for(const sketch of document.sketches || []){
   const plane=resolved.get(sketch.referenceId);if((!plane?.baseReferenceId&&!plane?.support) || sketch.support)continue;
   sketch.frame=planeSketchFrame(sketch.frame,plane.origin,plane.normal,sketch.supportOffset);sketch.frameSpace='local';

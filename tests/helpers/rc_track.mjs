@@ -1,12 +1,20 @@
-import { readFile } from 'node:fs/promises';
+import { registerHooks } from 'node:module';
 let loaded;
+// js/track.js (and its js/track/ pieces) import bare "three", which only the
+// browser's import map resolves; point it at the vendored build and import
+// the real files, so a split of track.js keeps loading here.
 export function importTrack() {
   return loaded ||= (async () => {
     const root = new URL('../../', import.meta.url);
-    let src = await readFile(new URL('js/track.js', root), 'utf8');
-    for (const [from, to] of [['three', 'vendor/three/three.module.js'], ['./state.js', 'js/state.js'], ['./geometry.js', 'js/geometry.js'], ['./road_surface.js', 'js/road_surface.js']])
-      src = src.replace(`from "${from}"`, `from "${new URL(to, root).href}"`);
-    return import('data:text/javascript,' + encodeURIComponent(src));
+    const three = new URL('vendor/three/', root).href;
+    registerHooks({
+      resolve(specifier, context, next) {
+        if (specifier === 'three') return { url: three + 'three.module.js', shortCircuit: true };
+        if (specifier.startsWith('three/addons/')) return { url: three + specifier.slice(6), shortCircuit: true };
+        return next(specifier, context);
+      },
+    });
+    return import(new URL('js/track.js', root).href);
   })();
 }
 export function room(x, z, w, h) {

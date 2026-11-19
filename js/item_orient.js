@@ -26,7 +26,9 @@
    again, and Alt held during a drag suspends the whole thing for that gesture.
    `S.autoFace = false` turns it off for good. */
 import { S } from "./state.js";
-import { wallProject, wallTangentAt, wallGeom } from "./geometry.js";
+import { wallProject, wallTangentAt, wallGeom, wallPointAt } from "./geometry.js";
+import { footReach, resolveItemDrag } from "./item_wall_snap.js";
+import { wallDatumOffset } from "./wall_types.js";
 
 function norm(deg) {
   return ((deg % 360) + 360) % 360;
@@ -76,6 +78,26 @@ export var HUNG_TYPES = {
   whiteboard: 1, wallShelf: 1, wallLamp: 1, ac: 1, towelRail: 1,
   waterHeater: 1, radiator: 1, soundbar: 1, monitor: 1,
 };
+
+/* Wall cabinets: built at a height on a wall (js/furniture_models.js builds
+   `upper` at 145 cm and `hood` at 150 cm) but faced as members of a kitchen
+   run, so they are not HUNG_TYPES. (`wallShelf`, built at 150 cm, is hung.) */
+export var WALL_CABINET_TYPES = { upper: 1, hood: 1 };
+
+/* A piece that lives ON a wall: it is dragged across the wall's face
+   (js/interaction/wall_plane_drag.js), not over the floor. Hung types and wall
+   cabinets always; any other piece once the user puts it on a wall
+   (`hold.onWall`, the planner action itemOnWall). A hung type standing on a
+   host (a monitor on a desk) is on that host, not on a wall. */
+export function onWallByType(type) {
+  return !!(type && (HUNG_TYPES[type] || WALL_CABINET_TYPES[type]));
+}
+export function isOnWall(it) {
+  if (!it) return false;
+  if (it.hold && it.hold.onWall) return true;
+  if (it.on != null) return false;
+  return onWallByType(it.type);
+}
 
 /* How far a piece's back may be from a wall face and still be understood as
    "against that wall" (cm). Deliberately generous compared to the flush snap
@@ -150,14 +172,22 @@ function rotFacing(dx, dz) {
 /* The nearest wall's outward normal, at the point of it the piece is beside.
    Returns the angle that puts the piece's back on that wall, or null. */
 export function backToWallRot(it, x, z, reach) {
+  var fit = backToWallFit(it, x, z, reach);
+  return fit ? fit.rot : null;
+}
+
+/* backToWallRot's wall, with where the piece's centre goes for its back to
+   sit on that wall's face: { rot, x, z } or null. */
+export function backToWallFit(it, x, z, reach, requiredRot) {
   var best = null,
-    bestGap = reach == null ? WALL_REACH : reach,
-    depth = num(it && it.d) / 2;
+    bestGap = reach == null ? WALL_REACH : reach;
   (S.walls || []).forEach(function (w) {
+    if (w.physical === false) return;
     var g = wallGeom(w),
       hit = wallProject(w, x, z);
     if (!g || !hit || !isFinite(g.L) || g.L <= 0) return;
-    if (hit.s < -SPAN_SLACK || hit.s > g.L + SPAN_SLACK) return;
+    var alongEnd = (x - hit.x) * hit.tangent.x + (z - hit.z) * hit.tangent.z;
+    if (Math.abs(alongEnd) > SPAN_SLACK) return;
     var tan = wallTangentAt(w, hit.s) || { x: g.ux, z: g.uz },
       nx = -tan.z,
       nz = tan.x,
@@ -170,13 +200,56 @@ export function backToWallRot(it, x, z, reach) {
     }
     // the gap between the piece's BACK and the wall's face; |…| so a piece
     // dropped straddling the wall still resolves rather than being ignored
-    var gap = Math.abs(Math.abs(hit.distance) - num(w.thickness) / 2 - depth);
+    var rot = rotFacing(nx, nz);
+    if (requiredRot != null && rot !== norm(requiredRot)) return;
+    var off = wallContactOffset({ ...it, rot }, w, g, hit, side < 0 ? -1 : 1);
+    if (!Number.isFinite(off)) return;
+    var gap = Math.abs(Math.abs(hit.signedOffset) - off);
     if (gap < bestGap) {
       bestGap = gap;
-      best = rotFacing(nx, nz);
+      best = { rot, x: hit.x + nx * off, z: hit.z + nz * off, wall: w };
     }
   });
   return best;
+}
+
+// Centre distance from the reference line for contact with a finished face.
+// Inside a circular wall the back corners touch first. Their radial distances
+// must both fit the inner radius even when the footprint is oblique.
+export function wallContactOffset(it, wall, geom, hit, side) {
+  const datum = wall.datum && wall.datum !== "center" ? wallDatumOffset(wall, S) : 0;
+  const face = num(wall.thickness)/2 - side*datum;
+  const tx = hit.tangent.x, tz = hit.tangent.z, nx = -tz*side, nz = tx*side;
+  let offset = face + footReach(it, nx, nz);
+  if (!geom.curve || Math.sign(geom.curve.sweep) !== side) return offset;
+  const radius = geom.curve.radius, inner = radius - face;
+  const a = num(it.rot)*Math.PI/180, c = Math.cos(a), s = Math.sin(a);
+  for (const u of [-it.w/2,it.w/2]) for (const v of [-it.d/2,it.d/2]) {
+    const dx = u*c-v*s, dz = u*s+v*c, tangent = dx*tx+dz*tz;
+    if (Math.abs(tangent) >= inner) return Infinity;
+    offset = Math.max(offset, radius-Math.sqrt(inner*inner-tangent*tangent)-dx*nx-dz*nz);
+  }
+  return offset;
+}
+
+/* Where a piece dropped near a wall stands: back on the wall's face. Facing
+   alone left it centred on the click, so a bed's headboard went 30 cm into the
+   wall and a desk floated a hand's width off it; the drag's flush snap only
+   engages from 9 cm, which a click almost never is. Only for rule 4 — a piece
+   on a host, beside its run or at a table was placed by those — and only when
+   the piece faces that wall. Returns { x, z } or null. */
+export function flushToWall(it, x, z, ctx) {
+  if (!it || it.locked || it.rotUser || !autoFaceOn() || S.orientHold) return null;
+  var mode = orientMode(it.type);
+  if (mode === "free") return null;
+  if (ctx && ctx.host && ctx.host !== it) return null;
+  if (mode === "run" && runNeighbour(it, x, z)) return null;
+  if (mode === "seat" && seatTarget(it, x, z)) return null;
+  var fit = backToWallFit(it, x, z, mode === "hung" ? HUNG_REACH : WALL_REACH);
+  if (!fit || fit.rot == null) return null;
+  var turn = norm(fit.rot - norm(num(it.rot)));
+  if (turn > 0.5 && turn < 359.5) return null;
+  return { x: fit.x, z: fit.z };
 }
 
 /* The neighbouring piece of the same run, if the drop lands BESIDE one — read
@@ -295,4 +368,49 @@ export function refaceItem(it, ctx) {
   var delta = applyAutoFace(it, it.x, it.z, ctx);
   S.orientHold = hold;
   return delta;
+}
+
+/* ---- walls for js/item_wall_snap.js -------------------------------------
+   The plan's walls as the plain segments resolveItemDrag takes: a straight
+   wall on its own line (wallGeom, so a face-located wall is where it is
+   drawn), an arc as its chords. */
+export function wallSnapSegments() {
+  var out = [];
+  (S.walls || []).forEach(function (w) {
+    var g = wallGeom(w);
+    if (!g || !isFinite(g.L) || g.L <= 0) return;
+    var t = num(w.thickness), phys = w.physical !== false;
+    if (!g.kind || g.kind === "line") {
+      out.push({ id: w.id, a: { x: g.a.x, z: g.a.z }, b: { x: g.b.x, z: g.b.z }, t: t, physical: phys });
+      return;
+    }
+    var steps = Math.max(4, Math.min(48, Math.ceil(g.L / 40))), last = null;
+    for (var i = 0; i <= steps; i++) {
+      var p = wallPointAt(w, (g.L * i) / steps);
+      if (!p) continue;
+      if (last) out.push({ id: w.id, a: last, b: { x: p.x, z: p.z }, t: t, physical: phys });
+      last = { x: p.x, z: p.z };
+    }
+  });
+  return out;
+}
+
+/* A new library piece dropped at (x, z) — the click (js/ui.js placeFurnAt)
+   and its 3D preview (js/build3d_pose.js) both come here, so they agree:
+   facing, the click's flush-to-wall nudge, then the drag's wall resolver
+   (a hung piece lands on its wall; nothing is placed inside a wall). A piece
+   standing on a host is not pulled to a wall, only kept out of it. */
+export function seatNewPiece(it, x, z, ctx) {
+  if (!it) return null;
+  applyAutoFace(it, x, z, ctx);
+  var p = flushToWall(it, x, z, ctx) || { x: x, z: z };
+  var onHost = !!(ctx && ctx.host && ctx.host !== it);
+  var r = resolveItemDrag({
+    item: { type: it.type, w: it.w, d: it.d, rot: it.rot, x: p.x, z: p.z },
+    target: p, walls: wallSnapSegments(), mode: orientMode(it.type),
+    free: !!S.orientHold, snap: S.snapObj !== false && !onHost && !it.locked,
+  });
+  it.x = Math.round(r.x * 10) / 10;
+  it.z = Math.round(r.z * 10) / 10;
+  return r;
 }

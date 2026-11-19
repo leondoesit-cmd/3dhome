@@ -15,6 +15,7 @@ export function coneSilhouette(sketch,face,options={}){
 }
 export function updateSilhouetteSketch(sketch,resolveFace){
  const updated=structuredClone(sketch);
+ restoreLocalCircleOffsets(updated);
  const linkedOffset=(copy,seen=new Set())=>{
   const relation=updated.constraints.find(c=>c.type==='offset'&&c.b===copy.entityId&&!c.suppressed&&updated.circleCopies.some(parent=>parent.entityId===c.a));
   const parentId=copy.offsetFrom || relation?.a;
@@ -63,17 +64,41 @@ export function retargetSilhouetteLine(sketch,entityId,face,options={},makeId=()
 /* Convert Entities is associative until the user explicitly drives the copied
    geometry.  Once a radius/diameter is edited, keeping the hidden source link
    would let the next exact rebuild silently restore the source edge's old
-   size.  Detaching only the edited entity preserves every other converted
-   boundary and makes the dimension the new source of truth. */
+   size. Its local offsets follow the sketch; unrelated conversions keep their
+   external sources. */
 export function detachLinkedSketchEntity(sketch,entityId){
  if(!sketch || entityId==null)return false;
+ // Offsets of a detached circle follow the local concentric/offset
+ // constraints. Their inherited external edge copies no longer own geometry.
+ const detached=new Set([entityId]);
+ const linked=new Set((sketch.circleCopies || []).map(copy=>copy.entityId));
+ for(const parent of detached){
+  for(const copy of sketch.circleCopies || []){
+   const source=copy.offsetFrom ?? sketch.constraints?.find(c=>c.type==='offset'&&c.b===copy.entityId&&!c.suppressed&&linked.has(c.a))?.a;
+   if(source===parent)detached.add(copy.entityId);
+  }
+ }
  let changed=false;
  for(const key of ['circleCopies','silhouetteCopies']){
   if(!Array.isArray(sketch[key]))continue;
-  const retained=sketch[key].filter(copy=>copy?.entityId!==entityId);
+  const retained=sketch[key].filter(copy=>!detached.has(copy?.entityId));
   if(retained.length!==sketch[key].length){sketch[key]=retained;changed=true;}
  }
  return changed;
+}
+
+// Earlier saves could retain inherited edge copies after their parent
+// conversion was detached. Only recover a chain with a real local parent
+// circle and authored offset constraint. Missing references still diagnose.
+export function restoreLocalCircleOffsets(sketch){
+ for(const copy of sketch.circleCopies || []){
+  const parent=copy.offsetFrom;
+  if(parent==null || sketch.circleCopies.some(other=>other.entityId===parent))continue;
+  if(sketch.entities?.some(e=>e.id===parent&&e.type==='circle') &&
+     sketch.constraints?.some(c=>c.type==='offset'&&c.a===parent&&c.b===copy.entityId&&!c.suppressed)){
+   detachLinkedSketchEntity(sketch,parent);
+  }
+ }
 }
 
 /* All dimension-editing surfaces use this policy function. Keeping the policy

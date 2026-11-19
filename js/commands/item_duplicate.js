@@ -1,6 +1,7 @@
 // Duplicate one or more existing items from a fully serialized snapshot.
 // Capturing the source fields in prepare makes delayed confirmation sensitive
 // to source edits and lets command logs reproduce custom/cabinet instances.
+import { layoutSetId, setLayoutSetId } from "../group_frame.js";
 
 export const ITEM_DUPLICATE_CODES = Object.freeze([
   "INVALID_ITEM_SOURCE",
@@ -37,7 +38,8 @@ export function prepareItemDuplicate(params, env) {
     return !finite(Number(item.x)) || !finite(Number(item.z));
   })) return fail("INVALID_ITEM_POSITION");
   var copies;
-  try { copies = snapshot(sources); }
+  // a copy keeps no distances: the original's keeps name it by id (a copy kept to it would cycle or double)
+  try { copies = snapshot(sources); copies.forEach(function(copy) { delete copy.keep; }); }
   catch (_) { return fail("ITEM_DUPLICATE_FAILED"); }
   return { ok: true, plan: {
     command: "item.duplicate",
@@ -71,17 +73,37 @@ export function applyItemDuplicate(plan, env) {
   if (!state || !Array.isArray(state.items) || !finite(Number(state.idc)) || !params)
     return fail("ITEM_DUPLICATE_FAILED");
   var grouped = params.regroup && params.items.some(function(item) { return item.groupId != null; });
-  var groupId = grouped ? state.idc++ : null;
   var created = [];
+  var idMap = new Map();
+  var layoutCopies = new Map();
+  params.items.forEach(function(source) { idMap.set(source.id, state.idc++); });
+  var groupId = grouped ? state.idc++ : null;
   params.items.forEach(function(source) {
     var item = snapshot(source);
-    item.id = state.idc++;
+    item.id = idMap.get(source.id);
+    if (source.on != null) {
+      if (idMap.has(source.on)) item.on = idMap.get(source.on);
+      else { delete item.on; delete item.elev; }
+    }
+    for (const relation of ["facesId", "supportId", "anchorId"]) {
+      if (source[relation] == null) continue;
+      if (idMap.has(source[relation])) item[relation] = idMap.get(source[relation]);
+      else delete item[relation];
+    }
     item.x = Number(source.x) + params.offsetX;
     item.z = Number(source.z) + params.offsetZ;
     delete item.locked;
     delete item.runtimeState;
     if (grouped && source.groupId != null) item.groupId = groupId;
     else delete item.groupId;
+    const sourceSet = layoutSetId(source);
+    if (sourceSet != null) {
+      if (!layoutCopies.has(sourceSet)) {
+        const hasPeer = params.regroup && params.items.some(other => other !== source && layoutSetId(other) === sourceSet);
+        layoutCopies.set(sourceSet, hasPeer ? state.idc++ : null);
+      }
+      setLayoutSetId(item, layoutCopies.get(sourceSet));
+    }
     state.items.push(item);
     created.push({ kind: "item", id: item.id });
   });

@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -70,7 +71,7 @@ test('reusable formats/templates persist binding definitions but resolve the new
 });
 
 test('actual ordinary source selector reacquires normalized document after Undo and restores manual values',()=>{
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  const start=source.indexOf('function bindTitleSource('),end=source.indexOf('function buildSheetPanel(',start);
  assert.ok(start>=0&&end>start);let current=model().drawing,listener,history=[],paints=0;
  const picker={value:'description',addEventListener:(event,fn)=>{assert.equal(event,'change');listener=fn;}},host={};

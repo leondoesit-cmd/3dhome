@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The web app gets no Tauri IPC commands: it reaches the Rust side only through the mf scheme (assets and /api), exactly as it reaches the relay on the web.",
+  "windows": ["main"],
+  "permissions": []
+}

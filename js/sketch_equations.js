@@ -28,12 +28,9 @@ function tokenize(src) {
     const ch = src[i];
     if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r") { i++; continue; }
     if (ch >= "0" && ch <= "9" || (ch === "." && src[i + 1] >= "0" && src[i + 1] <= "9")) {
-      let j = i;
-      while (j < src.length && (src[j] >= "0" && src[j] <= "9" || src[j] === ".")) j++;
-      const text = src.slice(i, j);
-      if ((text.match(/\./g) || []).length > 1) throw new Error("Bad number: " + text);
-      out.push({ t: "num", v: parseFloat(text) });
-      i = j;
+      const text = src.slice(i).match(/^(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?/i)[0];
+      out.push({ t: "num", v: Number(text) });
+      i += text.length;
       continue;
     }
     if (/[A-Za-z_]/.test(ch)) {
@@ -76,10 +73,10 @@ export function expandUnitLiterals(src, unit) {
   const factors = UNIT_FACTORS[unit];
   const text = String(src == null ? "" : src);
   if (!factors) return text;
-  return text.replace(/(\d+(?:\.\d*)?|\.\d+)\s*(mm|cm|in|ft|m|deg|rad)\b/gi, (_, number, name) => {
+  return text.replace(/(^|[^A-Za-z0-9_.])(\d+(?:\.\d*)?|\.\d+)(?:([eE][+-]?\d+))?\s*(mm|cm|in|ft|m|deg|rad)\b/gi, (_, prefix, number, exponent, name) => {
     const factor = factors[name.toLowerCase()];
     if (factor == null) throw new Error("Incorrect unit for this field");
-    return "(" + number + "*" + factor + ")";
+    return prefix + "(" + number + (exponent || '') + "*" + factor + ")";
   });
 }
 
@@ -90,6 +87,7 @@ export function dimensionUnit(constraint) {
 /* ---- recursive-descent parser + evaluator ---- */
 function parse(tokens, lookup) {
   let pos = 0;
+  let depth = 0;
   const peek = () => tokens[pos];
   const eat = (t) => {
     if (!tokens[pos] || tokens[pos].t !== t) throw new Error("Expected " + t);
@@ -105,23 +103,26 @@ function parse(tokens, lookup) {
     return left;
   }
   function term() {
-    let left = power();
+    let left = unary();
     while (peek() && (peek().t === "*" || peek().t === "/" || peek().t === "%")) {
-      const op = tokens[pos++].t, right = power();
+      const op = tokens[pos++].t, right = unary();
       if ((op === "/" || op === "%") && right === 0) throw new Error("Division by zero");
       left = op === "*" ? left * right : op === "/" ? left / right : left % right;
     }
     return left;
   }
   function power() {
-    const base = unary();
-    if (peek() && peek().t === "^") { pos++; return Math.pow(base, power()); }  // right associative
+    const base = primary();
+    if (peek() && peek().t === "^") { pos++; return Math.pow(base, unary()); }  // right associative
     return base;
   }
   function unary() {
-    if (peek() && peek().t === "-") { pos++; return -unary(); }
-    if (peek() && peek().t === "+") { pos++; return unary(); }
-    return primary();
+    if (++depth > MAX_DEPTH) throw new Error("Expression nests too deeply");
+    try {
+      if (peek() && peek().t === "-") { pos++; return -unary(); }
+      if (peek() && peek().t === "+") { pos++; return unary(); }
+      return power();
+    } finally { depth--; }
   }
   function primary() {
     const tok = peek();
@@ -160,7 +161,10 @@ function parse(tokens, lookup) {
 /* Evaluate one expression against a symbol lookup. Throws with a message meant
    to be shown next to the field the user typed it into. */
 export function evaluateExpression(src, lookup = () => undefined) {
-  if (typeof src === "number") return src;
+  if (typeof src === "number") {
+    if (!Number.isFinite(src)) throw new Error("Result is not a number");
+    return src;
+  }
   const text = String(src == null ? "" : src).trim();
   if (!text) throw new Error("Empty expression");
   const value = parse(tokenize(text), lookup);
@@ -189,11 +193,23 @@ export function collectSymbols(def) {
    order, and write the results back onto the nodes. A cycle or a bad expression
    leaves the last good value in place and is reported — a document that stops
    rebuilding because of one typo in one field is not a usable document. */
-export function resolveEquations(def) {
+export function resolveEquations(def, suppressedSketchIds) {
   const symbols = collectSymbols(def);
   const cache = new Map();
   const visiting = new Set();
   const errors = [];
+
+  // Keep every named dimension available to valueOf. A suppressed equation
+  // can still be a dependency of an active expression. Report the failure at
+  // each active consumer, even if its input has a last good numeric value.
+  function reportError(node, name, sketch, error) {
+    if (sketch && (suppressedSketchIds?.has(sketch.id) ?? sketch.suppressed)) {
+      node.exprError = null;
+      return;
+    }
+    node.exprError = String(error.message || error);
+    errors.push({name, sketchId:sketch?.id, message:node.exprError});
+  }
 
   function nodeExpression(entry) {
     return entry.kind === "variable" ? entry.node.expr : entry.node.expr;
@@ -229,8 +245,7 @@ export function resolveEquations(def) {
       entry.node.value = value;
       entry.node.exprError = null;
     } catch (error) {
-      entry.node.exprError = String(error.message || error);
-      errors.push({ name, message: entry.node.exprError });
+      reportError(entry.node, name, entry.sketch, error);
     }
   });
 
@@ -243,8 +258,7 @@ export function resolveEquations(def) {
         c.value = evaluateExpression(expandUnitLiterals(c.expr, dimensionUnit(c)), (ref) => valueOf(ref, 0));
         c.exprError = null;
       } catch (error) {
-        c.exprError = String(error.message || error);
-        errors.push({ name: c.id, message: c.exprError });
+        reportError(c, c.id, sketch, error);
       }
     });
   });

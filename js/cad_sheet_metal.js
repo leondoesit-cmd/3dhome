@@ -1,3 +1,5 @@
+import { hingeIntervals, sheetForExport } from "./cad_sheet_hinge.js";
+
 export function bendAllowance(angleDeg, insideRadius, thickness, kFactor = 0.33) {
   return Math.abs(angleDeg) * Math.PI / 180 * (Math.max(0, insideRadius) + Math.max(0, thickness) * kFactor);
 }
@@ -88,11 +90,29 @@ function rectangleOutline(rectangles) {
   return points.filter((p,i)=>{const a=points[(i+points.length-1)%points.length],b=points[(i+1)%points.length];return (p[0]-a[0])*(b[1]-p[1])!==(p[1]-a[1])*(b[0]-p[0]);}).map(([x,y])=>({x,y}));
 }
 
-export function flatPattern(sheet) {
+// Document exports must account for the active history. Standalone sheet recipes
+// are also used to validate an uncommitted flange or hinge in its form.
+export function flatPattern(source) {
+  const sheet = source.sheetMetal ? sheetForExport(source) : source;
   const w=Number(sheet.base?.width), h=Number(sheet.base?.height);
   if(![w,h].every(value=>Number.isFinite(value)&&value>0))throw new Error("Flat pattern requires positive base dimensions");
   if(!Number.isFinite(sheet.thickness)||sheet.thickness<=0||!Number.isFinite(sheet.insideRadius)||sheet.insideRadius<0||!Number.isFinite(sheet.kFactor)||sheet.kFactor<0||sheet.kFactor>.5)throw new Error("Flat pattern requires valid thickness, bend radius and K factor");
   if(sheet.bendRule?.type==="table")validateBendTable(sheet.bendRule);
+  if (sheet.hinge) {
+    if (sheet.flanges?.length || sheet.bendRule?.type==="table") throw new Error("Rolled hinge tabs require a plain base with a K-factor bend rule.");
+    const {edge,radius,straight} = sheet.hinge;
+    if (!["top","bottom","left","right"].includes(edge) || !Number.isFinite(radius) || radius<=0 || !Number.isFinite(straight) || straight<=0) throw new Error("Invalid rolled hem edge, straight length or radius.");
+    const horizontal = edge==="top" || edge==="bottom";
+    const allowance = bendAllowance(270,radius,sheet.thickness,sheet.kFactor);
+    const rectangles = [[0,0,w,h]], bends = [];
+    const at = (s,d) => horizontal ? {x:s,y:edge==="top"?h+d:-d} : {x:edge==="right"?w+d:-d,y:s};
+    for (const {start,end} of hingeIntervals(horizontal?w:h,sheet.hinge)) {
+      const a = at(start,0), b = at(end,straight+allowance);
+      rectangles.push([Math.min(a.x,b.x),Math.min(a.y,b.y),Math.max(a.x,b.x),Math.max(a.y,b.y)]);
+      bends.push({kind:"rolled-hem",edge,radius,angle:270,allowance,line:[at(start,straight),at(end,straight)]});
+    }
+    return {outline:rectangleOutline(rectangles),bends,reliefs:[],thickness:sheet.thickness,units:"cm",unfoldRule:{type:"k-factor",kFactor:sheet.kFactor}};
+  }
   const edges=new Set(), extent={left:0,right:0,top:0,bottom:0}, bends=[];
   for(const f of sheet.flanges || []){
     if(!["left","right","top","bottom"].includes(f.edge) || edges.has(f.edge))throw new Error("Flat pattern requires one full-width flange per edge");

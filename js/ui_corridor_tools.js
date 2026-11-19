@@ -14,6 +14,7 @@ import {planningPlacementScene} from './planning_scene.js';
 import {footprint} from './layout_analysis.js';
 import {openingCorners} from './slab_openings.js';
 import {watchPlanningActivity} from './planning_activity.js';
+import {toDisp,fromDisp} from './display_units.js';
 let worker=null,preview=null,activeStamp=null;const values={x:-500,z:-500,width:2000,depth:2000,clear:90};
 let selectedStart=null,selectedEnd=null,permittedConsent=false;
 const cancel=()=>{worker?.terminate();worker=null;preview=null;activeStamp=null;clearAgentPreview();};
@@ -37,7 +38,7 @@ export function corridorToolsSection(helpers){
  if(selectedEnd!=null)selects[1].value=selectedEnd;else if(doors.length>1)selects[1].value=doors[1].id;
  selects.forEach((select,index)=>select.addEventListener('change',()=>{if(index===0)selectedStart=select.value;else selectedEnd=select.value;cancel();changed();}));
  for(const key of Object.keys(values)){
-  const input=el('input');input.type='number';input.step='any';input.value=values[key];input.addEventListener('change',()=>{values[key]=Number(input.value);cancel();changed();});node.append(field('corridor_'+key,input));
+  const input=el('input');input.type='number';input.step='any';input.value=Number(toDisp(values[key]).toFixed(4));input.addEventListener('change',()=>{values[key]=fromDisp(Number(input.value));cancel();changed();});node.append(field('corridor_'+key,input));
  }
  const consent=el('input');consent.type='checkbox';node.append(field('corridor_permitted',consent));
  consent.checked=permittedConsent;consent.addEventListener('change',()=>{permittedConsent=consent.checked;cancel();changed();});

@@ -62,6 +62,18 @@ window.__runColorContrastAudit = function(stageName, themeName) {
         a: m[4] !== undefined ? parseFloat(m[4]) : 1
       };
     }
+    /* color-mix() computes to color(srgb r g b / a) with 0-1 channels. Read
+       as transparent, the walk fell through to the dark canvas behind a cream
+       pill and reported the soft theme's filter bar as unreadable. */
+    const c = str.match(/color\\(srgb\\s+([\\d.e-]+)\\s+([\\d.e-]+)\\s+([\\d.e-]+)(?:\\s*\\/\\s*([\\d.e-]+))?\\s*\\)/);
+    if (c) {
+      return {
+        r: Math.round(parseFloat(c[1]) * 255),
+        g: Math.round(parseFloat(c[2]) * 255),
+        b: Math.round(parseFloat(c[3]) * 255),
+        a: c[4] !== undefined ? parseFloat(c[4]) : 1
+      };
+    }
     // Hex
     if (str.startsWith("#")) {
       const hex = str.slice(1);

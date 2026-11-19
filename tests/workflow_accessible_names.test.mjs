@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 test('Part workflow accessible names follow current history and sketch status after assembly context changes',()=>{
  const keys=['Context','Reference','Sketch','Feature','History'];
  const buttons=keys.map(text=>({heading:{textContent:text},detail:{textContent:''},attrs:{'aria-label':'old assembly label'},classList:{toggle(){}},querySelector:()=>null,querySelectorAll(){return [this.heading,this.detail];},setAttribute(key,value){this.attrs[key]=value;},removeAttribute(key){delete this.attrs[key];}}));

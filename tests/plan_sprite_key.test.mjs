@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
 import { spriteKey, spriteBucket, spriteMode, SPRITE_BUCKETS } from "../js/plan_sprite_key.js";
 
 const sofa = { id: 7, type: "sofa", x: 100, z: 50, rot: 90, w: 220, d: 90, h: 85, variant: "grey" };
@@ -21,6 +22,53 @@ test("sprite key changes with anything the builder reads", () => {
   assert.notEqual(spriteKey({ ...sofa, configuration: { stepCount: 12 } }, 256, 0), k);
   assert.notEqual(spriteKey(sofa, 128, 0), k);
   assert.notEqual(spriteKey(sofa, 256, 1), k);
+});
+
+test("an immediate warm reload finds every materialised seed-3 sprite", async () => {
+  const hooks = registerHooks({ resolve(specifier, context, next) {
+    if (specifier === "three") return { url: new URL("../vendor/three/three.module.js", import.meta.url).href, shortCircuit: true };
+    if (specifier.startsWith("three/addons/")) return { url: new URL("../vendor/three/addons/" + specifier.slice(13), import.meta.url).href, shortCircuit: true };
+    return next(specifier, context);
+  } });
+  try {
+    const { S } = await import("../js/state.js"), { FURN } = await import("../js/furniture.js");
+    const { apartmentGenerateCommand } = await import("../js/generator.js");
+    const { executeCommand } = await import("../js/commands/executor.js");
+    const { rebuildProject } = await import("../js/core/project.js");
+    function generate() {
+      const r = executeCommand(apartmentGenerateCommand, { size: "large", seed: 3, replace: true,
+        replaceInfrastructure: true, infrastructure: true }, { domain: "planner", state: S, itemCatalog: FURN }, { history: false });
+      assert.equal(r.ok, true);
+    }
+    const defaults = new Map();
+    const key = it => spriteKey(it, 128, 0, FURN[it.type], S.parametric?.definitions?.[it.definitionId], defaults);
+    generate();
+    rebuildProject(S, FURN);
+    const disk = new Set(S.items.map(key));
+    generate();
+    for (const it of S.items) {
+      if (it.facesId != null) it.facesId += 100;
+      if (it.configuration?.layoutSetId != null) it.configuration.layoutSetId += 100;
+    }
+    assert.ok(S.items.length > 30);
+    assert.equal(S.items.filter(it => !disk.has(key(it))).length, 0, "geometry builds required for cached pictures");
+  } finally {
+    hooks.deregister();
+  }
+});
+
+test("configuration overrides and edited or custom definitions retain their own picture", () => {
+  const entry = { w: 220, d: 90, h: 85 };
+  const key = (it, definition) => spriteKey(it, 128, 0, entry, definition);
+  const original = key(sofa);
+  assert.notEqual(original, key({ ...sofa, configuration: { seatCount: 5 } }));
+  assert.notEqual(original, key({ ...sofa, parameterOverrides: { width: 240 } }));
+  assert.notEqual(original, key({ ...sofa, parameterOverrides: { customDepth: 20 } }));
+  assert.notEqual(original, key({ ...sofa, definitionId: "custom:sofa" }));
+  const it = { ...sofa, definitionId: "builtin:sofa" };
+  const edited = { revision: 2, metadata: { source: "built-in-library" } };
+  assert.notEqual(original, key(it, edited));
+  assert.notEqual(key(it, edited), key(it, { ...edited, revision: 3 }));
 });
 
 test("sprite bucket covers the longest side on screen", () => {

@@ -100,3 +100,16 @@ test("opening.place rejects overwide, overheight, overlapping and locked hosts w
  assert.equal(prepareOpeningPlace({wallId:10,type:'door',s:150},env).reason,'OPENING_OVERLAP');
  state.walls[0].locked=true;assert.equal(prepareOpeningPlace({wallId:10,type:'door',s:300},env).reason,'HOST_WALL_LOCKED');
 });
+
+test("opening.place carries a door swing through to the opening, and only a valid one", () => {
+  const state = fixture();
+  const env = { state, version: { current: () => 1 } };
+  const prepared = prepareOpeningPlace({ wallId: 10, type: "door", s: 200, swingDir: "R_OUT" }, env);
+  assert.equal(prepared.ok, true);
+  assert.equal(prepared.plan.params.swingDir, "R_OUT");
+  assert.equal(applyOpeningPlace(prepared.plan, env).ok, true);
+  assert.equal(state.openings[0].swingDir, "R_OUT");
+  assert.equal(prepareOpeningPlace({ wallId: 11, type: "door", s: 200 }, env).plan.params.swingDir, undefined);
+  assert.equal(prepareOpeningPlace({ wallId: 11, type: "door", s: 200, swingDir: "UP" }, env).reason, "INVALID_OPENING_VALUE");
+  assert.equal(prepareOpeningPlace({ wallId: 11, type: "window", s: 200, swingDir: "R_IN" }, env).reason, "INVALID_OPENING_VALUE");
+});

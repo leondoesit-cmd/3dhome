@@ -1,0 +1,1403 @@
+/* ==========================================================================
+   Phone / foldable finishing pass
+
+   The first mobile layer establishes drawers, touch targets and hinge modes.
+   These rules keep the surrounding chrome inside the actual visual viewport:
+   one shared block-size token prevents the CAD status bar, drawers and bottom
+   navigation from disagreeing by the nav's padding/border width.
+   ========================================================================== */
+body.compact-nav {
+  /* Everything fixed below the chrome reads the block: the top bar row plus
+     the editor strip under it (#m-editor-strip, css/pro_ribbon.css). */
+  --mobile-topbar-row: calc(48px + env(safe-area-inset-top));
+  --m-editor-strip: 44px;
+  --mobile-topbar-block: calc(var(--mobile-topbar-row) + var(--m-editor-strip));
+  --mobile-nav-block: calc(56px + env(safe-area-inset-bottom));
+}
+
+body.compact-nav #app {
+  height: 100dvh;
+}
+
+body.compact-nav #topbar {
+  box-sizing: border-box;
+  height: var(--mobile-topbar-row);
+  min-height: var(--mobile-topbar-row);
+  padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+  gap: 4px;
+  overflow: hidden;
+}
+
+/* The bottom nav already owns view switching. File/Edit/Export live in the
+   More sheet (cloned from these buttons, which stay in the DOM but hidden).
+   CAD stays one tap away — it is the other editor, not a menu item. */
+body.compact-nav #topbar .tb-center > :not(#m-top-selection),
+body.compact-nav #topbar .tb-start > .separator,
+body.compact-nav #topbar .tb-start > #workspaceBtn,
+body.compact-nav #topbar .tb-start > button:not(#toggle-left):not(#openModelerTop),
+body.compact-nav #topbar .tb-start > .dropdown,
+body.compact-nav #topbar .tb-start > .history-dropdown-wrap,
+body.compact-nav #plannerTutorialBtn,
+body.compact-nav #videoStudioBtn {
+  display: none !important;
+}
+body.compact-nav #openModelerTop.legacy-chrome {
+  display: none !important;
+}
+body.compact-nav #topbar {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+body.compact-nav #topbar .tb-center {
+  display: flex;
+  min-width: 0;
+  align-self: stretch;
+  overflow: hidden;
+}
+.m-top-selection {
+  display: none;
+}
+body.compact-nav #m-top-selection:not([hidden]) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding-inline: 4px;
+  line-height: 1;
+  text-align: center;
+}
+body.compact-nav .m-top-selection-phase {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--success);
+  font-size: max(8px, var(--fs-floor, 0px));
+  font-weight: 750;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.compact-nav .m-top-selection-phase.is-existing { color: var(--text-muted); }
+body.compact-nav .m-top-selection-phase.is-demolition { color: var(--danger); }
+body.compact-nav .m-top-selection-name {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--accent);
+  font-size: clamp(15px, 4.5vw, 19px);
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.compact-nav #topbar .tb-start,
+body.compact-nav #topbar .tb-end {
+  min-width: 0;
+  gap: 2px;
+}
+/* Search and the live selection title are the useful mobile topbar content.
+   Model Editor, Settings and the second More menu all live in bottom More. */
+body.compact-nav #topbar .tb-end {
+  display: none !important;
+}
+body.compact-nav #topbar .tb-start {
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+body.compact-nav #topbar .tb-end {
+  flex: 0 0 auto;
+}
+body.compact-nav #topbar .dropdown-trigger .caret,
+body.compact-nav #langBtn span {
+  display: none;
+}
+body.compact-nav #topbar .tb-start > .dropdown,
+body.compact-nav #topbar .tb-end > .dropdown {
+  flex: 0 0 auto;
+}
+body.compact-nav #topbar .tb-start button,
+body.compact-nav #topbar .tb-end button {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  gap: 0;
+}
+
+body.compact-nav #mobile-nav {
+  box-sizing: border-box;
+  height: var(--mobile-nav-block);
+  min-height: var(--mobile-nav-block);
+  padding: 4px max(6px, env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+}
+body.compact-nav #workspace {
+  margin-bottom: var(--mobile-nav-block);
+}
+body.compact-nav #left-sidebar,
+body.compact-nav #right-inspector {
+  top: var(--mobile-topbar-block);
+  bottom: var(--mobile-nav-block);
+  max-height: calc(100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block));
+}
+body.compact-nav #chat-dock,
+body.compact-nav .agent-dock {
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve, 0px) + 8px);
+  max-height: calc(100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block) - var(--m-ctx-reserve, 0px) - 16px);
+  inset-inline-end: 8px;
+  width: calc(100vw - 16px);
+  max-width: 360px;
+}
+body.compact-nav #inspectorPreviewRoof {
+  display: none !important;
+}
+
+/* Phone portrait and cover displays: preserve most of the plan for drawing.
+   The drawer is still wide enough for form labels, with a sliver of backdrop
+   left as an additional close target. */
+@media (max-width: 480px) {
+  #left-sidebar,
+  #right-inspector {
+    width: min(82vw, 320px);
+    max-width: none;
+  }
+  .panel-section {
+    padding-inline: 14px;
+  }
+  #plan-wall-palette {
+    width: min(196px, calc(100vw - 84px));
+  }
+  .start-screen {
+    box-sizing: border-box;
+    align-items: flex-start;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    overflow-y: auto;
+  }
+  .start-card {
+    box-sizing: border-box;
+    padding: 20px 16px 14px;
+    max-height: none;
+  }
+}
+
+/* Phone landscape (including large S/iPhone variants): keep a single useful
+   canvas, use a shallower nav, and present menus as reachable bottom sheets. */
+@media (max-width: 1024px) and (max-height: 500px) {
+  body.compact-nav {
+    --mobile-nav-block: calc(54px + env(safe-area-inset-bottom));
+  }
+  body.compact-nav #mobile-nav button {
+    min-height: 42px;
+    flex-direction: row;
+    gap: 5px;
+    padding: 2px 6px;
+  }
+  body.compact-nav #mobile-nav button i {
+    font-size: 18px;
+  }
+  #cad-status {
+    height: 32px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  #cad-status::-webkit-scrollbar,
+  #cad-status .cad-coord {
+    display: none;
+  }
+  .dropdown-menu.open {
+    position: fixed;
+    left: max(0px, env(safe-area-inset-left)) !important;
+    right: max(0px, env(safe-area-inset-right));
+    top: auto !important;
+    bottom: calc(var(--mobile-nav-block, 0px) + var(--m-ctx-reserve, 0px) + var(--kb, 0px));
+    box-sizing: border-box;
+    width: auto;
+    min-width: 0;
+    max-height: calc(100dvh - var(--mobile-topbar-block, 56px) - var(--mobile-nav-block, 0px) - var(--m-ctx-reserve, 0px));
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+  }
+  /* Short landscape: overlay the contextual row instead of stacking it. The
+     CAD strip is already duplicated in that row. */
+  body.compact-nav.sheet-drawers {
+    --m-ctx-reserve: 0px;
+  }
+  body.compact-nav.sheet-drawers #m-ctx,
+  body.compact-nav.sheet-drawers #md-ctx {
+    background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
+  }
+  body.compact-nav #cad-status {
+    display: none !important;
+  }
+  body.sheet-drawers #cabdes.cb-compact {
+    --cbm-ctx-reserve: 0px;
+  }
+  body.sheet-drawers #cabdes.cb-compact .cb-m-ctx {
+    background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
+  }
+}
+
+/* Fold inner displays get a slightly roomier drawer without consuming half of
+   the canvas. Hinge-aware row/stack splitting remains owned by fold-span and
+   fold-stack above. */
+@media (min-width: 700px) and (max-width: 1024px) {
+  body.show-left #left-sidebar,
+  body.show-right #right-inspector {
+    width: clamp(320px, 38vw, 360px);
+  }
+}
+
+/* On phones the drawing tools form a bottom rail instead of consuming a tall
+   strip along the plan. It sits above the CAD status row; overflow pans
+   sideways so every command remains reachable without shrinking touch areas. */
+@media (max-width: 1024px) {
+  #plan-tools {
+    top: auto;
+    bottom: 36px;
+    inset-inline: 8px;
+    width: calc(100% - 16px);
+    height: auto;
+    max-height: calc(100% - 50px);
+    transform: none;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 6px;
+  }
+  #plan-toolbar {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    touch-action: pan-x;
+  }
+  #plan-toolbar > * {
+    scroll-snap-align: center;
+  }
+  #plan-toolbar .tb-sep {
+    width: 1px;
+    height: 32px;
+    margin: 4px 2px;
+  }
+  #plan-wall-palette {
+    width: min(100%, 420px);
+    max-height: min(52vh, 360px);
+    align-self: flex-start;
+  }
+  /* The CAD status row already carries the active-tool instruction here; the
+     floating duplicate would sit directly over the horizontal tool rail. */
+  .plan-hint {
+    display: none !important;
+  }
+
+  .left-tabs button {
+    min-height: 40px;
+    padding-block: 6px;
+  }
+}
+
+/* A narrow phone shows seven of eleven commands at once. The edge cue makes
+   the horizontal continuation discoverable before the user happens to swipe. */
+@media (max-width: 480px) {
+  #plan-tools::after {
+    content: "›";
+    position: absolute;
+    inset-inline-end: 2px;
+    bottom: 4px;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 52px;
+    border-radius: 0 12px 12px 0;
+    color: var(--text-main);
+    font-size: 24px;
+    line-height: 1;
+    pointer-events: none;
+    background: linear-gradient(to left, var(--bg-panel) 45%, transparent);
+  }
+  html[dir="rtl"] #plan-tools::after {
+    content: "‹";
+    border-radius: 12px 0 0 12px;
+    background: linear-gradient(to right, var(--bg-panel) 45%, transparent);
+  }
+}
+
+/* In phone landscape the available height is scarce but the width is ample.
+   Lay the three wall-option groups side by side so Edit is visible without an
+   undiscoverable vertical scroll inside an already short canvas. */
+@media (max-width: 1024px) and (max-height: 500px) {
+  #plan-wall-palette {
+    display: grid;
+    grid-template-columns: minmax(300px, 1.4fr) minmax(220px, 1fr) minmax(220px, 1fr);
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  #plan-wall-palette .wd-types {
+    grid-template-columns: repeat(7, minmax(40px, 1fr));
+  }
+  #plan-wall-palette .wd-loc,
+  #plan-wall-palette .wd-edit {
+    grid-template-columns: repeat(5, minmax(40px, 1fr));
+  }
+}
+
+/* Compact-density chrome for phones and foldables. The canvas is the product;
+   secondary rails give up padding before either drawing pane gives up space. */
+@media (max-width: 1024px) {
+  #floor-tabs {
+    box-sizing: border-box;
+    height: 32px;
+    min-height: 32px;
+    padding: 3px 8px;
+    gap: 4px;
+  }
+  #floor-tabs button {
+    box-sizing: border-box;
+    height: 26px;
+    min-height: 26px;
+    padding: 3px 8px;
+    font-size: max(11px, var(--fs-floor, 0px));
+  }
+  #plan-toolbar {
+    gap: 2px;
+    padding: 4px;
+    border-radius: 12px;
+  }
+  #plan-toolbar .tool {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 9px;
+  }
+  #plan-toolbar .tool i {
+    font-size: 1.15rem;
+  }
+  #plan-toolbar .tb-sep {
+    height: 28px;
+    margin-block: 2px;
+  }
+  #plan-wall-palette {
+    gap: 5px;
+    padding: 6px;
+    border-radius: 12px;
+  }
+  #plan-wall-palette .wd-btn,
+  #plan-wall-palette .wd-loc-btn {
+    min-width: 38px;
+    min-height: 38px;
+  }
+  #plan-wall-palette .wd-lab {
+    font-size: max(10px, var(--fs-floor, 0px));
+  }
+  #cad-status {
+    height: 30px;
+    min-height: 30px;
+    gap: 6px;
+    font-size: max(10px, var(--fs-floor, 0px));
+  }
+  .cad-chip {
+    height: 23px;
+    padding-inline: 7px;
+  }
+  .panel-section {
+    padding: 10px 12px;
+    gap: 9px;
+  }
+}
+
+body.compact-nav #mobile-nav {
+  gap: 2px;
+  padding-top: 2px;
+}
+body.compact-nav #mobile-nav button {
+  min-height: 44px;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 10px;
+  font-size: max(10px, var(--fs-floor, 0px));
+}
+body.compact-nav #mobile-nav button i {
+  font-size: 18px;
+}
+body.compact-nav #mobile-nav button span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.compact-nav #mobile-nav button[data-mnav="view"] span::after {
+  content: " ▾";
+  font-size: max(8.5px, var(--fs-floor, 0px));
+  opacity: 0.65;
+  margin-inline-start: 2px;
+}
+@media (max-width: 360px) {
+  #cabdes.cb-compact .cb-m-nav button span {
+    display: none;
+  }
+  /* Five 56px slots still fit a Fold cover display.  Removing every caption
+     made View / Tools / Properties indistinguishable; keep the planner labels
+     and trim only the genuinely long translation. */
+  body.compact-nav #mobile-nav button {
+    padding-inline: 1px;
+    font-size: max(9px, var(--fs-floor, 0px));
+    letter-spacing: -0.015em;
+  }
+  body.compact-nav #mobile-nav button span {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* The model editor's five destinations are domain-specific; an icon alone
+     is not enough to distinguish Tree, Commands, and Properties. Keep their
+     short labels on Fold cover screens and trim only overflowing text. */
+  body.compact-nav #md-nav button {
+    padding-inline: 1px;
+    font-size: max(9px, var(--fs-floor, 0px));
+  }
+  body.compact-nav #md-nav button > span:not(.md-nav-glyph) {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Portrait / unfolded Fold: put each wall-option label beside its controls.
+   Three compact rows keep every command visible while returning roughly one
+   fifth of the former palette height to the drawing. */
+@media (max-width: 1024px) and (min-height: 501px) {
+  #plan-wall-palette .wd-sec {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    align-items: center;
+    gap: 4px;
+  }
+  #plan-wall-palette .wd-lab {
+    padding: 0;
+    line-height: 1.15;
+  }
+  #plan-wall-palette .wd-types {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+  #plan-wall-palette .wd-loc,
+  #plan-wall-palette .wd-edit {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  #plan-wall-palette .wd-btn,
+  #plan-wall-palette .wd-loc-btn {
+    width: auto;
+    min-width: 0;
+    height: 36px;
+    min-height: 36px;
+  }
+}
+
+/* ==========================================================================
+   Mobile shell — two rows instead of four bars
+   (markup + behaviour: js/mobile_shell.js)
+
+   Everything below is scoped to body.compact-nav, so the desktop layout is
+   byte-for-byte unaffected. Three postures share these rules:
+
+     .sheet-drawers  phone / cover screen — panels rise as bottom sheets over a
+                     plan that stays visible behind them.
+     .dock-rail      unfolded foldable / tablet in landscape — the same panels
+                     become columns beside the canvas, because past ~700px of
+                     width that is what the extra width is FOR.
+     .split-row      panes side by side rather than stacked, chosen by aspect
+                     ratio (see applyCompactNav in js/ui.js for why not by the
+                     hinge media queries).
+   ========================================================================== */
+
+body.compact-nav {
+  --m-ctx-block: 48px;
+  --m-ctx-reserve: var(--m-ctx-block);
+}
+
+/* ---- the contextual row -------------------------------------------------- */
+
+#m-ctx {
+  display: none;
+}
+body.compact-nav #m-ctx {
+  display: flex;
+  position: fixed;
+  inset-inline: 0;
+  bottom: var(--mobile-nav-block);
+  z-index: 58;
+  box-sizing: border-box;
+  height: var(--m-ctx-block);
+  align-items: stretch;
+  gap: 6px;
+  padding: 4px max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left));
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  /* Scrolls horizontally when space is tight; hidden scrollbar keeps the row clean. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+body.compact-nav #m-ctx::-webkit-scrollbar { display: none; }
+/* Undo/Redo are pinned to the leading edge and never move, whatever the row
+   is showing — they are the only two controls that must be in the same place
+   every single time the user looks down. */
+.mctx-undo {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding-inline-end: 6px;
+  border-inline-end: 1px solid var(--border-color);
+}
+.mctx-undo .mctx-btn {
+  width: 44px;
+  min-width: 44px;
+  flex: 0 0 auto;
+}
+.mctx-undo .mctx-btn span {
+  display: none;
+}
+.mctx-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mctx-btn i {
+  font-size: 1.15rem;
+  flex: 0 0 auto;
+}
+.mctx-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mctx-btn:disabled {
+  opacity: 0.45;
+}
+.mctx-btn:active {
+  background: var(--btn-bg-hover);
+}
+.mctx-btn.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.mctx-btn.danger {
+  color: var(--danger);
+}
+.mctx-chip {
+  font-size: max(11px, var(--fs-floor, 0px));
+  letter-spacing: 0.02em;
+}
+
+/* ---- five-slot bottom nav ------------------------------------------------ */
+
+body.compact-nav #mobile-nav button {
+  /* On an unfolded foldable the same five buttons would otherwise stretch to
+     160px each — a label adrift in an empty field. */
+  max-width: 132px;
+  margin-inline: auto;
+}
+body.compact-nav #mobile-nav button:disabled {
+  opacity: 0.45;
+}
+body.compact-nav #mobile-nav button.is-disabled {
+  opacity: 0.48;
+}
+body.compact-nav #mobile-nav button.armed i {
+  color: var(--accent);
+}
+/* Add is the primary action of the whole app; it is the one slot that should
+   read as a button rather than as a tab. */
+body.compact-nav #mobile-nav .mnav-primary i {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 17px;
+}
+body.compact-nav #mobile-nav .mnav-primary.active i {
+  background: var(--accent);
+}
+
+/* Room for both rows: the workspace, the drawers and any docked panel all stop
+   above the nav AND the contextual row. */
+body.compact-nav #workspace {
+  margin-bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
+}
+body.compact-nav #left-sidebar,
+body.compact-nav #right-inspector {
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
+  max-height: calc(
+    100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block) - var(--m-ctx-reserve) - var(--kb, 0px)
+  );
+}
+
+/* ---- what the two rows replace ------------------------------------------- */
+
+/* The floating tool rail now lives in the Tools sheet, labelled and complete.
+   The wall palette follows it there via the same sheet (it is a child). Both
+   are hidden individually at the end of this file rather than by hiding their
+   #plan-tools box, because the layer chips share that box and stay on screen —
+   the work set has to be switchable while you are looking at the plan. */
+/* The status bar's chips moved into the contextual row and its coordinate
+   readout is of no use on a touch screen — but the per-tool instruction is, so
+   it stays as a slim strip at the TOP of the plan, out of the thumb arc. */
+body.compact-nav #cad-status {
+  top: 0;
+  bottom: auto;
+  height: 44px;
+  min-height: 44px;
+  border-top: none;
+  border-bottom: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-panel) 82%, transparent);
+  pointer-events: none;
+  gap: 8px;
+  padding-inline: 10px 6px;
+}
+body.compact-nav #cad-status .cad-coord,
+body.compact-nav #cad-status .cad-snap,
+body.compact-nav #cad-status .cad-target,
+body.compact-nav #cad-status .cad-toggles,
+body.compact-nav #cad-status .cad-tune-btn {
+  display: none !important;
+}
+body.compact-nav #cad-status .cad-main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.compact-nav #cad-status .cad-main.is-selection {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.15;
+}
+body.compact-nav #cad-status .cad-main.is-selection #cadName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+body.compact-nav #cad-status .cad-main.is-selection #cadDetail {
+  color: var(--text-muted);
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 550;
+}
+body.compact-nav #cad-status .cad-main.is-selection #cadDetail::before { content: none; }
+body.compact-nav #cad-status .cad-selection-props:not([hidden]) {
+  display: inline-flex;
+  pointer-events: auto;
+  width: 44px;
+  min-width: 44px;
+  height: 40px;
+  padding: 0;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border-color));
+  background: var(--accent-soft);
+}
+body.compact-nav #cad-status .cad-selection-props span { display: none; }
+body.compact-nav #cad-status .cad-selection-props i { font-size: 20px; }
+
+/* One orientation gizmo per pane is right; two of them plus two maximize
+   buttons plus a pane label, all inside 375px, is not. The View sheet owns
+   pane switching now, so the maximize buttons and the pane label go. */
+body.compact-nav .view-max-btn,
+body.compact-nav #view-3d > .lbl,
+/* The permanent gesture hint is a paragraph parked over the model. On a phone
+   the pane it covers is the entire product, and on a 280px-wide half of an
+   unfolded split it wraps to four lines. The per-tool instruction that IS
+   worth showing lives in the slim strip at the top of the plan. */
+body.compact-nav #view-3d > .hint,
+body.compact-nav #view-2d > .hint {
+  display: none !important;
+}
+body.compact-nav .view-gizmo {
+  width: 64px;
+  height: 64px;
+}
+/* Pull the 3D gizmo out of the thumb arc it used to sit in. */
+body.compact-nav #view-3d .view-gizmo {
+  bottom: auto;
+  top: 154px;
+  inset-inline-end: 10px;
+}
+/* Edit is already present in the mobile contextual row; a duplicate here
+   competes with the orientation gizmo for the same corner. */
+body.compact-nav #edit3dBtn {
+  display: none !important;
+}
+
+.walk-touch-controls {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 14;
+  pointer-events: none;
+}
+.walk-touch-controls[hidden] { display: none; }
+.walk-stick {
+  position: absolute;
+  inset-inline-start: max(20px, env(safe-area-inset-left));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  width: 104px;
+  height: 104px;
+  border: 1px solid rgba(255,255,255,.38);
+  border-radius: 50%;
+  background: rgba(16,20,28,.42);
+  box-shadow: 0 4px 20px rgba(0,0,0,.24);
+  backdrop-filter: blur(5px);
+  touch-action: none;
+  pointer-events: auto;
+}
+.walk-stick span {
+  position: absolute;
+  left: 32px;
+  top: 32px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.82);
+  box-shadow: 0 2px 10px rgba(0,0,0,.28);
+}
+body.compact-nav .walk-stick {
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + 12px);
+}
+
+@media (pointer: coarse) {
+  .walk-touch-controls:not([hidden]) { display: block; }
+  .menu-kbd, .history-kbd, #modeler kbd { display: none !important; }
+  .mctx-btn { min-height: 44px; }
+}
+
+@media (pointer: coarse) {
+  textarea,
+  input[type="password"],
+  input[type="email"],
+  input[type="tel"] {
+    font-size: 16px; /* prevent iOS auto-zoom on focus */
+  }
+}
+
+@media (max-width: 390px) {
+  /* Narrow phones: tighten the row, but keep the words. The verbs that can
+     afford to lose their label ask for it themselves with .mctx-icon-only —
+     blanking every label here left Accept/Cancel and the coach's next step as
+     unlabelled glyphs on exactly the widths this rule was meant to serve. */
+  .mctx-btn { padding-inline: 5px; }
+}
+/* The View tab already switches Plan / 3D / Split. A CAD view-cube on the
+   2D sheet spends a thumb-sized corner and reads as a second camera. */
+body.compact-nav .plan-gizmo {
+  display: none;
+}
+
+/* On a cover display the blueprint/visibility controls occupy the same top
+   edge as the CAD instruction, so the instruction is parked below them. The
+   inline-end gutter used to reserve the plan gizmo's 76px corner as well; the
+   gizmo is hidden on every compact layout now, so holding that corner open
+   only narrowed the instruction strip for nothing. */
+@media (max-width: 480px) {
+  body.compact-nav #cad-status {
+    top: 108px;
+    inset-inline: 8px 8px;
+    height: auto;
+    min-height: 38px;
+    padding: 5px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+  }
+  body.compact-nav #cad-status .cad-main {
+    display: -webkit-box;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    line-height: 1.2;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
+
+/* ---- bottom sheets ------------------------------------------------------- */
+
+#m-sheet-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 61;
+  background: rgba(0, 0, 0, 0.35);
+}
+body.compact-nav #m-sheet-backdrop.on {
+  display: block;
+}
+#m-sheet {
+  display: none;
+}
+body.compact-nav #m-sheet {
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
+  z-index: 62;
+  box-sizing: border-box;
+  max-height: 46dvh;
+  padding-bottom: 6px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
+  /* Parked below the screen: it has to clear its own height AND the two rows
+     it sits on top of, or its lid stays visible over them. */
+  transform: translateY(calc(100% + var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px)));
+  transition: transform 0.22s ease, max-height 0.22s ease;
+}
+body.compact-nav #m-sheet.on {
+  transform: none;
+}
+/* Dragged up past the halfway point — for a long library or a long menu. */
+body.compact-nav #m-sheet.tall {
+  max-height: calc(100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block) - var(--m-ctx-reserve) - var(--kb, 0px));
+}
+.m-sheet-grip {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 4px;
+  margin: 8px auto 2px;
+  border-radius: 2px;
+  background: var(--border-color);
+}
+.m-sheet-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 14px 8px;
+}
+.m-sheet-head h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.m-sheet-x {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+}
+.m-sheet-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 12px 8px;
+}
+/* Keep the document/canvas coordinate system LTR, but give Hebrew mobile
+   chrome its natural reading direction. This avoids mirroring CAD geometry. */
+html[lang="he"] #m-sheet,
+html[lang="he"] #m-ctx,
+html[lang="he"] #mobile-nav,
+html[lang="he"] #md-sheet,
+html[lang="he"] #md-ctx,
+html[lang="he"] #md-nav,
+html[lang="he"] #cabdes.cb-compact .cb-m-ctx,
+html[lang="he"] #cabdes.cb-compact .cb-m-nav,
+html[lang="he"] #cabdes.cb-compact .cb-m-sheet,
+html[lang="he"] #cabdes.cb-compact .cb-m-sizebar {
+  direction: rtl;
+}
+.m-sheet-sec {
+  margin: 12px 2px 6px;
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.m-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
+  gap: 8px;
+}
+.m-grid-1 {
+  grid-template-columns: 1fr;
+}
+.m-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.m-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+.m-grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+.m-grid-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 66px;
+  padding: 8px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 13px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font-size: max(11px, var(--fs-floor, 0px));
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+}
+.m-grid-btn i {
+  font-size: 1.4rem;
+}
+.m-grid-btn span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  /* buttons default to nowrap; a two-line clamp needs a line to break on */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.m-grid-btn.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.m-grid-btn.danger {
+  color: var(--danger);
+}
+.m-grid-btn:disabled {
+  opacity: 0.45;
+}
+.m-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.m-list-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: start;
+  cursor: pointer;
+}
+.m-list-btn i {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+}
+.m-list-btn:active {
+  background: var(--btn-bg-hover);
+}
+.m-list-btn.danger,
+.m-list-btn.danger i {
+  color: var(--danger);
+}
+
+/* Group the long phone menu by user intent instead of flattening every
+   desktop dropdown into an anonymous page deck. */
+.m-guide-card {
+  white-space: normal;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 66px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border-color));
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--text-main);
+  text-align: start;
+}
+.m-guide-card > i {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 20px;
+}
+.m-guide-card-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.m-guide-card-copy strong { font-size: 13px; }
+.m-guide-card-copy small {
+  color: var(--text-muted);
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  line-height: 1.3;
+}
+.m-guide-card > .ph-caret-right { color: var(--text-muted); width: 18px; background: transparent; }
+.m-guide-card-copy strong, .m-guide-card-copy small { white-space: normal; overflow-wrap: anywhere; }
+.m-design-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 10px; }
+.m-design-shortcuts .m-grid-btn { white-space: normal; min-height: 56px; }
+/* Room choices must not sit under the duplicate desktop command strip. The
+   phone context row already provides snapping and Done during placement. */
+body.compact-nav #view-2d:has(#plan-room-palette:not([hidden])) #cad-status { display: none !important; }
+body.compact-nav #plan-room-palette { width: min(320px, calc(100vw - 24px)); max-height: min(55dvh, 460px); }
+body.compact-nav #plan-room-palette.auto-collapsed { width: 42px; }
+body.compact-nav #plan-room-palette :is(.rp-tab, .rp-chip, .rp-connect button) { min-height: 40px; }
+.m-more-group {
+  margin-top: 7px;
+  border-top: 1px solid var(--border-color);
+}
+.m-more-group > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0 8px;
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.m-more-group > summary::-webkit-details-marker { display: none; }
+.m-more-group > summary::after {
+  content: "›";
+  color: var(--text-muted);
+  font-size: 18px;
+  transition: transform .16s ease;
+}
+.m-more-group[open] > summary::after { transform: rotate(90deg); }
+.m-more-group > .m-list { padding-bottom: 4px; }
+
+/* Milestone coaching appears only after a real success, when its next action
+   and gesture hint have context. */
+#m-coach {
+  display: none;
+}
+body.compact-nav #m-coach.on {
+  position: fixed;
+  inset-inline: 8px;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + 8px);
+  z-index: 65;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 36px;
+  align-items: center;
+  gap: 8px;
+  min-height: 54px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border-color));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .28);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+}
+body.compact-nav.m-sheet-open #m-coach { display: none; }
+.m-coach-copy {
+  min-width: 0;
+  font-size: max(11.5px, var(--fs-floor, 0px));
+  line-height: 1.35;
+}
+.m-coach-action {
+  min-height: 38px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: max(11px, var(--fs-floor, 0px));
+  font-weight: 700;
+}
+.m-coach-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+/* ---- drawers as sheets (phone) ------------------------------------------- */
+
+/* Same elements, same show-left/show-right state — a different shape. A side
+   drawer on a phone covers 82% of the width and needs an edge swipe that
+   fights the canvas pan; a half-height sheet leaves the plan visible, which is
+   what makes dragging a piece out of the library onto it possible at all. */
+body.sheet-drawers #left-sidebar,
+body.sheet-drawers #right-inspector {
+  position: fixed;
+  inset-inline: 0;
+  top: auto;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
+  z-index: 62;
+  width: auto;
+  max-width: none;
+  height: 52dvh;
+  max-height: 52dvh;
+  transform: translateY(calc(100% + var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px)));
+  border: none;
+  border-top: 1px solid var(--border-color);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
+  transition: transform 0.22s ease;
+}
+body.sheet-drawers.show-left #left-sidebar,
+body.sheet-drawers.show-right #right-inspector {
+  transform: none;
+}
+/* The closed panels park in a different place in each posture — translateX off
+   the side as a drawer, translateY below the nav as a sheet — and the markup
+   starts in the side-drawer posture, so the first pass of applyCompactNav()
+   (js/ui.js) hands `transition: transform` a cross-viewport move to animate.
+   That is what put both closed panels at negative x on a phone for the first
+   fifth of a second of every load. The transition is for opening and closing;
+   a posture change is a reshape, so it gets no animation at all. js/ui.js
+   re-adds .posture-ready once the new resting transform has been painted. */
+body:not(.posture-ready) #left-sidebar,
+body:not(.posture-ready) #right-inspector {
+  transition: none !important;
+}
+/* The sheet backdrop (z 61) already sits under these; the drawer backdrop
+   would double it up at a different opacity. */
+body.sheet-drawers #drawer-backdrop {
+  display: none !important;
+}
+/* Grip affordance, so the panel-sheets read the same as the built ones. */
+body.sheet-drawers #left-sidebar::before,
+body.sheet-drawers #right-inspector::before {
+  content: "";
+  display: block;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 4px;
+  margin: 8px auto 4px;
+  border-radius: 2px;
+  background: var(--border-color);
+}
+body.sheet-drawers .left-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* ---- docked rail (unfolded foldable / landscape tablet) ------------------- */
+
+/* The reward for unfolding: the panels stop covering the canvas and stand
+   beside it. Same state classes, so the nav's Add/Properties slots now show
+   and hide a column instead of raising a sheet. */
+body.dock-rail #left-sidebar,
+body.dock-rail #right-inspector {
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  height: auto;
+  max-height: none;
+  width: clamp(260px, 32vw, 320px);
+  transform: none;
+  border-radius: 0;
+  box-shadow: none;
+  display: none;
+}
+body.dock-rail.show-left #left-sidebar,
+body.dock-rail.show-right #right-inspector {
+  display: flex;
+}
+body.dock-rail #drawer-backdrop,
+body.dock-rail #m-sheet-backdrop {
+  display: none !important;
+}
+body.dock-rail #left-sidebar {
+  border-inline-end: 1px solid var(--border-color);
+}
+body.dock-rail #right-inspector {
+  border-inline-start: 1px solid var(--border-color);
+}
+/* Its own sheets stay available (Tools / View / More) but sit above the canvas
+   rather than filling the short screen. */
+body.dock-rail #m-sheet {
+  inset-inline: auto 12px;
+  width: min(420px, 50vw);
+  max-height: 60dvh;
+  border-radius: 18px;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px) + 8px);
+}
+
+/* ---- a phone on its side: Properties docks beside the plan ----------------
+   body.side-inspector (js/chrome_posture.js). A 390px-tall bottom sheet left
+   the inspector's page cards ~80px, under rows that are 180-220px tall on
+   their own, so here the inspector is the fold's scrolling column at the
+   inline end, between the header and the thumb rows. The library and the
+   generated sheets stay bottom sheets. Closed, it keeps the sheet's parking
+   transform below the screen. Positions are !important because the pro
+   skin's sheet rules are. */
+body.compact-nav.side-inspector {
+  --side-inspector-col: clamp(260px, 36vw, 340px);
+}
+body.compact-nav.sheet-drawers.side-inspector #right-inspector {
+  position: fixed !important;
+  top: var(--mobile-topbar-block, 56px) !important;
+  bottom: calc(var(--mobile-nav-block, 0px) + var(--m-ctx-reserve, 0px) + var(--kb, 0px)) !important;
+  inset-inline: auto 0 !important;
+  width: var(--side-inspector-col) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: auto !important;
+  max-height: none !important;
+  border: none;
+  border-inline-start: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+/* The column scrolls, so its page cards keep their content height instead of
+   shrinking to fit it the way a sheet's must. */
+body.compact-nav.sheet-drawers.side-inspector #right-inspector > .panel-section,
+body.compact-nav.sheet-drawers.side-inspector #right-inspector :is(.mobile-paged-menu, .mobile-page-shell, .mobile-page-deck) {
+  flex-shrink: 0 !important;
+}
+body.compact-nav.sheet-drawers.side-inspector #right-inspector > :is(.m-panel-grip, .ps-sheet-grip) {
+  display: none !important;
+}
+body.compact-nav.side-inspector.show-right #m-sheet-backdrop {
+  display: none !important;
+}
+body.compact-nav.side-inspector.show-right #workspace {
+  padding-inline-end: var(--side-inspector-col);
+  box-sizing: border-box;
+}
+
+/* ---- split direction ----------------------------------------------------- */
+
+body.split-row #center-canvas {
+  flex-direction: row;
+}
+body.split-row #view-3d,
+body.split-row #view-2d {
+  flex: 1 1 50% !important;
+  height: auto;
+  /* A flex item's automatic minimum size is its CONTENT — and the content here
+     is a canvas still sized for the full-width layout, which would push the
+     other pane to a 1px sliver. */
+  min-width: 0;
+}
+body.split-row #view-resizer {
+  display: none;
+}
+body.split-row #view-2d {
+  border-top: none;
+  border-inline-start: 1px solid var(--border-color);
+}
+
+/* ---- contextual menu as a sheet ------------------------------------------ */
+
+#ctx-menu.as-sheet {
+  position: fixed;
+  inset-inline: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
+  z-index: 62;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  padding: 8px 12px;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
+}
+#ctx-menu.as-sheet button {
+  min-height: 50px;
+  font-size: 14px;
+}
+
+/* ---- touch targets ------------------------------------------------------- */
+
+/* 44px targets; CAD + More + Settings are the three topbar items on a phone. */
+body.compact-nav #topbar .tb-start button,
+body.compact-nav #topbar .tb-end button {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+}
+/* Theme and language are once-in-a-lifetime settings; they were holding two
+   permanent slots in the most valuable row on the screen. They live in the
+   More sheet, which reads them straight off these buttons. */
+body.compact-nav #topbar .tb-end > #themeToggle,
+body.compact-nav #topbar .tb-end > #langBtn {
+  display: none !important;
+}
+body.compact-nav #cad-status.cad-quiet {
+  opacity: 0;
+  pointer-events: none;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  overflow: hidden;
+}
+

@@ -26,6 +26,7 @@
 
 import { S } from "./state.js";
 import { t, onLangChange } from "./i18n.js";
+import { VIEW_MODES, currentViewMode, viewModeSelect, syncViewModeGroup } from "./view_modes.js";
 import { setTool } from "./interaction.js";
 import { undo, redo, canUndo, canRedo } from "./history.js";
 import { toggleAid, openEntry } from "./cad_hud.js";
@@ -41,6 +42,10 @@ import { getLang } from "./i18n.js";
 import { fmtLen } from "./display_units.js";
 import { pickTitle, pushRecent } from "./compact_head.js";
 import { openHistoryPop } from "./history_pop.js";
+import { openWallsMenu, wallsNavSpec } from "./ui_wall_view.js";
+import { selActionList } from "./mobile_shell/sel_verbs.js";
+// for js/mobile_shell/sel_verbs.js (live bindings: it sees every reassignment)
+export { run, selKind, showSheet };
 
 var ctxBar = null,
   sheet = null,
@@ -122,6 +127,7 @@ function run(act) {
 function viewMode() {
   var cc = $("center-canvas");
   if (!cc) return "split";
+  if (cc.classList.contains("sheet-view")) return "drawing";
   if (S.viewAxis && S.viewAxis !== "top") return S.viewAxis;
   return cc.classList.contains("max-view-2d")
     ? "plan"
@@ -133,6 +139,8 @@ var VIEW_ICONS = {
   plan: "ph-blueprint",
   "3d": "ph-cube",
   split: "ph-rows",
+  dollhouse: "ph-house-line",
+  drawing: "ph-certificate",
   front: "ph-arrow-up",
   back: "ph-arrow-down",
   left: "ph-arrow-left",
@@ -147,6 +155,12 @@ var VIEW_LABELS = {
   left: "elev_left",
   right: "elev_right",
 };
+// the group's own label where the nav has no short one (Dollhouse, Drawing)
+function viewLabel(k) {
+  if (VIEW_LABELS[k]) return t(VIEW_LABELS[k]);
+  var m = VIEW_MODES.find(function (v) { return v.id === k; });
+  return m ? m.label() : k;
+}
 
 /* Plan means the top-down plan. An elevation can remain selected while the 3D
    pane is showing, so merely switching panes would otherwise bring the user
@@ -161,7 +175,11 @@ function setView(k) {
     render2D();
     updatePlanGizmo();
   }
-  if (window.__setViewMode) window.__setViewMode(k);
+  // 3D, Dollhouse and Drawing run the top bar's own actions (cutaway on/off,
+  // the drawing sheet), so both chromes switch views the same way
+  var m = k !== "plan" && k !== "split" && VIEW_MODES.find(function (v) { return v.id === k; });
+  if (m && window.__runAction) window.__runAction(m.act);
+  else if (window.__setViewMode) window.__setViewMode(k);
 }
 
 /* ---- editor strip ------------------------------------------------------- */
@@ -174,11 +192,7 @@ function setView(k) {
    The strip is static in #app's column, so the workspace shrinks under it, and
    css adds its height to --mobile-topbar-block for everything fixed below. */
 var strip = null;
-var STRIP_VIEWS = [
-  ["plan", "2D"],
-  ["3d", "3D"],
-  ["split", null, VIEW_ICONS.split],
-];
+var STRIP_TEXT = { plan: "2D", "3d": "3D" };
 function buildStrip() {
   var top = $("topbar");
   if (!top) return;
@@ -200,12 +214,14 @@ function buildStrip() {
   strip.innerHTML =
     editorSwitchHTML("plan", "m-editors") +
     '<div class="pr-editors m-panes" role="group" aria-label="' + t("m_panes_aria") + '">' +
-    STRIP_VIEWS.map(function (v) {
-      var label = t(VIEW_LABELS[v[0]]);
-      return '<button type="button" data-m-pane="' + v[0] + '" aria-label="' + label + '" title="' + label + '">' +
-        (v[2] ? '<i class="ph ' + v[2] + '" aria-hidden="true"></i>' : v[1]) + "</button>";
+    VIEW_MODES.map(function (v) {
+      var label = viewLabel(v.id);
+      return '<button type="button" data-m-pane="' + v.id + '" data-view-mode="' + v.id + '" aria-label="' + label + '" title="' + label + '">' +
+        (STRIP_TEXT[v.id] || '<i class="ph ' + v.icon + '" aria-hidden="true"></i>') + "</button>";
     }).join("") +
     "</div>";
+  // the same group as a dropdown, which css shows where the buttons do not fit
+  strip.querySelector(".m-panes").appendChild(viewModeSelect("m-view-select"));
   wireEditorSwitch(strip);
   syncStrip();
 }
@@ -213,13 +229,7 @@ function buildStrip() {
    pane, and 2D here returns it to the top-down plan like the nav's Plan. */
 function syncStrip() {
   if (!strip) return;
-  var cc = $("center-canvas");
-  var pane = !cc ? "split" : cc.classList.contains("max-view-2d") ? "plan" : cc.classList.contains("max-view-3d") ? "3d" : "split";
-  strip.querySelectorAll("[data-m-pane]").forEach(function (b) {
-    var on = b.dataset.mPane === pane;
-    b.classList.toggle("on", on);
-    b.setAttribute("aria-pressed", on ? "true" : "false");
-  });
+  syncViewModeGroup(strip, "on");
 }
 
 /* ---- fold rail ---------------------------------------------------------- */
@@ -385,7 +395,7 @@ function cardFacts(sel) {
     var at = detectRooms().find(function (r) { return r.pts && r.pts.length > 2 && inside({ x: ref.x, z: ref.z }, r.pts); });
     if (roomLabelOf(at)) sub.push(roomLabelOf(at));
   } else if (sel.kind === "opening") {
-    icon = ref.type === "window" ? "ph-frame-corners" : "ph-door";
+    icon = ref.type === "window" ? "ph-grid-four" : "ph-door";
     sub.push(t(ref.type === "window" ? "m_card_window" : ref.type === "door" ? "m_card_door" : "m_card_opening"));
     sub.push(t("m_card_on_wall", { id: partCode("wall", ref.wall) }));
   } else if (sel.kind === "room") {
@@ -427,7 +437,7 @@ function syncInspectorCard() {
 
 /* ---- the contextual row ------------------------------------------------- */
 
-var DRAW_TOOLS = ["wall", "arcwall", "rect", "roomstamp", "door", "window", "passage", "slabvoid", "point", "erase"];
+var DRAW_TOOLS = ["wall", "arcwall", "rect", "roomstamp", "door", "window", "passage", "slabvoid", "point", "fitcab", "erase"];
 function drawing() {
   return DRAW_TOOLS.indexOf(S.tool) >= 0;
 }
@@ -462,67 +472,30 @@ function cancelPlacement() {
 
    The row stays at most four controls: under .compact-nav they are 44px
    icon squares (css/styles.css), so four plus the pinned Undo/Redo still fits
-   a 320px screen without the row having to scroll. */
-function selActions() {
-  var kind = selKind();
-  var propsBtn = { icon: "ph-sliders-horizontal", label: t("m_a_props"), run: function () { showSheet("props"); } };
-  var delBtn = { icon: "ph-trash", label: t("m_a_del"), danger: true, run: function () { run("deleteSel"); } };
-  var dupBtn = { icon: "ph-copy", label: t("m_a_dup"), run: function () { run("dupSel"); } };
+   a 320px screen without the row having to scroll. A kind with more verbs
+   than that keeps the first three and puts the rest behind "More" (a short
+   sheet), rather than letting the row scroll its last verbs off-screen.
 
-  if (kind === "item" || kind === "items") {
-    /* Orienting a piece is the most repeated edit in a furnished plan and it
-       had no control at all outside the inspector's rotation row. */
-    return [
-      { icon: "ph-arrow-clockwise", label: t("m_a_rot90"), run: function () { run("rotSel90"); } },
-      dupBtn,
-      propsBtn,
-      delBtn,
-    ];
-  }
-  if (kind === "opening") {
-    var op = S.sel.ref;
-    var hinged = op && op.type === "door" && !op.isSliding && !op.isPocket;
-    return hinged
-      ? [{ icon: "ph-flip-horizontal", label: t("m_a_swing"), run: function () { run("flipSwing"); } }, propsBtn, delBtn]
-      : [propsBtn, delBtn];
-  }
-  if (kind === "wall") {
-    return [
-      { icon: "ph-door", label: t("m_a_adddoor"), run: function () { run("addWallDoor"); } },
-      { icon: "ph-frame-corners", label: t("m_a_addwindow"), run: function () { run("addWallWindow"); } },
-      { icon: "ph-flip-horizontal", label: t("m_a_flipwall"), run: function () { run("reverseWallLayers"); } },
-      propsBtn,
-      delBtn,
-    ];
-  }
-  if (kind === "node") {
-    return [
-      { icon: "ph-angle", label: t("m_a_square"), run: function () { run("ndSquare"); } },
-      propsBtn,
-      delBtn,
-    ];
-  }
-  if (kind === "marker") {
-    return [
-      { icon: "ph-armchair", label: t("m_a_place"), run: function () { run("mkPlace"); } },
-      propsBtn,
-      delBtn,
-    ];
-  }
-  if (kind === "room") {
-    /* The floor material is the one room property nobody can name from memory
-       and everybody recognises on sight, and it was four taps and an OS wheel
-       of 23 words away. Deliberately NOT joined by Auto-arrange: that action
-       tidies EVERY room (autoArrangeAll), and a verb on this room's row that
-       rearranges the whole plan is the same lie as a Copy button that copies
-       nothing. */
-    return [
-      { icon: "ph-paint-roller", label: t("m_a_floor"), run: function () { run("roomFloor"); } },
-      propsBtn,
-      delBtn,
-    ];
-  }
-  return [propsBtn, delBtn];
+   "Finish" opens the material library aimed at the selection (the gallery
+   reads S.sel: a room's floor, a wall's face, a piece's surfaces). */
+export var CTX_MAX = 4;
+/* The Round-6 bottom toolbar (pro-compact) labels every verb and shares the
+   row with the tools grid, library and ask buttons: four labelled verbs ran
+   its last one off the right edge of a 390px phone. A docked tablet/fold
+   (dock-rail) has the width for four. */
+export var CTX_MAX_LABELLED = 3;
+var overflowItems = [];
+export function capActions(list, more, max) {
+  max = max || (proCompact() && !document.body.classList.contains("dock-rail") ? CTX_MAX_LABELLED : CTX_MAX);
+  if (list.length <= max) return list;
+  var head = list.slice(0, max - 1), rest = list.slice(max - 1);
+  return head.concat([more(rest)]);
+}
+function moreBtn(rest) {
+  return { icon: "ph-dots-three-outline", label: t("m_a_more"), run: function () { overflowItems = rest; showSheet("overflow"); } };
+}
+function selActions() {
+  return capActions(selActionList(), moreBtn);
 }
 
 /* Up to four contextual actions, chosen by what the user is actually doing.
@@ -538,11 +511,15 @@ function ctxActions() {
     ];
   }
   if (viewMode() === "3d") {
-    return (proCompact() ? navActions() : []).concat([
-      { icon: "ph-cursor-click", label: t("m_edit3d"), on: !!S.edit3D, run: function () { run("edit3d"); } },
+    /* A selection in 3D gets its own verbs (Finish above all: 3D is where a
+       material is judged). Otherwise the 3D pane's navigation. Walk and Look
+       were only offered under the Round-6 layout, so a phone in the default
+       layout could not leave orbit at all. */
+    if (selKind()) return selActions();
+    return capActions(navActions().concat([
       { icon: "ph-crosshair-simple", label: t("frame"), run: function () { run("frame"); } },
       { icon: "ph-camera", label: t("photo"), run: function () { run("photo"); } },
-    ]);
+    ]), moreBtn);
   }
   if (drawing()) {
     // Mid-draw the aids ARE the controls: they decide what the next click
@@ -624,6 +601,9 @@ function navActions() {
       });
     });
   }
+  // Walls (Up / Cutaway / Down and how a cut wall looks) opens its own card
+  var walls = wallsNavSpec();
+  out.push({ icon: walls.icon, label: walls.label, run: openWallsMenu });
   // the 3D pane's own Draw and Dollhouse buttons float over the model on a desktop
   [["drawing3dBtn", "ph-pencil-line", "m_nav_draw"], ["dollhouseBtn", "ph-house", "m_nav_dollhouse"]].forEach(function (d) {
     var b = $(d[0]);
@@ -678,6 +658,8 @@ function btn(spec) {
       (spec.iconOnly ? "" : "<span>" + spec.label + "</span>");
   }
   if (spec.disabled) b.disabled = true;
+  if (spec.pressed != null) b.setAttribute("aria-pressed", spec.pressed ? "true" : "false");
+  if (spec.title) b.title = spec.title;
   b.setAttribute("aria-label", spec.label);
   b.addEventListener("click", function (e) {
     e.preventDefault();
@@ -840,6 +822,45 @@ function ensureSheet() {
   });
 }
 
+/* The library and inspector are real panels shown AS sheets on a phone
+   (showSheet "add" / "props"), and their grip was a ::before decoration: it
+   looked draggable and did nothing, so a 46dvh inspector could only be closed
+   by tapping the backdrop and never made taller for a long wall form. This
+   gives them the same grip gesture as the built sheets — down to dismiss, up
+   for full height — on a 44px strip, not the 4px bar. */
+function ensurePanelGrips() {
+  ["left-sidebar", "right-inspector"].forEach(function (id) {
+    var panel = $(id);
+    if (!panel || panel.querySelector(":scope > .m-panel-grip")) return;
+    var grip = document.createElement("div");
+    grip.className = "m-panel-grip";
+    grip.setAttribute("aria-hidden", "true");
+    panel.insertBefore(grip, panel.firstChild);
+    var y0 = 0, live = false;
+    grip.addEventListener("touchstart", function (e) {
+      live = e.touches.length === 1 && document.body.classList.contains("sheet-drawers");
+      y0 = live ? e.touches[0].clientY : 0;
+    }, { passive: true });
+    grip.addEventListener("touchmove", function (e) {
+      if (!live || e.touches.length !== 1) return;
+      var dy = e.touches[0].clientY - y0;
+      if (dy > 70) {
+        live = false;
+        closeSheet();
+      } else if (dy < -50) {
+        live = false;
+        panel.classList.add("panel-tall");
+      }
+    }, { passive: true });
+    grip.addEventListener("touchend", function () { live = false; });
+    // a tap on the grip toggles the height (the grip is not a keyboard target:
+    // the inspector's own controls and Escape cover keyboard use)
+    grip.addEventListener("click", function () {
+      if (document.body.classList.contains("sheet-drawers")) panel.classList.toggle("panel-tall");
+    });
+  });
+}
+
 function closeSheet() {
   var closingKey = openSheet;
   if (closingKey === "props" && foldTab != null) {
@@ -864,6 +885,10 @@ function closeSheet() {
   // The library and inspector are real panels, not sheet content: they are
   // shown in place (see showSheet) and have to be put back too.
   document.body.classList.remove("show-left", "show-right");
+  ["left-sidebar", "right-inspector"].forEach(function (id) {
+    var panel = $(id);
+    if (panel) panel.classList.remove("panel-tall");
+  });
   syncNav();
   if (closingKey === "props" && onboardingActive && onboardingStage === "edit") {
     onboardingStage = "preview";
@@ -926,8 +951,9 @@ function showSheet(key) {
   if (key === "tools") buildToolsSheet();
   else if (key === "view") buildViewSheet();
   else if (key === "more") buildMoreSheet();
+  else if (key === "overflow") buildOverflowSheet();
   sheetTitle.textContent = t(
-    key === "tools" ? "msheet_tools" : key === "view" ? "msheet_view" : "msheet_more",
+    key === "tools" ? "msheet_tools" : key === "view" ? "msheet_view" : key === "overflow" ? "m_a_more" : "msheet_more",
   );
   openSheet = key;
   sheet.classList.add("on");
@@ -939,6 +965,30 @@ function showSheet(key) {
   syncNav();
   /* Tools, View and More are short named sections that scroll naturally.
      Inspector forms still use labelled page tabs via pageInspector(). */
+}
+
+/* The context row's overflow: the verbs that did not fit, as a labelled grid
+   (danger red, the same as on the row). */
+function buildOverflowSheet() {
+  var grid = document.createElement("div");
+  grid.className = "m-grid m-icon-grid";
+  overflowItems.forEach(function (a) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "m-grid-btn" + (a.danger ? " danger" : "") + (a.on ? " on" : "");
+    if (a.disabled) b.disabled = true;
+    if (a.pressed != null) b.setAttribute("aria-pressed", a.pressed ? "true" : "false");
+    if (a.title) b.title = a.title;
+    b.setAttribute("aria-label", a.label);
+    b.innerHTML = '<i class="ph ' + a.icon + '"></i><span></span>';
+    b.querySelector("span").textContent = a.label;
+    b.addEventListener("click", function () {
+      closeSheet();
+      a.run();
+    });
+    grid.appendChild(b);
+  });
+  sheetBody.appendChild(grid);
 }
 
 /* Tools: the same commands as the desktop rail, but as a labelled grid. The
@@ -1024,14 +1074,15 @@ function buildToolsSheet() {
 function buildViewSheet() {
   var grid = document.createElement("div");
   grid.className = "m-grid m-grid-3 m-icon-grid";
-  ["plan", "3d", "split"].forEach(function (k) {
+  VIEW_MODES.forEach(function (v) {
+    var k = v.id;
     var b = document.createElement("button");
     b.type = "button";
-    b.className = "m-grid-btn" + (viewMode() === k ? " on" : "");
-    var label = t(VIEW_LABELS[k]);
+    b.className = "m-grid-btn" + (currentViewMode() === k ? " on" : "");
+    var label = viewLabel(k);
     b.setAttribute("aria-label", label);
     b.title = label;
-    b.innerHTML = '<i class="ph ' + VIEW_ICONS[k] + '"></i><span>' + label + "</span>";
+    b.innerHTML = '<i class="ph ' + v.icon + '"></i><span>' + label + "</span>";
     b.addEventListener("click", function () {
       setView(k);
       closeSheet();
@@ -1128,11 +1179,20 @@ function appendMenuGroup(title, menu, options) {
   }
   var list = document.createElement("div");
   list.className = "m-list";
+  var noSel = !selKind(), greyed = 0;
   menu.querySelectorAll("button[data-act]").forEach(function (src) {
     var act = src.getAttribute("data-act");
     if ((options.exclude || []).indexOf(act) >= 0) return;
-    list.appendChild(clonedAction(src));
+    var b = clonedAction(src);
+    if (noSel && (options.needSel || []).indexOf(act) >= 0) { b.disabled = true; greyed++; }
+    list.appendChild(b);
   });
+  if (greyed) {
+    var note = document.createElement("p");
+    note.className = "m-list-note";
+    note.textContent = t("m_more_need_sel");
+    host.appendChild(note);
+  }
   if (options.append) options.append.forEach(function (src) {
     if (src) list.appendChild(clonedAction(src));
   });
@@ -1159,6 +1219,15 @@ function quickAction(id) {
     src.click();
   });
   return b;
+}
+
+/* Open the tools sheet on its search field (More → Find a tool, Ctrl+K). */
+function findTool() {
+  if (openSheet !== "tools") showSheet("tools");
+  if (!sheetBody) return;
+  sheetBody.scrollTop = 0;
+  var input = sheetBody.querySelector(".pro-sheet-search input");
+  if (input) { input.focus(); input.select(); }
 }
 
 function buildMoreSheet() {
@@ -1216,22 +1285,42 @@ function buildMoreSheet() {
     '<i class="ph ph-caret-right"></i>';
   find.querySelector("strong").textContent = t("m_more_find");
   find.querySelector("small").textContent = t("m_more_find_desc");
+  /* The same search as the tools sheet's own field: every tool of all three
+     editors, ranked (js/pro_catalog.js matchTools). It used to open the top
+     bar's older search, a second index with different answers. */
   find.addEventListener("click", function () {
     closeSheet();
-    setTimeout(function () {
-      var root = $("toolSearch");
-      if (root) {
-        var field = root.querySelector(".tool-search-field");
-        if (field) field.click();
-      }
-      var input = $("toolSearchInput");
-      if (input) {
-        input.focus();
-        input.select();
-      }
-    }, 80);
+    setTimeout(findTool, 80);
   });
   cards.appendChild(find);
+
+  /* Order: what you make (project, export), what you change (edit), how the
+     app behaves (settings), the extras — and Reset all last, alone. It used
+     to sit inside Project between Mobile room scan and Duplicate, one slip
+     from a thumb aimed at either. */
+  var fileMenu = menuByKey("menu_file");
+  var reset = fileMenu && fileMenu.querySelector('[data-act="reset"]');
+  // Save is already promoted in the two-column shortcut group. Listing the
+  // same action again a few rows later makes the project section look like it
+  // has two save scopes when both buttons run the identical command.
+  appendMenuGroup(t("m_more_project"), fileMenu, { exclude: ["reset", "save"] });
+  appendMenuGroup(t("menu_export"), menuByKey("menu_export"));
+  /* Duplicate, Group, Ungroup and Delete act on the selection: with nothing
+     selected they are greyed and say why, rather than doing nothing. */
+  var editOpts = { needSel: ["dupSel", "groupItems", "ungroupItems", "deleteSel"] };
+  /* Round-6: Undo and Redo sit in the header; the edit history, which that
+     layout's header does not show as a dropdown, is here instead. */
+  if (proCompact()) {
+    var hist = document.createElement("button");
+    hist.type = "button";
+    hist.className = "m-list-btn";
+    hist.innerHTML = '<i class="ph ph-clock-counter-clockwise"></i><span></span>';
+    hist.querySelector("span").textContent = t("hist_title");
+    hist.addEventListener("click", function () { closeSheet(); setTimeout(openHistoryPop, 0); });
+    editOpts.exclude = ["undo", "redo"];
+    editOpts.extra = [hist];
+  }
+  appendMenuGroup(t("menu_edit"), menuByKey("menu_edit"), editOpts);
 
   var quickTitle = document.createElement("h5");
   quickTitle.className = "m-sheet-sec";
@@ -1245,24 +1334,6 @@ function buildMoreSheet() {
   });
   if (quick.children.length) sheetBody.appendChild(quick);
 
-  var fileMenu = menuByKey("menu_file");
-  var reset = fileMenu && fileMenu.querySelector('[data-act="reset"]');
-  // Save is already promoted in the two-column shortcut group. Listing the
-  // same action again a few rows later makes the project section look like it
-  // has two save scopes when both buttons run the identical command.
-  appendMenuGroup(t("m_more_project"), fileMenu, { exclude: ["reset", "save"], append: [reset] });
-  /* Round-6: Undo and Redo sit in the header; the edit history, which that
-     layout's header does not show as a dropdown, is here instead. */
-  if (proCompact()) {
-    var hist = document.createElement("button");
-    hist.type = "button";
-    hist.className = "m-list-btn";
-    hist.innerHTML = '<i class="ph ph-clock-counter-clockwise"></i><span></span>';
-    hist.querySelector("span").textContent = t("hist_title");
-    hist.addEventListener("click", function () { closeSheet(); setTimeout(openHistoryPop, 0); });
-    appendMenuGroup(t("menu_edit"), menuByKey("menu_edit"), { exclude: ["undo", "redo"], extra: [hist] });
-  } else appendMenuGroup(t("menu_edit"), menuByKey("menu_edit"));
-  appendMenuGroup(t("menu_export"), menuByKey("menu_export"));
   /* RC / Night Shift / lava are games. The planner More sheet keeps Walk
      (first-person tour), Photo, Model Editor and textures — the extras that
      still belong to designing the house. */
@@ -1270,6 +1341,12 @@ function buildMoreSheet() {
     collapsed: true,
     exclude: ["rc", "zombies", "lava", "openModeler", "uikitCustomize", "friends", "agent"],
   });
+  if (reset) {
+    var danger = document.createElement("div");
+    danger.className = "m-list m-more-danger";
+    danger.appendChild(clonedAction(reset));
+    sheetBody.appendChild(danger);
+  }
 }
 // Topbar menus are portaled to <body> when first opened (the glass topbar
 // clips fixed children), so a dropdown may no longer hold its own menu.
@@ -1298,7 +1375,7 @@ function syncNav() {
       var i = b.querySelector("i"),
         s = b.querySelector("span");
       if (i) i.className = "ph " + VIEW_ICONS[mode];
-      if (s) s.textContent = t(VIEW_LABELS[mode]);
+      if (s) s.textContent = viewLabel(mode);
       b.title = t("m_view_hold");
     } else if (k === "tools") {
       var ti = b.querySelector("i"),
@@ -1473,6 +1550,7 @@ export function initMobileShell() {
   initNav();
   buildStrip();
   buildFoldRail();
+  ensurePanelGrips();
   ensureSheet();
   // ui.js owns the legacy swipe/backdrop handlers. Observe the shared drawer
   // classes so their dismissals also retire our backdrop and expanded state.
@@ -1486,8 +1564,13 @@ export function initMobileShell() {
     rememberTool(S.tool);
     sync(true);
   });
+  // the 3D row's Walls entry names the switch's position
+  window.addEventListener("walls3d:changed", function () {
+    sync(true);
+  });
   // the Round-6 compact chrome (js/pro_compact.js) opens sheets and names the work
   window.__mobileShowSheet = function (key) { if (openSheet !== key) showSheet(key); };
+  window.__mobileFindTool = findTool;
   window.__plannerHeadTitle = headTitle;
   window.addEventListener("planner-selection", function () {
     requestAnimationFrame(function () {

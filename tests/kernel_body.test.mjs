@@ -8,6 +8,7 @@
    the modeler's walk sites at the source, which is how this file is tested
    elsewhere (js/modeler.js is a browser module).
 */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -28,7 +29,7 @@ import { featureDefaults, featureSpec } from "../js/core/feature_catalog.js";
 import { createDefinition, migrateDefinition } from "../js/core/schema.js";
 import { computeMassProperties } from "../js/cad_interference.js";
 
-let modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+let modeler = modelerSource();
 modeler = modeler.replace(/\r\n/g,"\n");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = (await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8")).replace(/\r\n/g, "\n");
@@ -190,7 +191,7 @@ test("every parts-walking site in the editor handles the kernel kind", () => {
   const walkers = [
     // bbox: the known failure mode is an unhandled kind dying in here
     ["basePartBounds", /function basePartBounds\(p\)[\s\S]*?\n\}/, partGeometry, "js/modeler_part_geometry.js"],
-    ["movePart", /function movePart\(p, dx, dy, dz\)[\s\S]*?\n\}/, partGeometry, "js/modeler_part_geometry.js"],
+    ["movePart", /function movePart\([^)]*\)[\s\S]*?\n\}/, partGeometry, "js/modeler_part_geometry.js"],
     ["partUV", /function partUV\(p\)[\s\S]*?\n\}/, modeler, "js/modeler.js"],
     ["partSupportsExactMesh", /function partSupportsExactMesh\(p\)[\s\S]*?\n\}/, partGeometry, "js/modeler_part_geometry.js"],
   ];
@@ -224,7 +225,7 @@ test("a legacy parts-to-features rebuild re-emits the recipe instead of dropping
 });
 
 test("sweep and loft push a body instead of only a history row", () => {
-  const create = modeler.match(/function createMultiSketchFeature\(type, values\)[\s\S]*?\n\}\n/)[0];
+  const create = sourceFunctionText(modeler, "createMultiSketchFeature");
   assert.match(create, /addKernelBodyPart/, "the additive branch adds a part");
   // and the subtractive twin still lands on the target's cut list
   assert.match(create, /cutTarget\.cuts3d\.push\(type==="loft" \? \{kind:"loft"[\s\S]*: \{kind:"sweep"/);

@@ -1,11 +1,13 @@
+import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-const props = await readFile(new URL("../js/ui_props.js", import.meta.url), "utf8");
-const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+const props = moduleSource("js/ui_props.js");
+const ui = moduleSource("js/ui.js");
 const i18n = await readI18nSource();
 
 const panel = html.slice(html.indexOf('id="wallProps"'), html.indexOf('id="wallMultiProps"'));
@@ -104,7 +106,10 @@ test("flipping a symmetric assembly is refused rather than accepted as a no-op",
   assert.match(props, /btn\.disabled = symmetric/);
   assert.ok(panel.includes('id="w_reverseHint"'), "the panel says why it is disabled");
   // the action guards too — the button is not the only way to reach it
-  const guard = ui.slice(ui.indexOf('act === "reverseWallLayers"'));
+  // runAction dispatches reverseWallLayers to runWallModifierAction
+  const actions = sourceFunctionText(ui, "runWallModifierAction");
+  assert.ok(actions.includes('act === "reverseWallLayers"'), "the branch is in runWallModifierAction");
+  const guard = actions.slice(actions.indexOf('act === "reverseWallLayers"'));
   const bail = guard.indexOf("wallFlipSymmetric");
   assert.ok(bail !== -1 && bail < guard.indexOf("flipWall("), "refuse before flipping");
   assert.ok(bail < guard.indexOf("pushHistory()"), "refuse before touching history");

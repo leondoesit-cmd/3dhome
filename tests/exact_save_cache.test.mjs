@@ -1,7 +1,10 @@
+import {createExactPublicationDraft} from '../js/core/exact_publication_draft.js';
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createExactSaveCache} from '../js/core/exact_save_cache.js';
 import fs from 'node:fs';
+import {sourceFunctionText} from './helpers/source_function.mjs';
 
 function fixture(){
   const document={parts:[{id:'body',density:7.85,color:'#aaa'}],sketches:[{id:'profile',plane:'top',points:[{id:'p',x:1,y:2}],entities:[],constraints:[]}],references:[{id:'plane:top',type:'plane',normal:{x:0,y:1,z:0}}],parameters:{depth:{value:2}}};
@@ -46,18 +49,17 @@ function viewportFixture(afterPublish=()=>{}) {
   const proof=fixture(),E={docType:'part',def:proof.document,massEditRevision:0,exactRestoring:false};
   proof.run.finalShape=proof.run.results.get('solid');
   const cache=createExactSaveCache(),noop=()=>{};
-  const bindings={E,activeParts:()=>[proof.document.parts[0]],flash:noop,t:key=>key,syncCommandManager:noop,syncStatus:noop,
+  const bindings={createExactPublicationDraft,refreshChangedPartPreviews:noop,E,activeParts:()=>[proof.document.parts[0]],flash:noop,t:key=>key,syncCommandManager:noop,syncStatus:noop,
     currentHistoryNode:()=>1,releaseExactRun:noop,isCanonicalAuthoring:()=>true,
     compileKernelFeatureTree:()=>proof.compiled,modelParameterOverrides:()=>({}),rebuildParametricDocument:()=>({ok:true}),
     publishRebuildStatus:noop,regenerateFeatures:async()=>proof.run,releaseRegeneration:noop,captureExactDiagnostics:noop,
     synchronizeExtrusionProjections:()=>[],invalidatePartMeshAfterEdit:noop,captureExactTopology:()=>({}),
     withKernelFailures:validation=>validation,publishExactBodies:async()=>{afterPublish(E,proof);return [];},
-    exactBuildTimers:new Map(),clearTopologyCache:noop,refreshChangedPart:noop,refreshParts:noop,
+    exactBuildTimers:new Map(),clearTopologyCache:noop,refreshChangedParts:noop,refreshParts:noop,invalidateDrawing:noop,
     exactRunStamp:()=> 'current-proof',exactSaveCache:cache,syncAuthoringWorkflow:noop,
     rebuildFailureMessage:()=> 'failed',console:{error:noop}};
-  const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
-  const start=source.indexOf('async function regenerateExactModelNow('),end=source.indexOf('\n/* An assembly is exported',start);
-  const rebuild=new Function(...Object.keys(bindings),source.slice(start,end)+';return regenerateExactModelNow;')(...Object.values(bindings));
+  const source=modelerSource();
+  const rebuild=new Function(...Object.keys(bindings),sourceFunctionText(source,'regenerateExactModelNow')+';return regenerateExactModelNow;')(...Object.values(bindings));
   return {...proof,E,cache,rebuild};
 }
 

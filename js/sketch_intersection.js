@@ -25,7 +25,7 @@ export function lineLineIntersection(a, b) {
   return { x: a.a.x + t * dx1, y: a.a.y + t * dy1 };
 }
 
-function edgeEndpoints(edge) {
+export function edgeEndpoints(edge) {
   const descriptor = edge?.descriptor || edge || {};
   if (Array.isArray(descriptor.endpoints) && descriptor.endpoints.length >= 2) return descriptor.endpoints;
   if (descriptor.curve === "line" && descriptor.origin && descriptor.axis && Number(descriptor.measure) > 0) {
@@ -129,24 +129,168 @@ export function bindIntersectionTargets(sketch, resolveEdge) {
   return sketch;
 }
 
+/* Sketch-plane samples along a converted curve (arc, circle or ellipse). */
+function curveSamples(curve, steps = 96) {
+  if (curve.kind === "ellipse") {
+    const c = Math.cos(curve.rot), s = Math.sin(curve.rot);
+    return Array.from({ length: steps + 1 }, (_, i) => {
+      const a = TAU * i / steps, x = curve.rx * Math.cos(a), y = curve.ry * Math.sin(a);
+      return { x: curve.center.x + x * c - y * s, y: curve.center.y + x * s + y * c };
+    });
+  }
+  const from = curve.kind === "arc" ? Math.atan2(curve.start.y - curve.center.y, curve.start.x - curve.center.x) : 0;
+  const sweep = curve.kind === "arc" ? turn(Math.atan2(curve.end.y - curve.center.y, curve.end.x - curve.center.x) - from) : TAU;
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    const a = from + sweep * i / steps;
+    return { x: curve.center.x + curve.radius * Math.cos(a), y: curve.center.y + curve.radius * Math.sin(a) };
+  });
+}
+
 export function hitProjectedModelEdge(sketch, uv, edges, tol) {
   let best = null, bd = tol;
   for (const edge of edges || []) {
     if (edge?.kind && edge.kind !== "edge") continue;
     const line = modelEdgeSketchLine(sketch, edge);
-    if (!line) continue;
-    const dx = line.b.x - line.a.x, dy = line.b.y - line.a.y, len2 = dx * dx + dy * dy;
-    const t = len2 > EPS ? Math.max(0, Math.min(1, ((uv.x - line.a.x) * dx + (uv.y - line.a.y) * dy) / len2)) : 0;
-    const d = Math.hypot(uv.x - (line.a.x + dx * t), uv.y - (line.a.y + dy * t));
+    let d;
+    if (line) {
+      const dx = line.b.x - line.a.x, dy = line.b.y - line.a.y, len2 = dx * dx + dy * dy;
+      const t = len2 > EPS ? Math.max(0, Math.min(1, ((uv.x - line.a.x) * dx + (uv.y - line.a.y) * dy) / len2)) : 0;
+      d = Math.hypot(uv.x - (line.a.x + dx * t), uv.y - (line.a.y + dy * t));
+    } else {
+      /* A circle, arc or ellipse lying parallel to the sheet is drawn there as
+         itself, so it is picked along its own curve (to Convert it). */
+      let curve = null;
+      try { curve = modelEdgeSketchCurve(sketch, edge); } catch (error) { continue; }
+      if (curve.kind === "line") continue;
+      const samples = curveSamples(curve);
+      d = Infinity;
+      for (let i = 1; i < samples.length; i++) d = Math.min(d, distanceToSegment(uv, samples[i - 1], samples[i]));
+    }
     if (d < bd) { bd = d; best = edge; }
   }
   return best;
 }
 
+/* ---- a model edge as sketch geometry (Convert Entities) ----
+
+   What a model edge is when it is brought into this sketch: a line, an arc, a
+   circle or an ellipse in sketch coordinates, re-read from the rebuilt edge
+   every time. A curve must lie in a plane parallel to the sketch, since a
+   tilted circle projects to an ellipse the sketch could only fake; a B-spline
+   has no exact sketch entity. Each refusal says why. */
+const sub3 = (a, b) => ({ x: (a.x || 0) - (b.x || 0), y: (a.y || 0) - (b.y || 0), z: (a.z || 0) - (b.z || 0) });
+const add3 = (a, b) => ({ x: (a.x || 0) + (b.x || 0), y: (a.y || 0) + (b.y || 0), z: (a.z || 0) + (b.z || 0) });
+const len3 = (a) => Math.hypot(a.x || 0, a.y || 0, a.z || 0);
+const TAU = Math.PI * 2;
+const turn = (a) => ((a % TAU) + TAU) % TAU;
+
+function parallelToSketch(sketch, normal) {
+  const n = sketchNormal(sketch), l = len3(normal || {});
+  return l > EPS && Math.abs(Math.abs(((normal.x || 0) * n.x + (normal.y || 0) * n.y + (normal.z || 0) * n.z) / l) - 1) <= 1e-6;
+}
+const flat = (sketch, p) => { const q = projectWorldToSketch(sketch, p); return { x: q.x, y: q.y }; };
+const samePoint = (a, b, tol = 1e-6) => Math.hypot(a.x - b.x, a.y - b.y) <= tol;
+
+/* Which way round an arc runs, in the sketch's own counter-clockwise sense: the
+   kernel sorts an edge's end points by coordinate, so the side the arc sweeps is
+   told by a point on it (its midpoint), or failing that by its length. */
+function orientArc(center, radius, p, q, inside, sweep) {
+  const angle = (point) => Math.atan2(point.y - center.y, point.x - center.x);
+  const span = turn(angle(q) - angle(p));
+  let forward;
+  if (inside) forward = turn(angle(inside) - angle(p)) < span;
+  else if (Number.isFinite(sweep)) forward = Math.abs(span - sweep) <= Math.abs(TAU - span - sweep);
+  else throw new Error("The arc edge does not say which side of its ends it runs");
+  return { kind: "arc", center, radius, start: forward ? p : q, end: forward ? q : p };
+}
+
+/* A circle through projected samples (the tessellated arc of an analytic
+   extrusion), or null when they do not all sit on one. */
+function circleThrough(points) {
+  if (points.length < 3) return null;
+  const mx = points.reduce((s, p) => s + p.x, 0) / points.length, my = points.reduce((s, p) => s + p.y, 0) / points.length;
+  let suu = 0, svv = 0, suv = 0, suuu = 0, svvv = 0, suvv = 0, svuu = 0;
+  for (const p of points) {
+    const u = p.x - mx, v = p.y - my;
+    suu += u * u; svv += v * v; suv += u * v; suuu += u * u * u; svvv += v * v * v; suvv += u * v * v; svuu += v * u * u;
+  }
+  const det = suu * svv - suv * suv;
+  if (Math.abs(det) < 1e-12) return null;
+  const bu = (suuu + suvv) / 2, bv = (svvv + svuu) / 2;
+  const center = { x: mx + (bu * svv - bv * suv) / det, y: my + (bv * suu - bu * suv) / det };
+  const radius = points.reduce((s, p) => s + Math.hypot(p.x - center.x, p.y - center.y), 0) / points.length;
+  const worst = points.reduce((m, p) => Math.max(m, Math.abs(Math.hypot(p.x - center.x, p.y - center.y) - radius)), 0);
+  return Number.isFinite(radius) && worst <= Math.max(1e-5, radius * 1e-4) ? { center, radius } : null;
+}
+
+/* World points along an elliptical edge, for drawing and screen picking. */
+export function ellipseEdgePoints(descriptor, steps = 72) {
+  const e = descriptor?.ellipse;
+  if (!e?.center || !e.normal || !e.majorAxis || !(e.majorRadius > 0) || !(e.minorRadius > 0)) return [];
+  const n = e.normal, nl = len3(n), ml = len3(e.majorAxis);
+  if (nl < EPS || ml < EPS) return [];
+  const x = { x: e.majorAxis.x / ml, y: e.majorAxis.y / ml, z: e.majorAxis.z / ml };
+  const y = { x: (n.y * x.z - n.z * x.y) / nl, y: (n.z * x.x - n.x * x.z) / nl, z: (n.x * x.y - n.y * x.x) / nl };
+  const out = [];
+  const first = e.first ?? 0, last = e.last ?? TAU;
+  for (let i = 0; i <= steps; i++) {
+    const a = first + (last - first) * i / steps, c = Math.cos(a) * e.majorRadius, s = Math.sin(a) * e.minorRadius;
+    out.push({ x: e.center.x + x.x * c + y.x * s, y: e.center.y + x.y * c + y.y * s, z: e.center.z + x.z * c + y.z * s });
+  }
+  return out;
+}
+
+export function modelEdgeSketchCurve(sketch, edge) {
+  const d = edge?.descriptor || edge || {};
+  const ends = edgeEndpoints(edge);
+  if (!d.curve || d.curve === "line") {
+    const line = modelEdgeSketchLine(sketch, edge);
+    if (!line) throw new Error("The edge stands square to the sketch plane, so it shows as a point");
+    return { kind: "line", start: line.a, end: line.b };
+  }
+  if (d.curve === "circle") {
+    if (!d.origin || !(Number(d.radius) > 0)) throw new Error("The circular edge carries no centre or radius");
+    if (!parallelToSketch(sketch, d.axis)) throw new Error("The circular edge is not parallel to the sketch plane");
+    const center = flat(sketch, d.origin), radius = Number(d.radius);
+    const closed = ends.length < 2 || len3(sub3(ends[0], ends[ends.length - 1])) < 1e-6;
+    if (closed) return { kind: "circle", center, radius };
+    return orientArc(center, radius, flat(sketch, ends[0]), flat(sketch, ends[ends.length - 1]),
+      d.arcMidpoint ? flat(sketch, d.arcMidpoint) : null, Number(d.measure) / radius);
+  }
+  if (d.curve === "ellipse") {
+    const e = d.ellipse;
+    if (!e?.center || !e.majorAxis || !(e.majorRadius > 0) || !(e.minorRadius > 0)) throw new Error("The elliptical edge carries no axes; rebuild the part and pick it again");
+    if (!parallelToSketch(sketch, e.normal)) throw new Error("The elliptical edge is not parallel to the sketch plane");
+    if (ends.length >= 2 && len3(sub3(ends[0], ends[ends.length - 1])) > 1e-6) throw new Error("Only a complete elliptical edge converts; a partial one has no sketch entity");
+    const center = flat(sketch, e.center), tip = flat(sketch, add3(e.center, e.majorAxis));
+    return { kind: "ellipse", center, rx: e.majorRadius, ry: e.minorRadius, rot: Math.atan2(tip.y - center.y, tip.x - center.x) };
+  }
+  if (d.curve === "polyline" && ends.length >= 2) {
+    const points = ends.map((p) => flat(sketch, p)), first = points[0], last = points[points.length - 1];
+    const closed = points.length > 3 && samePoint(first, last);
+    const chord = Math.hypot(last.x - first.x, last.y - first.y);
+    const straight = !closed && chord > EPS && points.every((p) => Math.abs((p.x - first.x) * (last.y - first.y) - (p.y - first.y) * (last.x - first.x)) / chord <= 1e-6 * Math.max(1, chord));
+    if (straight) return { kind: "line", start: first, end: last };
+    const fit = circleThrough(closed ? points.slice(0, -1) : points);
+    if (!fit) throw new Error("The edge is neither straight nor circular on this sketch plane");
+    if (closed) return { kind: "circle", center: fit.center, radius: fit.radius };
+    return orientArc(fit.center, fit.radius, first, last, points[points.length >> 1], null);
+  }
+  throw new Error("A " + d.curve + " edge has no exact sketch entity to convert to");
+}
+
 /* A named place on a model edge, as the sketch plane sees it: its start, its
    end (a picked model VERTEX is one of these on an edge that ends there) or its
-   midpoint. Read from the rebuilt edge, so it moves when the body does. */
+   midpoint. Read from the rebuilt edge, so it moves when the body does.
+   Converted curves add the centre of an arc, circle or ellipse, and an arc's
+   two ends in the order the sketch arc runs (arcStart, arcEnd). */
 export function modelEdgeAnchor(sketch, edge, at) {
+  if (at === "center" || at === "arcStart" || at === "arcEnd") {
+    const curve = modelEdgeSketchCurve(sketch, edge);
+    if (at === "center" && curve.center) return { x: curve.center.x, y: curve.center.y };
+    if (curve.kind === "arc") return { ...(at === "arcStart" ? curve.start : curve.end) };
+    throw new Error(at === "center" ? "A straight model edge has no centre" : "The model edge is no longer an arc");
+  }
   const ends = edgeEndpoints(edge);
   if (ends.length < 2) throw new Error("The model edge has no end points to relate to");
   const a = ends[0], b = ends[ends.length - 1];
@@ -187,13 +331,14 @@ export function vertexEdgeBinding(vertex, edges, tol = 1e-3) {
 }
 
 /* A corner of the model under the pointer, as the sketch plane sees it. */
-export function hitProjectedModelVertex(sketch, uv, edges, tol) {
+export function hitProjectedModelVertex(sketch, uv, edges, tol, accept) {
   let best = null, bd = tol;
   for (const edge of edges || []) {
     if (edge?.kind && edge.kind !== "edge") continue;
     const ends = edgeEndpoints(edge);
     if (ends.length < 2) continue;
     for (const world of [ends[0], ends[ends.length - 1]]) {
+      if (accept && !accept(world)) continue;
       const q = projectWorldToSketch(sketch, world), d = Math.hypot(uv.x - q.x, uv.y - q.y);
       if (d < bd) {
         bd = d;
@@ -202,6 +347,92 @@ export function hitProjectedModelVertex(sketch, uv, edges, tol) {
     }
   }
   return best;
+}
+
+// Older Convert Entities lines stored just two onModelEdge endpoint pins.
+// Require a live line connecting both ends of the same edge: a single manual
+// vertex/midpoint relation does not mean that edge has already been converted.
+export function convertedPins(sketch) {
+  const constraints = (sketch.constraints || []).filter(c => c.type === "onModelEdge" && c.edge?.persistentId);
+  const live = new Set((sketch.entities || []).map(e => e.id));
+  const pins = new Set(constraints.filter(c => c.convert && live.has(c.entity)));
+  const byPoint = new Map();
+  for (const c of constraints) {
+    if (c.convert || c.entity != null || !["start", "end"].includes(c.at)) continue;
+    if (!byPoint.has(c.point)) byPoint.set(c.point, []);
+    byPoint.get(c.point).push(c);
+  }
+  for (const line of sketch.entities || []) {
+    if (line.type !== "line" || line.a === line.b) continue;
+    for (const a of byPoint.get(line.a) || []) {
+      const b = byPoint.get(line.b)?.find(c => c.edge.persistentId === a.edge.persistentId && c.at !== a.at);
+      if (b) { pins.add(a); pins.add(b); }
+    }
+  }
+  return pins;
+}
+
+const worldDistance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+const dot = (a, b) => (a.x || 0) * (b.x || 0) + (a.y || 0) * (b.y || 0) + (a.z || 0) * (b.z || 0);
+
+function lineEndsReversed(group, byPoint) {
+  const { edge, ends, pins } = group;
+  for (const pin of pins) {
+    for (const other of byPoint.get(pin.point)) {
+      if (other === group) continue;
+      const matches = ends.map(end => other.ends.some(p => worldDistance(p, end) < 1e-6));
+      if (matches[0] !== matches[1]) return matches[0] !== (pin.at === "start");
+    }
+  }
+  const ref = pins[0].edge, original = edgeEndpoints(ref);
+  if (original.length < 2) return false;
+  const before = sub3(original.at(-1), original[0]), now = sub3(ends[1], ends[0]);
+  const oldAxis = ref.descriptor?.axis, axis = edge.descriptor?.axis;
+  return oldAxis && axis ? dot(before, oldAxis) * dot(now, axis) < 0 : dot(before, now) < 0;
+}
+
+// Exact descriptors sort their endpoints by coordinate. Identify a line's
+// shared vertex by its incident edges first. For a free line, use the native
+// curve direction (or the previous chord if a lightweight edge has no axis).
+export function convertedPinVertices(sketch, resolveEdge) {
+  const byEdge = new Map(), byPoint = new Map(), vertices = new Map();
+  for (const pin of convertedPins(sketch)) {
+    if (pin.suppressed || pin.at === "center") continue;
+    const id = pin.edge.persistentId;
+    if (!byEdge.has(id)) {
+      const edge = resolveEdge(pin.edge), ends = edgeEndpoints(edge);
+      byEdge.set(id, ends.length < 2 ? null : { edge, ends: [ends[0], ends.at(-1)], pins: [] });
+    }
+    const group = byEdge.get(id);
+    if (!group) continue;
+    group.pins.push(pin);
+    if (!byPoint.has(pin.point)) byPoint.set(pin.point, []);
+    byPoint.get(pin.point).push(group);
+  }
+  for (const group of byEdge.values()) {
+    if (!group) continue;
+    const { edge, ends, pins } = group;
+    if (pins.some(p => p.at === "arcStart" || p.at === "arcEnd")) {
+      const curve = modelEdgeSketchCurve(sketch, edge);
+      if (curve.kind !== "arc") throw new Error("The converted model edge is no longer an arc");
+      for (const pin of pins) {
+        const p = pin.at === "arcStart" ? curve.start : curve.end;
+        const world = ends.find(end => {
+          const q = projectWorldToSketch(sketch, end);
+          return Math.hypot(q.x - p.x, q.y - p.y) < 1e-6;
+        });
+        if (!world) throw new Error("The converted arc endpoint is unavailable");
+        vertices.set(pin, world);
+      }
+      continue;
+    }
+    const flip = lineEndsReversed(group, byPoint);
+    for (const pin of pins) {
+      const atLast = (pin.at === "end") !== flip;
+      vertices.set(pin, ends[atLast ? 1 : 0]);
+    }
+  }
+  return vertices;
 }
 
 /* Coincident with a model edge (SOLIDWORKS: a sketch point and an edge, then
@@ -213,13 +444,34 @@ export function hitProjectedModelVertex(sketch, uv, edges, tol) {
      where it pierces the plane.
    A reference that no longer resolves throws; nothing is baked. */
 export function bindModelEdgeTargets(sketch, resolveEdge) {
+  if (!sketch.constraints?.some(c => c.type === "onModelEdge" && !c.suppressed)) return sketch;
+  const resolved = new Map();
+  const lookup = ref => {
+    if (!resolved.has(ref.persistentId)) resolved.set(ref.persistentId, resolveEdge?.(ref));
+    return resolved.get(ref.persistentId);
+  };
+  const vertices = convertedPinVertices(sketch, lookup);
   for (const constraint of sketch.constraints || []) {
-    if (constraint.type !== "onModelEdge" || !constraint.edge) continue;
-    const edge = resolveEdge?.(constraint.edge);
+    if (constraint.type !== "onModelEdge" || !constraint.edge || constraint.suppressed) continue;
+    const edge = lookup(constraint.edge);
     if (!edge) throw new Error("A coincident model edge is unavailable");
+    if (constraint.convert) {
+      const entity = sketch.entities.find(item => item.id === constraint.entity);
+      if (!entity) throw new Error("The converted sketch entity is unavailable");
+      const curve = modelEdgeSketchCurve(sketch, edge);
+      if (entity.type !== curve.kind) throw new Error("The converted model edge is no longer a " + entity.type);
+      const anchor = vertices.has(constraint) ? projectWorldToSketch(sketch, vertices.get(constraint))
+        : constraint.at === "center" ? curve.center
+        : constraint.at === "start" || constraint.at === "arcStart" ? curve.start : curve.end;
+      Object.assign(constraint, { px: anchor.x, py: anchor.y });
+      if (curve.kind === "circle") constraint.radius = curve.radius;
+      if (curve.kind === "ellipse") Object.assign(constraint, { rx: curve.rx, ry: curve.ry, rot: curve.rot });
+      continue;
+    }
     for (const key of ["ax", "ay", "bx", "by", "px", "py"]) delete constraint[key];
     if (constraint.at) {
-      const anchor = modelEdgeAnchor(sketch, edge, constraint.at);
+      const anchor = vertices.has(constraint) ? projectWorldToSketch(sketch, vertices.get(constraint))
+        : modelEdgeAnchor(sketch, edge, constraint.at);
       Object.assign(constraint, { px: anchor.x, py: anchor.y });
       continue;
     }
@@ -321,13 +573,14 @@ function distanceToSegment(p, a, b) {
   return Math.hypot(p.x - (a.x + dx * t), p.y - (a.y + dy * t));
 }
 
-export function hitScreenModelVertex(px, edges, tol, toScreen) {
+export function hitScreenModelVertex(px, edges, tol, toScreen, accept) {
   let best = null, bd = tol;
   for (const edge of edges || []) {
     if (edge?.kind && edge.kind !== "edge") continue;
     const ends = edgeEndpoints(edge);
     if (ends.length < 2) continue;
     for (const world of [ends[0], ends[ends.length - 1]]) {
+      if (accept && !accept(world)) continue;
       const s = toScreen(world);
       if (!s) continue;
       const d = Math.hypot(px.x - s.x, px.y - s.y);
@@ -345,15 +598,38 @@ export function hitScreenModelEdge(px, edges, tol, toScreen, pointsOf) {
   for (const edge of edges || []) {
     if (edge?.kind && edge.kind !== "edge") continue;
     const curve = edge?.descriptor?.curve;
-    if (curve && curve !== "line" && curve !== "circle") continue;
-    const world = pointsOf(edge.descriptor) || [];
+    if (curve && curve !== "line" && curve !== "circle" && curve !== "ellipse" && curve !== "polyline") continue;
+    const world = curve === "ellipse" ? ellipseEdgePoints(edge.descriptor) : pointsOf(edge.descriptor) || [];
     if (world.length < 2) continue;
     const screen = world.map(toScreen);
+    let d = Infinity;
     for (let i = 1; i < screen.length; i++) {
       if (!screen[i - 1] || !screen[i]) continue;
-      const d = distanceToSegment(px, screen[i - 1], screen[i]);
-      if (d < bd) { bd = d; best = edge; }
+      d = Math.min(d, distanceToSegment(px, screen[i - 1], screen[i]));
     }
+    if (d < bd) { bd = d; best = edge; }
   }
   return best;
+}
+
+/* A vertex on the sketch face takes precedence over its edges. A vertex
+   behind the face should not mask a rim drawn directly under the pointer. */
+export function pickSketchModelTopology(sketch, pos, edges, tolerance, toScreen, pointsOf) {
+  const hitVertex = accept => toScreen ? hitScreenModelVertex(pos, edges, tolerance, toScreen, accept)
+    : hitProjectedModelVertex(sketch, pos, edges, tolerance, accept);
+  const onPlane = p => Math.abs(projectWorldToSketch(sketch, p).w) <= 1e-5;
+  const vertex = hitVertex(onPlane);
+  if (vertex) return vertex;
+  const hit = candidates => toScreen ? hitScreenModelEdge(pos, candidates, tolerance, toScreen, pointsOf)
+    : hitProjectedModelEdge(sketch, pos, candidates, tolerance);
+  const faceEdges = edges.filter(edge => {
+    const d = edge.descriptor;
+    if (d.curve === "ellipse" || d.curve === "circle") {
+      const center = d.ellipse?.center || d.origin;
+      return center && onPlane(center) && parallelToSketch(sketch, d.ellipse?.normal || d.axis);
+    }
+    const ends = edgeEndpoints(edge);
+    return ends.length > 1 && ends.every(onPlane);
+  });
+  return hit(faceEdges) || hitVertex() || hit(edges);
 }

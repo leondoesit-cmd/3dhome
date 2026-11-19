@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {bindMateNumericCommit} from '../js/modeler_mate_numeric_commit.js';
 import {setTopologyMateValue} from '../js/cad_mate_value_controls.js';
 import {topologyReference,solveTopologyMates,captureLockPose} from '../js/cad_mates.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(type='angle',grounded=false){
  const descriptor={surface:'plane',origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0}};
  const mate={id:'edited',type,value:type==='angle'?25:2,aligned:true,a:topologyReference('fixed','face','a',descriptor),b:topologyReference('moving','face','b',descriptor)};

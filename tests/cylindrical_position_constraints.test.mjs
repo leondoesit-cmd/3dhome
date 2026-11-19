@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -69,13 +70,13 @@ test('actual Hole Wizard catalog exposes relation edits and keeps the legacy ang
   for(const key of ['cylinderOnSurface','cylinderAlongZ','cylinderAlongY'])assert.equal(fields.find(f=>f.key===key).type,'boolean');
 });
 test('actual create handler rejects a removed placement relation before geometry, history or Undo mutation',async()=>{
-  const doc=sourceFixture(),params={...doc.features[1].params,cylinderOnSurface:false},source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),before=JSON.stringify(doc),messages=[];
+  const doc=sourceFixture(),params={...doc.features[1].params,cylinderOnSurface:false},source=modelerSource(),before=JSON.stringify(doc),messages=[];
   const context={E:{def:doc,topologySelection:[]},featureDefaults,modelLengthUnit:()=> 'in',selectedSolid:()=>doc.parts[0],cylindricalHolePlacement,flash:value=>messages.push(value)};
   const create=new Function(...Object.keys(context),sourceFunctionText(source,'createHoleFeature')+';return createHoleFeature;')(...Object.values(context));
   assert.equal(await create(params),false);assert.match(messages[0],/under-defined.*1 DOF/);assert.equal(JSON.stringify(doc),before);
 });
 test('shared creation/edit UI readout displays solved XYZ/DOF and updates actual relation status without writing geometry',()=>{
-  const doc=sourceFixture(),state={id:'existing-hole',params:doc.features[1].params},source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),nodes=[];let live;
+  const doc=sourceFixture(),state={id:'existing-hole',params:doc.features[1].params},source=modelerSource(),nodes=[];let live;
   const context={E:{def:doc},renderFeatureParameterFormCore:(host,type,state,callback)=>{live=callback;return [];},modelLengthUnit:()=> 'mm',modelLengthText:(v)=>String(v*10),cylindricalHolePlacement,FEATURE_PATTERN_SEED_TYPES:[],featureReferenceOptions(){},t:key=>key,
     el:()=>({textContent:'',setAttribute(){}})};
   const render=new Function(...Object.keys(context),sourceFunctionText(source,'renderFeatureParameterForm')+';return renderFeatureParameterForm;')(...Object.values(context));

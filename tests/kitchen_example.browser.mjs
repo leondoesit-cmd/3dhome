@@ -97,7 +97,7 @@ test("draw the kitchen remodel with the wall tool and typed sizes", opts, async 
     assert.equal(started.intention, "recreate");
     assert.equal(started.unit, "ft");
 
-    const drawn = await page.eval(async () => {
+    const drawn = await page.evalWithTimeout(150000, async () => {
       const q = window.__apt;
       const OX = 420, OZ = 180;
       await q.clickEl('[data-tool="wall"]');
@@ -306,7 +306,9 @@ test("draw the kitchen remodel with the wall tool and typed sizes", opts, async 
     assert.ok(named.some((r) => r.name === "Kitchen"), JSON.stringify(named));
     assert.ok(named.some((r) => r.name === "Dining room"), JSON.stringify(named));
 
-    const furnished = await page.eval(async () => {
+    // This stage places and sizes a complete room of catalog items, yielding
+    // a paint frame after each operation rather than performing one UI action.
+    const furnished = await page.evalWithTimeout(90000, async () => {
       const q = window.__apt;
       const { roomMeasurements } = await import("/js/room_summary.js");
       document.querySelector('[data-left-tab="library"]')?.click();

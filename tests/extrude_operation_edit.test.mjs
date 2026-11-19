@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -56,7 +57,7 @@ test('standalone/new-body/invalid-parameter conversions reject without any docum
  assert.throws(()=>setExtrudeFeatureOperation(document,'shared','subtract'),/existing target body/);assert.equal(JSON.stringify(document),before);
 });
 test('existing feature editor applies a changed Boolean only on Update and rebuilds from changed type',()=>{
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),body=sourceFunctionText(source,'openFeatureEditor');
+ const source=modelerSource(),body=sourceFunctionText(source,'openFeatureEditor');
  assert.match(body,/editOperationSelect=featureField\(host,[\s\S]*fcFldOperation/);
  assert.match(body,/setExtrudeFeatureOperation\(E\.def,feature\.id,editOperation/);
  assert.match(body,/before\.type!==feature\.type/);

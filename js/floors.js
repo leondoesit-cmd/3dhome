@@ -410,6 +410,25 @@ export function floorAbove(workspace = S.workspace) {
   return best;
 }
 
+// The storey directly under the active one (the mirror of floorAbove), or null.
+export function floorBelow(workspace = S.workspace) {
+  const floors = Array.isArray(workspace && workspace.floors) ? workspace.floors : [];
+  const activeIndex = floors.findIndex((f) => f.id === (workspace && workspace.activeFloor));
+  if (activeIndex < 0) return null;
+  const activeElev = Number(floors[activeIndex].elevation) || 0;
+  let best = null, bestElev = -Infinity, bestIndex = -Infinity;
+  floors.forEach((f, i) => {
+    if (i === activeIndex) return;
+    const elev = Number(f.elevation) || 0;
+    const lower = elev < activeElev || (elev === activeElev && i < activeIndex);
+    if (!lower) return;
+    if (elev > bestElev || (elev === bestElev && i > bestIndex)) {
+      best = f; bestElev = elev; bestIndex = i;
+    }
+  });
+  return best;
+}
+
 /* Write a slab void into another storey's stored scene. The active storey is
    captured first, or the next captureFloor() would overwrite this edit. */
 export function addSlabOpeningToFloor(floorId, opening) {
@@ -418,14 +437,22 @@ export function addSlabOpeningToFloor(floorId, opening) {
   captureFloor();
   const floor = floorById(floorId);
   if (!floor) return null;
-  if (!floor.scene || typeof floor.scene !== "object") floor.scene = {};
-  const scene = floor.scene;
-  if (scene.spatial && typeof scene.spatial === "object") {
+  // History interns inactive scenes by identity. Never edit a pooled scene.
+  const scene = floor.scene && typeof floor.scene === "object" ? clone(floor.scene) : {};
+  const spatial = scene.spatial && typeof scene.spatial === "object";
+  if (spatial) {
     if (!Array.isArray(scene.spatial.slabOpenings)) scene.spatial.slabOpenings = [];
     scene.spatial.slabOpenings.push(clone(opening));
   }
-  if (!Array.isArray(scene.slabOpenings)) scene.slabOpenings = [];
-  scene.slabOpenings.push(clone(opening));
+  /* A spatial scene's voids live in spatial.slabOpenings (applyData reads
+     them there). Starting a flat list beside it would hold only this one
+     void, and readers that look at the flat list first (walk mode's
+     headroom test) would lose every other stairwell on the storey. */
+  if (!spatial || Array.isArray(scene.slabOpenings)) {
+    if (!Array.isArray(scene.slabOpenings)) scene.slabOpenings = [];
+    scene.slabOpenings.push(clone(opening));
+  }
+  floor.scene = scene;
   return floor;
 }
 
@@ -437,9 +464,13 @@ export function updateStairVoidsOnFloors(stairs, apply) {
   let changed = false;
   floors.forEach((floor) => {
     if (!floor || floor.id === S.workspace.activeFloor || !floor.scene) return;
-    const scene = floor.scene;
-    if (apply(scene.slabOpenings, stairs)) changed = true;
-    if (scene.spatial && apply(scene.spatial.slabOpenings, stairs)) changed = true;
+    const scene = clone(floor.scene);
+    let floorChanged = !!apply(scene.slabOpenings, stairs);
+    if (scene.spatial && apply(scene.spatial.slabOpenings, stairs)) floorChanged = true;
+    if (floorChanged) {
+      floor.scene = scene;
+      changed = true;
+    }
   });
   return changed;
 }
@@ -457,5 +488,124 @@ export function removeFloor(id) {
     S.workspace.activeFloor = "";
     switchFloor(S.workspace.floors[0].id);
   }
+  return true;
+}
+
+/* ---- stacking storeys (js/planner_chrome.js addFloorFromUI) ----
+   A new storey goes on top of the highest one: its elevation is that storey's
+   elevation plus its height, and that height is the tallest wall on it plus a
+   slab (never under 300 cm). The active storey is live in S, so its walls are
+   read from `liveScene`; every other storey from its stored scene. */
+function sceneItems(scene) {
+  if (!scene || typeof scene !== "object") return [];
+  if (Array.isArray(scene.items)) return scene.items;
+  return scene.spatial && Array.isArray(scene.spatial.instances) ? scene.spatial.instances : [];
+}
+
+export function storeyHeight(floor, workspace = S.workspace, liveScene = null) {
+  if (!floor) return 300;
+  const ws = workspaceOf(workspace);
+  const scene = liveScene && ws && floor.id === ws.activeFloor ? liveScene : floor.scene;
+  let tallest = 0;
+  sceneWalls(scene).forEach((w) => {
+    if (!w) return;
+    const h = Number(w.height != null ? w.height : w.h);
+    if (Number.isFinite(h) && h > tallest) tallest = h;
+  });
+  return Math.max(300, tallest + 20);
+}
+
+export function floorsByElevation(workspace = S.workspace) {
+  const ws = workspaceOf(workspace);
+  const floors = Array.isArray(ws && ws.floors) ? ws.floors : [];
+  return floors.map((floor, index) => ({ floor, index })).filter((e) => e.floor)
+    .sort((a, b) => ((Number(a.floor.elevation) || 0) - (Number(b.floor.elevation) || 0)) || a.index - b.index)
+    .map((e) => e.floor);
+}
+
+export function nextFloorElevation(workspace = S.workspace, liveScene = null) {
+  const sorted = floorsByElevation(workspace);
+  if (!sorted.length) return 0;
+  const top = sorted[sorted.length - 1];
+  return (Number(top.elevation) || 0) + storeyHeight(top, workspace, liveScene);
+}
+
+/* "Floor 1", "Floor 2"…: the number of storeys above the lowest once the new
+   one is added, bumped past any name already taken. `format(n)` localizes. */
+export function nextFloorName(workspace = S.workspace, format = (n) => "Floor " + n) {
+  const ws = workspaceOf(workspace);
+  const floors = Array.isArray(ws && ws.floors) ? ws.floors : [];
+  const taken = new Set(floors.map((f) => f && String(f.name || "")));
+  let n = Math.max(1, floors.length);
+  while (taken.has(format(n)) && n < floors.length + 100) n++;
+  return format(n);
+}
+
+/* Stairs on `scene` whose top lands within `tolerance` of the storey `rise`
+   above them (catalogue stairs are 260 high, a storey 300). */
+export function stairsReachingStorey(scene, rise, { tolerance = 45, defaultHeight = 260 } = {}) {
+  if (!finite(Number(rise)) || Number(rise) <= 0) return [];
+  return sceneItems(scene).filter((it) => {
+    if (!it || it.type !== "stairs") return false;
+    const h = Number(it.h != null ? it.h : defaultHeight);
+    return Math.abs((Number(it.elev) || 0) + h - Number(rise)) <= tolerance;
+  });
+}
+
+/* Cut a stairwell void into `openings` (the new storey's live list) for each of
+   those stairs that has none yet, matched by stairsId — so it is idempotent.
+   `makeVoid(stairs)` builds the void (js/slab_openings.js stairVoidFields).
+   Returns how many it added. */
+export function cutStairwellVoids(belowScene, rise, openings, makeVoid, options) {
+  if (!Array.isArray(openings) || typeof makeVoid !== "function") return 0;
+  let added = 0;
+  stairsReachingStorey(belowScene, rise, options).forEach((it) => {
+    if (openings.some((o) => o && o.stairsId === it.id)) return;
+    const vo = makeVoid(it);
+    if (!vo) return;
+    openings.push(vo);
+    added++;
+  });
+  return added;
+}
+
+/* ---- the reference ("ghost") storey toggle ----
+   One implementation for both controls that show it — the floor strip's
+   button (js/planner_chrome.js) and the Layers row (js/ui_layers.js) — so the
+   two cannot drift. Turned on from either, the reference FOLLOWS: switch
+   storey and it moves to the new storey's floor below. */
+export function referenceShown(workspace = S.workspace) {
+  const ws = workspaceOf(workspace);
+  return !!(ws && ws.showReferenceFloor && ws.referenceFloor && ws.referenceFloor !== ws.activeFloor);
+}
+
+export function referenceTarget(workspace = S.workspace) {
+  const ws = workspaceOf(workspace);
+  return floorBelow(ws) || floorAbove(ws);
+}
+
+/* Flip the overlay; returns true when anything changed. */
+export function toggleReferenceFloor(workspace = S.workspace) {
+  const ws = workspaceOf(workspace);
+  if (!ws) return false;
+  if (referenceShown(ws)) {
+    ws.showReferenceFloor = false;
+    return true;
+  }
+  const target = referenceTarget(ws);
+  if (!target) return false;
+  setReferenceFloor(target.id, true, ws);
+  ws.referenceFollows = true;
+  return true;
+}
+
+/* After a storey switch, a following reference moves to the new floor below.
+   Returns true when it moved. */
+export function followReferenceFloor(workspace = S.workspace) {
+  const ws = workspaceOf(workspace);
+  if (!ws || !ws.showReferenceFloor || !ws.referenceFollows) return false;
+  const want = referenceTarget(ws);
+  if (!want || want.id === ws.referenceFloor) return false;
+  setReferenceFloor(want.id, true, ws);
   return true;
 }

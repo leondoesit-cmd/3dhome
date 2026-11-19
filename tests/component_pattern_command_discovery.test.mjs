@@ -1,8 +1,9 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {PRO_CATALOG,proTools,proLabel} from '../js/pro_catalog.js';
 import {buildCommandCatalog,commandUnavailableReason} from '../js/modeler_commands.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-const ribbon=fs.readFileSync(new URL('../js/pro_ribbon.js',import.meta.url),'utf8'),modeler=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const ribbon=fs.readFileSync(new URL('../js/pro_ribbon.js',import.meta.url),'utf8'),modeler=modelerSource();
 function catalog(editor){return buildCommandCatalog({t:x=>x,editor,closedSketchProfile:()=>null,activeParts:()=>[]});}
 test('current Assembly ribbon, Allcommands lookup and ordinary Cmd names reach all three real handlers',()=>{
  const group=PRO_CATALOG.model.tabs.find(([tab])=>tab==='Assembly')[1].find(([name])=>name==='Component patterns');assert.ok(group);

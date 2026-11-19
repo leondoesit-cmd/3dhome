@@ -6,7 +6,7 @@ import {roomTypeOf} from './room_types.js';
 export function projectAreaReport({rooms,wallSolids,voids=[],apertures=[],metadata={},unresolved=false}){
  const polygons=[...rooms.map(r=>r.pts),...wallSolids.map(w=>w.points),...voids,...apertures];
  unresolved ||= polygons.some(p=>!Array.isArray(p)||p.length<3||p.some(v=>!Number.isFinite(v.x)||!Number.isFinite(v.z)));
- const outdoor=room=>['balcony','terrace'].includes(roomTypeOf(metadata[room.key]));
+ const outdoor=room=>['balcony','terrace','serviceBalcony'].includes(roomTypeOf(metadata[room.key]));
  const typed=room=>!!roomTypeOf(metadata[room.key]);
  const clear=polygons=>polygonBooleanArea([polygons,wallSolids.map(w=>w.points),voids,apertures],s=>s[0]&&!s[2]&&(!s[1]||s[3]));
  const entries=rooms.map(room=>({key:room.key,type:roomTypeOf(metadata[room.key]),area:unresolved?null:clear([room.pts])/10000}));

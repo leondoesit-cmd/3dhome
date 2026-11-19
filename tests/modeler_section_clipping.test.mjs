@@ -1,8 +1,9 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const start=source.indexOf('function applySectionClipping('), end=source.indexOf('\n}',start)+2;
 test('section root follows enable, plane replacement and disable without material mutations',()=>{
  const E={pv:{},section:{enabled:true}}, root={isClippingGroup:true};

@@ -116,6 +116,28 @@ export function markerDesc(m) {
   return markerLabel(m) + (it ? " · " + flabel(it.type) : "");
 }
 
+/* Where on the plan a piece seated on this point has its centre. A floor or
+   ceiling point: the point itself. A wall point: the point's spot on the
+   wall's FACE (its own x,z may be anywhere within reach of the wall, even on
+   the centreline), then half the piece's depth out along the point's normal,
+   so the piece's back sits on the face — the pose a piece dragged across the
+   wall gets too (js/wall_plane_snap.js wallPlanePose), so changing from one to
+   the other never shifts it. */
+export function markerSeat(m, it) {
+  if (!m || m.surface !== "wall" || !(m.nx || m.nz)) return { x: m.x, z: m.z };
+  var L = Math.hypot(m.nx, m.nz) || 1, nx = m.nx / L, nz = m.nz / L,
+    half = fin(it && it.d) ? it.d / 2 : 0, fx = m.x, fz = m.z;
+  var w = m.wall != null ? wallById(m.wall) : null, g = w && wallGeom(w);
+  if (g && (!g.kind || g.kind === "line") && g.L > 0) {
+    var s = (m.x - g.a.x) * g.ux + (m.z - g.a.z) * g.uz,
+      side = nx * -g.uz + nz * g.ux >= 0 ? 1 : -1,
+      t = (fin(w.thickness) ? w.thickness : 0) / 2;
+    fx = g.a.x + g.ux * s - g.uz * side * t;
+    fz = g.a.z + g.uz * s + g.ux * side * t;
+  }
+  return { x: fx + nx * half, z: fz + nz * half };
+}
+
 /* Seat a piece on a point.
 
    The point is the piece's CENTRE, not a corner and not the spot it stands on:
@@ -141,8 +163,9 @@ export function seatItem(m, it) {
       uz = m.nz / L;
     it.rot = (((Math.atan2(-ux, uz) * 180) / Math.PI) % 360 + 360) % 360;
   }
-  it.x = m.x;
-  it.z = m.z;
+  var seat = markerSeat(m, it);
+  it.x = seat.x;
+  it.z = seat.z;
   // the piece's own height, measured WITHOUT its current offset — reading its
   // placed span instead would walk it down by half a height on every reseat
   var probe = { type: it.type, w: it.w, d: it.d, h: it.h, variant: it.variant };
@@ -226,7 +249,13 @@ export function setMarkerSurface(m, surface, wall, nx, nz) {
 export function releaseIfMoved(it) {
   var m = markerOf(it);
   if (!m) return;
-  if (Math.hypot(it.x - m.x, it.z - m.z) > 1) m.itemId = null;
+  var seat = markerSeat(m, it);
+  if (Math.hypot(it.x - seat.x, it.z - seat.z) > 1) { m.itemId = null; return; }
+  // a piece dragged up or down a wall, off a point up that wall, leaves it too
+  if (m.surface === "wall" && m.y > 0.5 && fin(it.elev)) {
+    var sp = itemVSpan(it);
+    if (Math.abs((sp.lo + sp.hi) / 2 - m.y) > 1) m.itemId = null;
+  }
 }
 export function releaseMovedItems(items) {
   (items || []).forEach(releaseIfMoved);

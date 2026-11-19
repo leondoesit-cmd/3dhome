@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {rebuildParametricDocument} from '../js/core/parametric_rebuild.js';
 import {currentNativeFixtureProof} from './helpers/current_native_proof.mjs';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 test('pending exact rebuild does not coach topology repairs; settled failures retain actionable repair',()=>{
  const E={docType:'part',def:{parts:[{exactPending:false}]},exactRestoring:false,kernelBusy:false};
  let helpCalls=0,actions=0;

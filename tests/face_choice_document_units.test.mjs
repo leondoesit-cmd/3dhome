@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {parse} from '../vendor/acorn/acorn.mjs';
 import {planarMateFaceChoices} from '../js/cad_mate_reference_choices.js';
 import {draftFaceChoices} from '../js/core/draft_face_choices.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const ast=parse(source,{ecmaVersion:'latest',sourceType:'module'});
 const calls=[];
 function visit(node,owner=''){

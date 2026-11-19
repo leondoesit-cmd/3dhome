@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {sketchStartMode,shouldResumeSketchSession,shouldSkipReferencePicker} fro
 import {createPartDocument,recordSketchInHistory} from '../js/core/parametric_document.js';
 import {ensureSketch,addSketch} from '../js/sketch_solver.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function load(name,context){return new Function(...Object.keys(context),sourceFunctionText(source,name)+';return '+name+';')(...Object.values(context));}
 test('explicit New sketch on a blank part picks Right before recording exactly one sketch, with cancellation leaving geometry/history unchanged',()=>{
  const def=createPartDocument({name:'Blank plane choice'}),E={docType:'part',mode:'3d',def,authoring:{phase:'model'},topologySelection:[],sketchNormalTo:false};
@@ -39,9 +40,10 @@ test('visible face prompt switches to datum-plane choices without recording a sk
  const def=createPartDocument({name:'Existing-solid reference flow'}),E={docType:'part',mode:'3d',def,authoring:{phase:'model'}},before=JSON.stringify(def);
  const prompt={hidden:true},canvas={style:{}},picker={hidden:true},options={innerHTML:'',children:[],appendChild(button){this.children.push(button);}};
  const root={querySelector:selector=>({'#mdFacePrompt':prompt,'#mdPrev':canvas,'#mdReferencePicker':picker,'#mdReferenceOptions':options})[selector]};
- const context={E,root,flash(){},refreshAll(){},syncAuthoringWorkflow(){},t:key=>key,referenceLabel:ref=>ref.name||ref.id,el:()=>({addEventListener(){}})};
+ let coachSyncs=0;
+ const context={E,root,flash(){},refreshAll(){},syncAuthoringWorkflow(){},t:key=>key,referenceLabel:ref=>ref.name||ref.id,el:()=>({addEventListener(){}}),syncCoach(){coachSyncs++;}};
  context.syncFacePrompt=load('syncFacePrompt',context);context.showReferencePicker=load('showReferencePicker',context);
  const begin=load('beginFacePick',context),planes=load('cancelFacePick',context);
- begin('sslot');assert.equal(prompt.hidden,false);assert.equal(canvas.style.cursor,'crosshair');assert.equal(E.authoring.phase,'reference');assert.equal(JSON.stringify(def),before);
- planes(true);assert.equal(prompt.hidden,true);assert.equal(canvas.style.cursor,'');assert.equal(picker.hidden,false);assert.equal(options.children.length,3);assert.equal(E.authoring.preferredTool,'sslot');assert.equal(JSON.stringify(def),before);
+ begin('sslot');assert.equal(prompt.hidden,false);assert.equal(canvas.style.cursor,'crosshair');assert.equal(coachSyncs,1,'the coach stands aside when the prompt shows');assert.equal(E.authoring.phase,'reference');assert.equal(JSON.stringify(def),before);
+ planes(true);assert.equal(prompt.hidden,true);assert.equal(coachSyncs,2,'and re-syncs when the pick ends');assert.equal(canvas.style.cursor,'');assert.equal(picker.hidden,false);assert.equal(options.children.length,3);assert.equal(E.authoring.preferredTool,'sslot');assert.equal(JSON.stringify(def),before);
 });

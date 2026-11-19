@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildSheetScene,createSheetDoc,createProjector,projectToView,sceneToSvg,titleBlockBox,sheetFrame} from '../js/cad_sheet.js';
+import {buildSheetScene,createSheetDoc,createView,createProjector,projectToView,sceneToSvg,titleBlockBox,sheetFrame} from '../js/cad_sheet.js';
 import {tessellateParts} from '../js/core/part_tessellate.js';
 import {createExplodedView,addExplodeStep,applyExplodedView,explodeLines} from '../js/cad_exploded_view.js';
 
@@ -34,6 +34,18 @@ test('explicit view binding works while invalid and end-on leaders are omitted',
   const lines=result.items.filter(item=>item.explodeLeader);
   assert.equal(lines.length,1);assert.equal(lines[0].componentId,'front');assert.equal(lines[0].viewId,front.id);
 });
+test('an orphaned isometric Detail cannot receive default or explicitly targeted assembly leaders',()=>{
+  const doc=createSheetDoc({views:['iso']});
+  const iso=doc.views[0], orphan=createView('iso',{id:'lost',detail:{from:'absent',u:0,v:0,radius:1}});
+  doc.views.unshift(orphan);
+  const endpoints={from:{x:0,y:0,z:0},to:{x:2,y:0,z:0}};
+  const leaders=[{id:'automatic',...endpoints},{id:'bound-to-orphan',viewId:orphan.id,...endpoints}];
+  const lines=()=>scene(doc,leaders).items.filter(item=>item.explodeLeader).map(item=>[item.componentId,item.viewId]);
+  assert.deepEqual(lines(),[['automatic',iso.id]]);
+  doc.views=[orphan];
+  assert.deepEqual(lines(),[]);
+});
+
 test('notes band reserves bottom space for principal and floating views without moving title',()=>{
   const doc=createSheetDoc({size:'A',orientation:'landscape',views:['front','top','right','iso']}),title=titleBlockBox(doc);
   doc.notesBandHeight=55;

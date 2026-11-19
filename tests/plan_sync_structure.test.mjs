@@ -215,10 +215,24 @@ function shared(run) {
   try { return run(); } finally { NET.connected = was; }
 }
 
-test("the structure is sent once per change, not once per render", () => {
+test("connecting takes the plan as it stands as the baseline", () => {
   blank(S);
   room(S, 0, 0, 400, 300, 1);
+  assert.equal(syncStructureIfChanged(), false, "offline");
+  S.walls.pop();                            // an offline edit
   shared(() => {
+    assert.equal(syncStructureIfChanged(), false,
+      "what was drawn while alone is not posted as an edit on connecting");
+    S.nodes[0].x += 50;
+    assert.equal(syncStructureIfChanged(), true, "an edit after connecting is");
+  });
+});
+
+test("the structure is sent once per change, not once per render", () => {
+  blank(S);
+  shared(() => {
+    syncStructureIfChanged();               // baseline: an empty plan
+    room(S, 0, 0, 400, 300, 1);
     assert.equal(syncStructureIfChanged(), true, "the new room is news");
     assert.equal(syncStructureIfChanged(), false, "the same plan, twice, is not");
     assert.equal(syncStructureIfChanged(), false);
@@ -316,4 +330,12 @@ test('room finish metadata synchronizes including custom-image removal',()=>{
   assert.equal(peer.roomMeta['1,2,3,4'].floorTex,undefined);
   assert.equal(peer.roomMeta['1,2,3,4'].floor,'tiles');
  }finally{S.roomMeta=previous;}
+});
+
+test("a remote cursor repaints the HUD only, where drawPlanCursors draws it", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../js/plan_sync.js", import.meta.url), "utf8");
+  const branch = src.slice(src.indexOf('if (d.k === "plan_cursor")'), src.indexOf('if (d.k === "plan_hello")'));
+  assert.match(branch, /p\.requestRenderHUD\(\)/);
+  assert.doesNotMatch(branch, /p\.render2D\(\)/);
 });

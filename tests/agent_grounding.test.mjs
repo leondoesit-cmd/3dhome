@@ -1,6 +1,7 @@
 // Grounding for AI proposals: name what the AI picked, check it against the
 // live plan, and compare lettered candidates (js/agent_grounding.js).
 import { test } from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { groundProposal, groundCandidates, proposalParts, checksLevel } from "../js/agent_grounding.js";
@@ -116,7 +117,7 @@ test("the proposal card grounds, compares and offers undo and a hand correction"
   assert.match(ui, /t\("ag_adjust"\)/);
   // AI steps are badged in the history.
   assert.match(src("ui_history.js"), /var byAi = \/\^AI:\/\.test/);
-  assert.match(src("interaction.js"), /label: proposals\.length > 1 \? "AI: batch change" : "AI: " \+ requests\[0\]\.command\.id/);
+  assert.match(moduleSource("js/interaction.js"), /label: proposals\.length > 1 \? "AI: batch change" : "AI: " \+ requests\[0\]\.command\.id/);
   for (const f of ["en", "he"]) for (const key of ["ag_parts", "ag_chk_overlap", "ag_apply_option", "ag_undo_later", "ag_adjust"])
     assert.match(src("i18n/" + f + ".js"), new RegExp("\\n  " + key + ": "), f + " " + key);
 });
@@ -163,7 +164,7 @@ test("the AI may move furniture on a layer that is only auto-locked, never past 
   const runtime = src("agent_runtime.js");
   assert.equal((runtime.match(/previewPlannerCommand\([^)]*, AI\)/g) || []).length, 5);
   assert.doesNotMatch(src("ui_layout_tools.js"), /ai: true/);
-  assert.match(src("interaction.js"), /\(ai \? aiCanMove : canDrag\)\(\{ kind: "item", ref: item \}\)/);
+  assert.match(moduleSource("js/interaction.js"), /\(ai \? aiCanMove : canDrag\)\(\{ kind: "item", ref: item \}\)/);
 });
 
 test("the candidates and their tags are drawn in 3D too, on the overlay, never in the scene", () => {

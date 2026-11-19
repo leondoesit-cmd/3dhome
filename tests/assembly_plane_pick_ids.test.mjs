@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -17,7 +18,7 @@ test("a string tree ID finds a numeric assembly component without changing its m
 });
 
 test("the assembly plane tree pick canonicalizes its holder before storing the reference", async () => {
-  const source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+  const source = modelerSource();
   const pick = source.slice(source.indexOf("function planeMateReference("), source.indexOf("\nfunction mateRow(", source.indexOf("function planeMateReference(")));
   assert.match(pick, /var holder = mateHolderById\(holderId\)/);
   assert.match(pick, /topologyReference\(holder\.id, "face", planeId/);

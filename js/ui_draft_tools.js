@@ -12,14 +12,14 @@ import {watchPlanningActivity} from './planning_activity.js';
 import {checklistStatus} from './planning_guide.js';
 import {detectRooms} from './geometry.js';
 import {parseXYList} from './display_units.js';
-let worker=null,preview=null,size='small',replace=false,activeStamp=null,boundaryText='';
+let worker=null,preview=null,size='large',replace=false,activeStamp=null,boundaryText='';
 const cancel=()=>{worker?.terminate();worker=null;preview=null;activeStamp=null;clearAgentPreview();};
 const env=()=>({state:S,history:{begin:beginHistoryTransaction,commit:commitHistoryTransaction,abort:abortHistoryTransaction,current:currentHistoryId},version:{current:currentHistoryId}});
 const fingerprint=()=>JSON.stringify([currentHistoryId(),S.nodes,S.walls,S.items,S.openings,S.slabOpenings,S.mep,S.roomMeta,S.workspace,S.sel]);
 const changed=()=>window.dispatchEvent(new CustomEvent('planner-analysis-change'));
 export function draftToolsSection(helpers,guide){
  const {section,el,field,choices,button}=helpers,node=section('generate-draft','draft_title');
- node.append(field('draft_size',choices([['small','draft_small'],['large','draft_large'],['random','draft_random']],size,value=>{size=value;cancel();changed();})));
+ node.append(field('draft_size',choices([['large','draft_large'],['small','draft_small'],['random','draft_random']],size,value=>{size=value;cancel();changed();})));
  const replaceInput=el('input');replaceInput.type='checkbox';replaceInput.checked=replace;replaceInput.addEventListener('change',()=>{replace=replaceInput.checked;cancel();changed();});node.append(field('draft_replace',replaceInput));
  const boundaryInput=el('textarea');boundaryInput.value=boundaryText;boundaryInput.rows=3;
  boundaryInput.addEventListener('change',()=>{boundaryText=boundaryInput.value;cancel();changed();});node.append(field('draft_boundary',boundaryInput));

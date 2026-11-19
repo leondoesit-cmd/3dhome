@@ -45,7 +45,10 @@ function state() {
         }),
       };
     }),
-    selected: E.sel ? { column: E.sel.col + 1, compartment: E.sel.sec + 1 } : null,
+    selected: E.sel ? {
+      column: E.sel.col != null ? E.sel.col + 1 : null,
+      compartment: E.sel.sec != null ? E.sel.sec + 1 : null,
+    } : null,
     compartmentTypes: Object.keys(SEC).map(function (k) { return k + " (" + SEC[k].en + ")"; }),
     doorTypes: Object.keys(DOORS),
   };
@@ -127,7 +130,7 @@ function apply(p) {
     p.changes.forEach(function (c) {
       var input = E.host && E.host.querySelector("#cb" + (c.dim === "width" ? "W" : c.dim === "depth" ? "D" : "H"));
       if (!input || asked) return;
-      input.value = formatCabinetDimension(c.cm, displayUnit("furniture"));
+      input.value = formatCabinetDimension(c.cm, displayUnit("cabinet"));
       api.act("AI: " + c.dim);
       api.applyOverallSize(c.dim, input);
       // applied now, or the designer asked how to re-plan (its dialog decides)

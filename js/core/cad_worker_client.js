@@ -1,5 +1,5 @@
 import { regenerateFeatures } from '../cad_feature_tree.js';
-import { deserializeBrep, hydrateSerializedBrepTopology, disposeBrep } from '../cad_kernel.js';
+import { deserializeBrep, hydrateSerializedBrepTopology, disposeBrep, prepareCadKernelModule, deferSerializedBrep, loadCadKernel } from '../cad_kernel.js';
 
 export function restoreCadWorkerWireResult(result) {
   for (const [,payload] of result?.results || []) {
@@ -10,8 +10,8 @@ export function restoreCadWorkerWireResult(result) {
   return result;
 }
 
-export function createCadWorkerClient(workerFactory,{idleMs=120000,setTimer=setTimeout,clearTimer=clearTimeout}={}) {
-  let worker=null,nextId=0,idleTimer=null;const pending=new Map(),local=new Map(),listeners=new Set();
+export function createCadWorkerClient(workerFactory,{idleMs=600000,setTimer=setTimeout,clearTimer=clearTimeout,loadModule}={}) {
+  let worker=null,nextId=0,idleTimer=null,modulePromise=null,moduleWorker=null;const pending=new Map(),local=new Map(),listeners=new Set();
   const clearIdle=()=>{if(idleTimer!==null){clearTimer(idleTimer);idleTimer=null;}};
   function releaseIdle(){
     clearIdle();
@@ -73,7 +73,22 @@ export function createCadWorkerClient(workerFactory,{idleMs=120000,setTimer=setT
         signal?.addEventListener('abort',abort,{once:true});
         pending.set(id,{resolve,reject,scope,onProgress,name:request.type || 'Exact model',startedAt:Date.now(),progress:null,cleanup:()=>signal?.removeEventListener('abort',abort)});
         notify();
-        target.postMessage({id,request});
+        const send=kernelModule=>{
+          if(worker!==target || !pending.has(id))return;
+          try{
+            if(kernelModule && moduleWorker!==target){
+              try{target.postMessage({id,request,kernelModule});moduleWorker=target;return;}
+              catch(error){if(error.name!=='DataCloneError')throw error;moduleWorker=target;}
+            }
+            target.postMessage({id,request});
+          }catch(error){pending.delete(id);notify();signal?.removeEventListener('abort',abort);reject(error);}
+        };
+        // Register cancellation before awaiting compilation. A cancelled startup
+        // cannot submit to its replacement, but compilation remains page-owned.
+        if(loadModule){
+          if(!modulePromise)modulePromise=Promise.resolve().then(loadModule).catch(()=>null);
+          modulePromise.then(send);
+        }else send(null);
       }catch(error){pending.delete(id);notify();signal?.removeEventListener('abort',abort);reject(error);}
     });
   }
@@ -99,7 +114,7 @@ export function cadWorkerDocument(source) {
   return document;
 }
 function browserClient() {
-  if(!client)client=createCadWorkerClient(()=>new Worker(new URL('../cad_worker.js',import.meta.url),{type:'module',name:'ModelForge exact CAD'}));
+  if(!client)client=createCadWorkerClient(()=>new Worker(new URL('../cad_worker.js',import.meta.url),{type:'module',name:'ModelForge exact CAD'}),{loadModule:prepareCadKernelModule});
   return client;
 }
 export function cadWorkerAvailable(){return typeof window!=='undefined' && typeof Worker==='function';}
@@ -137,9 +152,13 @@ export function topologyInCadWorker(document,head,options={}) {
 async function restore(payload,id) {
   if(payload.proof==='exact-native-mesh')return cadWorkerMeshResult(payload);
   if(!payload.bytes)return {...payload.metadata,topology:payload.topology};
-  const body=Object.assign(await deserializeBrep(payload.bytes),payload.metadata);
+  // Publish opaque bytes only after native synchronous consumers can use the
+  // main-thread heap. Instantiation reuses the page-owned compiled Module.
+  await loadCadKernel();
+  const deferred=deferSerializedBrep(payload.bytes,payload.metadata,payload.topology || [],{ownerFeatureId:id});
+  const body=deferred || Object.assign(await deserializeBrep(payload.bytes),payload.metadata);
   try {
-    hydrateSerializedBrepTopology(body,payload.topology || [],{ownerFeatureId:id});
+    if(!deferred)hydrateSerializedBrepTopology(body,payload.topology || [],{ownerFeatureId:id});
     if(payload.meshData){body.workerMeshData=payload.meshData;body.workerMeshData.topology=body.topology;}
     if(payload.massProperties)body.workerMassProperties=payload.massProperties;
     return body;

@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -10,7 +11,7 @@ await Promise.all(ICON_THEME_IDS.map(loadIconTheme));
 
 const root = new URL("../", import.meta.url);
 const iconSettings = await readFile(new URL("js/icon_settings.js", root), "utf8");
-const appCss = await readFile(new URL("css/styles.css", root), "utf8");
+const appCss = stylesSource();
 const indexHtml = await readFile(new URL("index.html", root), "utf8");
 const report = JSON.parse(await readFile(new URL("tools/icon_theme_mapping_report.json", root), "utf8"));
 

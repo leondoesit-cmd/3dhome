@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import { partCode, parsePartCode, findPartByCode, PART_LETTERS } from "../js/part_codes.js";
 import { spatialDigest, AGENT_WORKFLOW } from "../js/agent_prompt.js";
 
@@ -64,7 +65,7 @@ test("the AI card, its tags and the inspector card name parts by code", () => {
   const ui = src("js/ui_agent.js");
   assert.doesNotMatch(ui, /" #" \+ part\.id|"#" \+ part\.hostWallId/);
   assert.match(ui, /\{ wall: partCode\("wall", part\.hostWallId\) \}/);
-  const shell = src("js/mobile_shell.js");
+  const shell = moduleSource("js/mobile_shell.js");
   assert.match(shell, /id = ref && ref\.id != null \? partCode\(sel\.kind, ref\.id, ref\) : "";/);
   for (const f of ["en", "he"]) assert.doesNotMatch(src("js/i18n/" + f + ".js"), /m_card_on_wall: "[^"]*#\{id\}/);
 });

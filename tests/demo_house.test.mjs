@@ -56,3 +56,33 @@ test("showcase house: nine furnished rooms, presentation view, no collisions", (
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
+
+test("default apartment: the large furnished two-bedroom plan, not a single room", () => {
+  const root = dirname(dirname(fileURLToPath(import.meta.url)));
+  const three = pathToFileURL(join(root, "vendor/three/three.module.js")).href;
+  const addons = pathToFileURL(join(root, "vendor/three/addons/")).href;
+  const loader = `data:text/javascript,export async function resolve(s,c,n){if(s==="three")return{url:${JSON.stringify(three)},format:"module",shortCircuit:true};if(s.startsWith("three/addons/"))return{url:${JSON.stringify(addons)}+s.slice(13),format:"module",shortCircuit:true};return n(s,c)}`;
+  const script = String.raw`
+    import assert from "node:assert/strict";
+    import { S } from "./js/state.js";
+    import { defaultApartment } from "./js/demo_house.js";
+    import { detectRooms, pointInPoly } from "./js/geometry.js";
+    import { roomTypeOf } from "./js/room_types.js";
+    import { openingHasSwingConflict } from "./js/swing_clearance.js";
+
+    const result = defaultApartment();
+    assert.notEqual(result && result.ok, false, JSON.stringify(result));
+    const rooms = detectRooms();
+    assert.equal(rooms.length, 6);
+    const types = rooms.map((r) => roomTypeOf(S.roomMeta[r.key]));
+    assert.ok(types.includes("bathroom"), "the default apartment has a bathroom: " + types);
+    assert.ok(S.items.some((it) => it.type === "toilet" && rooms.some((r) => roomTypeOf(S.roomMeta[r.key]) === "bathroom" && pointInPoly(it.x, it.z, r.pts))), "bathroom has a toilet");
+    assert.ok(S.openings.some((o) => o.type === "door"), "has doors");
+    for (const o of S.openings) assert.ok(!openingHasSwingConflict(o), "door swing conflict at " + o.id);
+    assert.ok(!S.mep || !(S.mep.runs || []).length, "no service runs on the default plan");
+  `;
+  const result = spawnSync(process.execPath, ["--experimental-loader", loader, "--input-type=module", "-e", script], {
+    cwd: root, encoding: "utf8", env: { ...process.env, NODE_NO_WARNINGS: "1" },
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});

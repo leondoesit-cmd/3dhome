@@ -169,6 +169,11 @@ export function defaultLayers() {
   return t;
 }
 
+/* A new plan opens at golden hour: a low, warm sun (the rig in
+   js/view3d/gizmo_env.js sets sunrise 6, sunset 18) that models the rooms
+   with long soft shadows instead of the flat white of midday. */
+export const DEFAULT_HOUR = 17;
+
 export const S = {
   // model
   nodes: [],
@@ -277,6 +282,9 @@ export const S = {
      then stays wrong for everything afterwards. Cleared at endAction(). */
   snapOnly: null,
   snapCycle: 0,
+  /* transient: Shift is held, which flips ORTHO for as long as it is down
+     (js/cad_hud.js keeps it; snapPoint() reads it). */
+  orthoHold: false,
   /* transient: the ranked alternatives under the cursor, so the HUD can say
      how many there are and Tab has something to cycle through. */
   snapAlts: [],
@@ -343,7 +351,7 @@ export const S = {
   roof: null,
   floorTex: "wood",
   wallColor: 0xefe9dd,
-  hour: 13,
+  hour: DEFAULT_HOUR,
   northAngle: 0,
   dayK: 1,
   artK: 0.25,
@@ -380,6 +388,10 @@ export const S = {
   // falls back to a full rebuild for anything it can't do piecewise.
   // S.dirty3D always wins over this.
   items3D: new Map(),
+  // transient: only the infrastructure (MEP) changed — the 3D loop swaps the
+  // conduits and device markers instead of rebuilding the house
+  // (view3d/items_layers.js rebuildMEP3D). S.dirty3D always wins over this.
+  mep3D: false,
   // real-world site / mapping overlay (see js/site.js). null image caches are
   // rebuilt at runtime — only the params below are persisted.
   site: {
@@ -434,6 +446,7 @@ export const S = {
   // in the plan, so a point can be read without selecting it
   hoverMarker: null,
   hoverNode: null, // corner under the cursor -> its own read-out card
+  hoverWall: null, // wall under the cursor -> its numbers lit in the outside dimension chains
   // which half of the selected wall a typed length/angle edit grows or shrinks:
   // "a" | "b" (that end moves, the other stays put) | "mid" (both, symmetric) |
   // null = auto (move the freer end). Set by hovering/clicking a half in 2D.
@@ -641,6 +654,7 @@ export function cancelDraftGestures() {
   S.panStart = null;
   S.wallProbe = null;
   S.hoverItem = null;
+  S.hoverWall = null;
   S.stackHost = null;
   S.eraseHover = null;
 }

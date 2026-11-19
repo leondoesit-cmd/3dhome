@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -6,7 +7,7 @@ import { S } from "../js/state.js";
 import {
   autoFaceRot, applyAutoFace, refaceItem, markManualRot,
   backToWallRot, runNeighbour, seatTarget, faceTargetRot,
-  orientMode, rotStep, setRotStep,
+  orientMode, rotStep, setRotStep, flushToWall,
 } from "../js/item_orient.js";
 
 /* A 600x400 room. Walls run: 1 along z=0 (top), 2 along x=600 (right),
@@ -206,7 +207,7 @@ test("backToWallRot ignores a wall the piece sits well past the end of", () => {
 /* The wiring: the rules above are worth nothing if the flag is dropped on save
    or the buttons are missing from the panel. */
 test("the hand-set flag survives a save and the panel offers 90°", async () => {
-  const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+  const ui = moduleSource("js/ui.js");
   assert.match(ui, /rotUser: it\.rotUser \? 1 : undefined/, "serializer whitelist");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   ["rotStep15", "rotStep45", "rotStep90", "faceAuto", "face-toggle"].forEach((hook) => {
@@ -219,4 +220,32 @@ test("the hand-set flag survives a save and the panel offers 90°", async () => 
     assert.match(he, new RegExp("\\n    " + key + ":"), key + " in Hebrew");
     assert.match(en, new RegExp("\\n    " + key + ":"), key + " in English");
   });
+});
+
+test("a piece dropped near a wall stands with its back on the wall face", () => {
+  room();
+  // clicked 31 cm too far up: the headboard would be inside the top wall
+  const bed = mk("bed", 200, 69, 160, 200);
+  applyAutoFace(bed, bed.x, bed.z);
+  assert.deepEqual(flushToWall(bed, bed.x, bed.z), { x: 200, z: 105 }, "5 cm half wall + 100 cm half bed");
+
+  // clicked short of the right wall: the desk would float off it
+  const desk = mk("desk", 520, 200, 120, 60);
+  applyAutoFace(desk, desk.x, desk.z);
+  assert.equal(desk.rot, 90);
+  assert.deepEqual(flushToWall(desk, desk.x, desk.z), { x: 565, z: 200 });
+});
+
+test("only the back-to-wall rule moves a dropped piece", () => {
+  room();
+  assert.equal(flushToWall(mk("rug", 200, 30, 200, 140), 200, 30), null, "free pieces stay put");
+  const turned = mk("sofa", 300, 330, 200, 90, 0);
+  markManualRot(turned);
+  assert.equal(flushToWall(turned, 300, 330), null, "a hand-set angle is not argued with");
+  const facingAway = mk("sofa", 300, 330, 200, 90, 0); // not turned toward the bottom wall yet
+  assert.equal(flushToWall(facingAway, 300, 330), null, "only when it faces the wall it would go to");
+  const table = mk("table", 300, 200, 160, 90);
+  S.items = [table];
+  const chair = mk("chair", 300, 130, 45, 45);
+  assert.equal(flushToWall(chair, chair.x, chair.z), null, "a chair at a table belongs to the table");
 });

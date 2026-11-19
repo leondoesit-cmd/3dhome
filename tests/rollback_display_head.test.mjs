@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -9,7 +10,7 @@ import { leavesInputStanding } from '../js/core/rebuild.js';
    viewport showed only the Base Extrude cylinder: the displayed body's head was
    still Shell1, which a rolled-back regeneration does not build. */
 
-const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const src = modelerSource();
 const start = src.indexOf('function cutTargetFeatureId(');
 let depth = 0, end = src.indexOf('{', start);
 for (let i = end; i < src.length; i++) {

@@ -62,7 +62,7 @@ test("dragging a pattern's count leaves the seed's own vertices untouched", opts
   const run = await page.eval(async (input) => {
     const { openModeler } = await import("/js/modeler.js");
     window.cadCloseFeatureForm();
-    openModeler(null, structuredClone(input.doc), null);
+    openModeler(null, structuredClone(input.doc), null, true);
     const before = window.cadPartMeshSnapshot("part:plate");
     if (!window.cadOpenFeatureForm("pattern")) return { opened: false };
     /* Four ticks of a count drag, the way holding the up-arrow on the field
@@ -96,7 +96,7 @@ test("a mirror ghost leaves the seed's own vertices untouched too", opts, async 
   const run = await page.eval(async (input) => {
     const { openModeler } = await import("/js/modeler.js");
     window.cadCloseFeatureForm();
-    openModeler(null, structuredClone(input.doc), null);
+    openModeler(null, structuredClone(input.doc), null, true);
     const before = window.cadPartMeshSnapshot("part:plate");
     if (!window.cadOpenFeatureForm("mirror")) return { opened: false };
     ["plane:right", "plane:front", "plane:top"].forEach(() => {
@@ -120,7 +120,7 @@ test("a live ghost still rides the seed's normal and colour buffers", opts, asyn
   const shared = await page.eval(async (input) => {
     const { openModeler } = await import("/js/modeler.js");
     window.cadCloseFeatureForm();
-    openModeler(null, structuredClone(input.doc), null);
+    openModeler(null, structuredClone(input.doc), null, true);
     if (!window.cadOpenFeatureForm("pattern")) return null;
     window.cadSetFeatureFormParams({ mode: "linear", axisX: true, countX: 2, spacingX: 40, mergeResult: false });
     const seed = window.cadSeedAndGhostMesh("part:plate");
@@ -209,7 +209,7 @@ const KERNEL_DOC = (() => {
 const driveDepth = (doc, depths) => page.eval(async (input) => {
   const { openModeler } = await import("/js/modeler.js");
   window.cadCloseFeatureForm();
-  openModeler(null, structuredClone(input.doc), null);
+  openModeler(null, structuredClone(input.doc), null, true);
   const before = window.cadLiveEditSnapshot();
   const ticks = [];
   for (const depth of input.depths) {
@@ -251,7 +251,7 @@ test("a kernel-backed downstream feature is debounced and says it is stale", opt
   await page.eval(async (input) => {
     const { openModeler } = await import("/js/modeler.js");
     window.cadCloseFeatureForm();
-    openModeler(null, structuredClone(input.doc), null);
+    openModeler(null, structuredClone(input.doc), null, true);
   }, { doc: KERNEL_DOC });
 
   const tick = (depth) => page.eval((next) => {
@@ -319,7 +319,7 @@ test("the analytic tier costs a fraction of a frame and the kernel tier stays of
   const load = (doc) => page.eval(async (input) => {
     const { openModeler } = await import("/js/modeler.js");
     window.cadCloseFeatureForm();
-    openModeler(null, structuredClone(input.doc), null);
+    openModeler(null, structuredClone(input.doc), null, true);
   }, { doc });
   const drag = () => page.eval((depths) => depths.map((depth) => {
     const start = performance.now();

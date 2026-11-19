@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -35,7 +36,7 @@ test('Sweep Cut helix validation retains an explicit target and ordinary two-ske
 });
 
 function runUI(f,targetAvailable=true){
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  const start=source.indexOf('function createHelixSweepCut('),end=source.indexOf('\nfunction selectedHelixRecord()',start);
  const target={id:'body',featureId:f.cylinder.id,cuts3d:[]};let undo=0,queued=0;
  const context={E:{def:f.document},cutTargetBody:()=>targetAvailable?target:null,cutTargetFeatureId:p=>p.featureId,partSupportsExactMesh:()=>true,
@@ -77,7 +78,7 @@ test('cold native helical cut reduces connected stem volume and exports valid ST
 test('editing the actual Sweep Cut Path retargets canonical and compatibility dependencies together',()=>{
  const f=fixture(),result=runUI(f);assert.equal(result.ok,true);
  const feature=f.document.features.at(-1);feature.params.helixId='next-ref';
- f.document.parts=[result.target];const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),start=source.indexOf('function retargetSweepHelix('),end=source.indexOf('\nfunction sweepHelixRecord(',start);
+ f.document.parts=[result.target];const source=modelerSource(),start=source.indexOf('function retargetSweepHelix('),end=source.indexOf('\nfunction sweepHelixRecord(',start);
  const context={E:{def:f.document},documentHelixRecords:()=>[{id:'next-ref',featureId:'next-helix'}]};
  runInNewContext(source.slice(start,end)+'\nthis.run=retargetSweepHelix;',context);context.run(feature);
  assert.equal(feature.params.sketchSources.helixId,'next-ref');assert.equal(feature.params.sketchSources.helixFeatureId,'next-helix');

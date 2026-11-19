@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sourceFunctionText } from './helpers/source_function.mjs';
@@ -37,7 +38,7 @@ test('mate residuals still reject displacement in constrained directions',()=>{
  assert.equal(mateResidual({type:'concentric'},round,{...round,origin:{x:3,y:50,z:4}}).linear,5);
 });
 test('angle arc and label follow the minor angle across the atan2 branch cut',()=>{
- const source=readFileSync(new URL('../js/cad_sheet.js',import.meta.url),'utf8');
+ const source=moduleSource('js/cad_sheet.js');
  const fn=sourceFunctionText(source,'dimensionItems');
  const dimension=Function('num','dimensionText','measureDim','TEXT_SIZES','LINE_STYLES','text','arrowHead','return ('+fn+')')((v,d)=>v??d,()=>'',()=>0,{dim:3},{dim:{color:'#000'}},(x,y)=>({type:'text',x,y}),(x,y)=>({type:'arrow',x,y}));
  const items=dimension({type:'angle',refs:[{u:-10,v:1},{u:0,v:0},{u:-10,v:-1}]},{toSheet:p=>({x:p.u,y:p.v})},{});

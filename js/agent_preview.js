@@ -155,6 +155,7 @@ function itemHeight(spec) {
   return it && it.h > 0 ? Number(it.h) : 80;
 }
 function itemElev(spec) {
+  if (Number.isFinite(spec.elev)) return spec.elev;
   var id = spec.itemId != null ? spec.itemId : spec.sourceId;
   var it = id != null && (S.items || []).find(function (entry) { return String(entry.id) === String(id); });
   return it && it.elev > 0 ? Number(it.elev) : 0;

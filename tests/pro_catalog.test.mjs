@@ -1,6 +1,8 @@
 // Every tool in the pro ribbon must bind to something that already exists:
 // a planner action or tool in index.html, a panel id, a model-editor command
 // from the real catalog, a cabinet-designer control, and a real Phosphor icon.
+import { modelerSource } from "./helpers/modeler_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -10,12 +12,12 @@ import { buildCommandCatalog } from "../js/modeler_commands.js";
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const cabinetSrc = ["ui_cabinet.js", "ui_cabinet_view.js", "ui_cabinet_inspect.js"].map((f) => readFileSync(new URL("../js/" + f, import.meta.url), "utf8")).join("\n");
 const mepUi = readFileSync(new URL("../js/ui_mep.js", import.meta.url), "utf8");
-const mepCore = readFileSync(new URL("../js/mep.js", import.meta.url), "utf8");
-const modelerSrc = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const mepCore = moduleSource("js/mep.js");
+const modelerSrc = modelerSource();
 const ribbonIds = new Set([...modelerSrc.matchAll(/commandButton\("([a-z0-9]+)"/g)].map((m) => m[1]));
 const relationIds = (modelerSrc.match(/var RIBBON_RELATIONS = \[([^\]]*)\]/) || ["", ""])[1].match(/[a-z]+/g) || [];
 const nestSrc = readFileSync(new URL("../js/ui_nest.js", import.meta.url), "utf8") + readFileSync(new URL("../js/ui_cabinet_production.js", import.meta.url), "utf8");
-const uiSrc = readFileSync(new URL("../js/ui.js", import.meta.url), "utf8");
+const uiSrc = moduleSource("js/ui.js");
 const gapsDoc = readFileSync(new URL("../docs/PRO_TOOL_GAPS.md", import.meta.url), "utf8");
 const jsIds = (id) => html.includes('id="' + id + '"') || [..."ui_survey.js ui_mep.js planner_3d.js".split(" ")].some((f) => { const src = readFileSync(new URL("../js/" + f, import.meta.url), "utf8"); return src.includes("id='" + id + "'") || src.includes('id="' + id + '"') || src.includes(".id = '" + id + "'") || src.includes('.id = "' + id + '"'); });
 const constraintIds = [...(modelerSrc.match(/CONSTRAINT_DEFS = \[([\s\S]*?)\];/) || ["", ""])[1].matchAll(/id: "([a-z]+)"/g)].map((m) => m[1]);
@@ -103,7 +105,7 @@ test("all pro tool gaps are implemented", () => {
    letters and the Ctrl combinations), or the hint teaches the wrong thing —
    W for Wall used to start Walk. */
 test("every planner key hint is the key that really runs that tool", () => {
-  const interaction = readFileSync(new URL("../js/interaction.js", import.meta.url), "utf8");
+  const interaction = moduleSource("js/interaction.js");
   const real = new Map();
   for (const m of interaction.matchAll(/e\.key === "(\d)"\) setTool\("([a-z]+)"\)/g)) real.set(m[1], "tool:" + m[2]);
   real.set("E", "tool:erase");

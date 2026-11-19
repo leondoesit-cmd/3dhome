@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      # LFS stays off: the tests only check material URLs, and pulling the
+      # ~240 MB of textures on every run would eat the free LFS bandwidth.
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      # 24, not 22: the vendored pdf.js calls Promise.try, which Node 22's V8
+      # lacks, and every floor-plan PDF test then fails or is cancelled
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev
+        continue-on-error: true
+      # module + link gates: catch the missing export that silently kills the UI
+      - run: npm run check
+      # pure-Node tests (npm test's file set); the *.browser.mjs suite (npm run
+      # test:browser) needs a GPU Chrome and runs locally. The Planchard housing
+      # shell runs in its own job below: sharing this runner's two cores with
+      # every other file pushes its exact shell past the 10-minute test timeout.
+      - name: npm test (without the housing shell)
+        shell: bash
+        run: |
+          files=$(ls tests/*.test.mjs uikit/tests/*.test.mjs | grep -v '^tests/planchard_housing_shell\.test\.mjs$')
+          node --test --test-timeout=600000 $files
+
+  # The one genuinely slow CAD test (several minutes of OpenCascade work on its
+  # own), on a runner of its own so it neither starves nor is starved.
+  housing-shell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node --test --test-timeout=2700000 tests/planchard_housing_shell.test.mjs
+
+  # The Tauri desktop shell (desktop/src-tauri): its scheme handler, model
+  # backups and material cache are pure Rust tests, no webview or GPU needed.
+  # Windows, because WebView2 is the first desktop target; --locked keeps the
+  # dependency set the one that was reviewed.
+  desktop-rust:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: desktop/src-tauri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      # tauri.conf.json bundles ../web, which tools/desktop_bundle.mjs generates
+      # for releases (it needs the LFS assets). The tests never read it, but the
+      # build script requires the folder to exist.
+      - run: New-Item -ItemType Directory -Force ../web | Out-Null
+      - run: cargo test --locked

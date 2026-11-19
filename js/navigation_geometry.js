@@ -6,12 +6,25 @@ import { projectToWall, wallProfileHeight } from './wall_curves.js';
 import { surveyVertexPlane } from './survey_vertex.js';
 const local=(o,p)=>{const a=(o.rot||0)*Math.PI/180,c=Math.cos(a),s=Math.sin(a),dx=p.x-o.x,dz=p.z-o.z;return {x:dx*c+dz*s,z:-dx*s+dz*c};};
 function boxDistance(o,p){const q=local(o,p);return Math.hypot(Math.max(0,Math.abs(q.x)-o.w/2),Math.max(0,Math.abs(q.z)-o.d/2));}
-export function stairSupport(state,point,profile){
+export function walkStairs(state) {
+ const floors = state.workspace?.floors || [];
+ const active = floors.find(f => f.id === state.workspace.activeFloor);
+ const stairs = (state.items || []).filter(it => it.type === 'stairs');
+ for (const floor of floors) {
+  if (floor.id === active?.id) continue;
+  const scene = floor.scene?.spatial || floor.scene;
+  for (const it of scene?.instances || scene?.items || []) {
+   if (it.type !== 'stairs') continue;
+   const elev = (it.elev || 0) + (floor.elevation || 0) - (active?.elevation || 0);
+   if (elev <= 2 && elev + it.h >= -2) stairs.push({...it, elev});
+  }
+ }
+ return stairs;
+}
+export function stairSupport(state,point,profile,stairs=walkStairs(state)){
  const p=normalizeNavigationProfile(profile);
- const active=state.workspace?.floors?.find(f=>f.id===state.workspace.activeFloor),items=[...(state.items||[])];
- for(const floor of state.workspace?.floors||[]){if(floor.id===active?.id)continue;const scene=floor.scene?.spatial||floor.scene;for(const it of scene?.instances||scene?.items||[]){if(it.type==='stairs')items.push({...it,elev:(it.elev||0)+floor.elevation-(active?.elevation||0)});}}
- for(const it of items){
-  if(it.type!=='stairs')continue;const q=local(it,point);
+ for(const it of stairs){
+  const q=local(it,point);
   if(Math.abs(q.x)>it.w/2-p.radius||Math.abs(q.z)>it.d/2+p.radius)continue;
   const riser=it.riserHeight||it.h/(it.configuration?.stepCount||it.steps||10),slope=Math.atan2(it.h,it.d)*180/Math.PI;
   if(riser>p.stepHeight+.01||slope>p.slopeLimit+.01)return {blocked:true,id:it.id};
@@ -21,8 +34,8 @@ export function stairSupport(state,point,profile){
  }
  return null;
 }
-export function navigationPosition(state,point,rawProfile,rooms=[]){
- const profile=normalizeNavigationProfile(rawProfile),stair=stairSupport(state,point,profile);
+export function navigationPosition(state,point,rawProfile,rooms=[],stairs){
+ const profile=normalizeNavigationProfile(rawProfile),stair=stairSupport(state,point,profile,stairs);
  if(stair?.blocked)return {clear:false,reason:'stairs',id:stair.id};
  const y=stair?.y ?? 0,top=y+profile.height;
  const active=state.workspace?.floors?.find(f=>f.id===state.workspace.activeFloor);
@@ -59,13 +72,13 @@ export function navigationPosition(state,point,rawProfile,rooms=[]){
  }
  return {clear:true,y,stairId:stair?.id||null};
 }
-export function moveSurveyWalker(state,from,dx,dz,rawProfile,rooms=[]){
+export function moveSurveyWalker(state,from,dx,dz,rawProfile,rooms=[],stairs=walkStairs(state)){
  const profile=normalizeNavigationProfile(rawProfile),steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/Math.max(2,profile.radius/2))),p={...from};
  let hit=false;
  for(let i=0;i<steps;i++){
   let moved=false;
   for(const [x,z] of [[dx/steps,dz/steps],[dx/steps,0],[0,dz/steps]]){
-   const q={x:p.x+x,y:p.y,z:p.z+z},check=navigationPosition(state,q,profile,rooms);
+   const q={x:p.x+x,y:p.y,z:p.z+z},check=navigationPosition(state,q,profile,rooms,stairs);
    if(!check.clear){hit=true;continue;}
    if(Math.abs(check.y-p.y)>Math.max(profile.stepHeight,Math.hypot(x,z)*Math.tan(profile.slopeLimit*Math.PI/180))+.1){hit=true;continue;}
    Object.assign(p,q,{y:check.y});moved=true;break;
@@ -77,17 +90,19 @@ export function moveSurveyWalker(state,from,dx,dz,rawProfile,rooms=[]){
 
 // Change storeys only at a physical stair endpoint. Proximity to another floor
 // while walking across ordinary geometry must never teleport the viewer.
-export function navigationFloorTransition(state, point, rawProfile) {
+export function navigationFloorTransition(state, point, rawProfile, stairs) {
  const floors=state.workspace?.floors||[],active=floors.find(f=>f.id===state.workspace.activeFloor);
  if(!active)return null;
- const stair=stairSupport(state,point,rawProfile);
+ const stair=stairSupport(state,point,rawProfile,stairs);
  if(!stair||stair.blocked)return null;
  const worldY=(active.elevation||0)+stair.y;
  const floor=floors.find(f=>f.id!==active.id&&Math.abs((f.elevation||0)-worldY)<=2);
  if(!floor)return null;
  const scene=floor.scene||{},spatial=scene.spatial||scene;
  const destination={...scene,nodes:scene.nodes||spatial.nodes||[],walls:scene.walls||spatial.walls||[],
-  items:scene.items||spatial.instances||[],workspace:{...state.workspace,activeFloor:floor.id,
+  items:scene.items||spatial.instances||[],openings:scene.openings||spatial.openings||[],
+  slabOpenings:scene.slabOpenings||spatial.slabOpenings||[],surveyFeatures:scene.surveyFeatures||spatial.surveyFeatures||[],
+  roomMeta:scene.roomMeta||spatial.rooms||{},workspace:{...state.workspace,activeFloor:floor.id,
    floors:floors.map(f=>f.id===active.id?{...f,scene:{items:state.items||[]}}:f)}};
  const position={x:point.x,y:worldY-(floor.elevation||0),z:point.z};
  if(!navigationPosition(destination,position,rawProfile).clear)return null;

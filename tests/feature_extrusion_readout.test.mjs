@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {formatDocumentLength} from '../js/core/document_length_units.js';
 import {createPartDocument,createFeatureDefinition} from '../js/core/parametric_document.js';
 import {compileKernelFeatureTree} from '../js/core/kernel_feature_adapter.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(){
  const def=createPartDocument({name:'Offset readout'}),sketch={id:'front',plane:'front',offset:1.2,points:[{id:'a',x:0,y:0},{id:'b',x:1,y:0},{id:'c',x:1,y:1},{id:'d',x:0,y:1}],entities:[['a','b'],['b','c'],['c','d'],['d','a']].map(([a,b],i)=>({id:'e'+i,type:'line',a,b})),constraints:[]};def.sketches.push(sketch);
  const context={E:{def},ensureSketch:()=>sketch,planeAxis:plane=>plane==='front'?'z':plane==='top'?'y':'x',modelLengthUnit:()=> 'mm',formatDocumentLength,t:key=>key,tf:(key,values)=>key+JSON.stringify(values)};

@@ -1,7 +1,9 @@
 import { viewBasis } from "./hidden_line.js";
 import { sketchWorldPoint } from "./swept_sources.js";
 import { cylinderAxis } from "./cylinder_axis.js";
-import { linearPatternOffsets, linearPatternAxisDefinitions, parseSkippedPatternInstances } from "./pattern_geometry.js";
+import { linearPatternOffsets, linearPatternAxisDefinitions, parseSkippedPatternInstances,curvePatternPlacements } from "./pattern_geometry.js";
+import {resolveHoleWizardInputs} from './hole_wizard_sketches.js';
+import {framePoint} from './frame.js';
 /* One spelling of "M6×1 6H ↓12".
  *
  * A hole callout is written in two places — the sheet you draft on
@@ -30,29 +32,48 @@ export function holeCallouts(def, sheet = def?.drawing || {}) {
   const rows = [];
   features.forEach((feature) => {
     if (!feature || feature.type !== "hole" || feature.suppressed) return;
-    const params=feature.params || {}, sketchId=params.sketchId || params.sketch || feature.sketch;
+    let params=feature.params || {};
+    const sketchId=params.sketchId || params.sketch || feature.sketch;
     const sketch=(def.sketches || []).find(s=>s.id===sketchId) || (!sketchId ? def.sketch : null);
-    if(sketchId && !sketch && (!params.layout || params.layout==="sketch"))return;
-    const points = holeLayoutPoints(params,sketch);
+    const livePlacement=!!(params.cylindricalSource || params.positionSketchId || params.holeProfileSketchId);
+    if(!livePlacement && sketchId && !sketch && (!params.layout || params.layout==="sketch"))return;
+    let points,worldPoints,axis;
+    if(livePlacement){
+      try{
+        const resolved=resolveHoleWizardInputs(params,structuredClone(def)),placement=resolved.placement;
+        if(!placement?.frame || !placement.centres?.length)return;
+        params=resolved.params;points=placement.centres;
+        axis=cylinderAxis(placement.frame.normal);
+        worldPoints=points.map(p=>framePoint(placement.frame,p.u,p.v,Number(placement.from)||0));
+      }catch{return;}
+    }else{
+    points = holeLayoutPoints(params,sketch);
     const plane=sketch?.plane || (params.axis==="x"?"side":params.axis==="z"?"front":"top");
     const placement={...sketch,plane,offset:(sketch?.frame?0:Number(sketch?.offset)||0)+(Number(params.offset)||0)};
     if(params.frame){placement.frameSpace="local";placement.frame=params.frame;}
-    const axis=cylinderAxis(placement.frame?.normal || (plane==="side"?"x":plane==="front"?"z":"y"));
-    const worldPoints=points.map(p=>{const q=sketchWorldPoint(placement,p.u,p.v);if(placement.frame)for(const key of ["x","y","z"])q[key]+=axis[key]*(Number(params.offset)||0);return q;});
+    axis=cylinderAxis(placement.frame?.normal || (plane==="side"?"x":plane==="front"?"z":"y"));
+    worldPoints=points.map(p=>{const q=sketchWorldPoint(placement,p.u,p.v);if(placement.frame)for(const key of ["x","y","z"])q[key]+=axis[key]*(Number(params.offset)||0);return q;});
+    }
     // Feature patterns repeat the seed cut. Reuse their instance semantics,
     // including disabled axes and skipped copies, instead of reporting only
     // the seed sketch's hole count.
     const patterns = features.filter(item => item?.type === "pattern" && !item.suppressed
       && item.params?.scope === "feature" && item.params.seedFeatureId === feature.id
-      && item.params.mode === "linear");
+      && ['linear','circular','curve'].includes(item.params.mode));
     let quantity = points.length;
-    for (const pattern of patterns) quantity += points.length * linearPatternOffsets(pattern.params).length;
+    for (const pattern of patterns){
+      const p=pattern.params,skipped=parseSkippedPatternInstances(p.skipInstances);
+      const copies=p.mode==='linear'?linearPatternOffsets(p).length:p.mode==='curve'?curvePatternPlacements(p).length:
+        Array.from({length:Math.max(2,Math.min(100,Math.round(Number(p.count)||2)))-1},(_,i)=>i+1).filter(i=>!skipped.has(i)).length;
+      quantity+=points.length*copies;
+    }
     // A circular layout is a bolt circle: its holes are equally spaced by construction.
     const circularLayout=params.layout==="circular" && points.length>1 && !patterns.length;
     const equalSpacing=circularLayout || patterns.length===1 && quantity>1
       && parseSkippedPatternInstances(patterns[0].params.skipInstances).size===0
-      && linearPatternAxisDefinitions(patterns[0].params).length===1
-      && linearPatternAxisDefinitions(patterns[0].params).every(axis=>axis.spacing!==0 && axis.spacingIncrement===0);
+      && (patterns[0].params.mode==='circular' && patterns[0].params.equalSpacing!==false
+        || patterns[0].params.mode==='linear' && linearPatternAxisDefinitions(patterns[0].params).length===1
+          && linearPatternAxisDefinitions(patterns[0].params).every(axis=>axis.spacing!==0 && axis.spacingIncrement===0));
     rows.push({
       id: feature.id,
       item: rows.length + 1,
@@ -115,6 +136,6 @@ export function holeTopologyAnchor(index, basis, featureId, projected) {
   }
   // Older analytic documents expose one named bore wall and no circular edge
   // or placement sketch. That unique wall is still a valid bound reference.
-  const chosen = best || (cylinderFaces.length === 1 ? cylinderFaces[0] : null);
+  const chosen = best || (!projected && cylinderFaces.length === 1 ? cylinderFaces[0] : null);
   return chosen && {pid:chosen.pid,kind:chosen.kind,at:chosen.at,u:chosen.u,v:chosen.v};
 }

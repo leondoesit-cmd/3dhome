@@ -1,9 +1,10 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const css = stylesSource();
 const uiLayers = await readFile(new URL("../js/ui_layers.js", import.meta.url), "utf8");
 const dockJs = await readFile(new URL("../js/plan_tools_dock.js", import.meta.url), "utf8");
 

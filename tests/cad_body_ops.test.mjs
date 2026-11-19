@@ -6,6 +6,7 @@
  * refused before it began. The tests below therefore also run them on a swept
  * body, not only on a primitive.
  */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -204,7 +205,7 @@ test("a split that misses fails alone and leaves nothing behind", async () => {
 
 /* --- the editor wiring --------------------------------------------------- */
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const modeler = modelerSource().replace(/\r\n/g, "\n");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = readFileSync(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
 /* The editor's [he, en] table lives in js/modeler_strings.js. */

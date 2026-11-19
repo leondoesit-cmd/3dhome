@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -48,7 +49,7 @@ test("the label is still grabbed first, and a leader with nothing under it still
   assert.equal(dimensionHitYieldsToPoint(null, s.points[0]), null);
 });
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 
 test("the Select and Dimension tools ask the rule before grabbing a dimension", () => {
   assert.match(

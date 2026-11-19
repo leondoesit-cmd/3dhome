@@ -144,6 +144,25 @@ async function drawClosedProfile(page) {
   });
 }
 
+async function waitForProfileOffer(page) {
+  try {
+    await page.waitUntil(() => {
+      const host = document.getElementById("mdProfileOffer");
+      return !!host && !host.hidden && host.querySelectorAll("button").length > 0;
+    }, { what: "the profile offer" });
+  } catch (error) {
+    const state = await page.eval(() => {
+      const offer = document.getElementById("mdProfileOffer"), accept = document.getElementById("mdAcceptCommand");
+      return {
+        sketch: window.cadSketchSnapshot?.(), loop: window.cadLoopSnapshot?.(),
+        offer: offer ? { hidden: offer.hidden, html: offer.innerHTML.slice(0, 800) } : null,
+        accept: accept ? { disabled: accept.disabled, hidden: accept.hidden } : null,
+      };
+    });
+    throw new Error(error.message + "; profile offer state: " + JSON.stringify(state), { cause: error });
+  }
+}
+
 test("nothing in the viewport covers anything else, from empty part to built solid", opts, async () => {
   const page = await editor();
 
@@ -163,10 +182,7 @@ test("nothing in the viewport covers anything else, from empty part to built sol
   await check(page, "closed profile in the sketch");
 
   await page.eval(() => document.getElementById("mdAcceptCommand").click());
-  await page.waitUntil(() => {
-    const host = document.getElementById("mdProfileOffer");
-    return !!host && !host.hidden && host.querySelectorAll("button").length > 0;
-  }, { what: "the profile offer" });
+  await waitForProfileOffer(page);
   const offering = await check(page, "profile offer up");
   const offer = named(offering, "mdProfileOffer");
   const hint = named(offering, "mdHint");
@@ -212,9 +228,6 @@ test("the viewport stays uncluttered when the window is narrow", opts, async () 
   await check(page, "narrow, sketching");
   await drawClosedProfile(page);
   await page.eval(() => document.getElementById("mdAcceptCommand").click());
-  await page.waitUntil(() => {
-    const host = document.getElementById("mdProfileOffer");
-    return !!host && !host.hidden && host.querySelectorAll("button").length > 0;
-  }, { what: "the profile offer" });
+  await waitForProfileOffer(page);
   await check(page, "narrow, profile offer up");
 });

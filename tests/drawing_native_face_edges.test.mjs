@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -21,7 +22,7 @@ test('a same-native-face front/back fold still produces its silhouette edge',()=
 test('verified native face identity survives part tessellation and assembly drawing bake',()=>{
   const meshData={positions,faceRanges:same},part={id:'spring',meshData};
   const body=tessellatePart(part);assert.equal(body.faceRanges,same);assert.equal(count(body.faceRanges,body.positions),4);
-  const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   assert.match(sourceFunctionText(source,'assemblyDrawingDocument'),/faceRanges: cloneData(part.meshData.faceRanges || [])/);
   assert.deepEqual(meshData,{positions,faceRanges:same},'projection does not alter native mesh or face identities');
 });

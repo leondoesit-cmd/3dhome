@@ -4,6 +4,7 @@ import {draftToolsSection} from "./ui_draft_tools.js";
 import {accessReviewSection} from "./ui_access_review.js";
 import {shapeToolsSection} from "./ui_shape_tools.js";
 import { activeFloorArea } from "./area_snapshot.js";
+import { hiddenRefreshGate } from "./hidden_refresh.js";
 import { roomResizeCommand } from "./commands/room_resize.js";
 import { roomMeasurements } from "./room_summary.js";
 import { captureLock } from "./constraint_engine.js";
@@ -30,7 +31,7 @@ import { refreshTree, flash, sceneObject } from "./ui.js";
 import { withoutRoomPrompts } from "./ui_tree.js";
 import { switchFloor } from "./floors.js";
 import { displayUnit } from "./display_units.js";
-import { loadUnitSettings, saveUnitSettings, detectLocationUnitSystem } from "./unit_settings.js";
+import { loadUnitSettings, saveUnitSettings, detectLocationUnitSystem, getDomainUnit } from "./unit_settings.js";
 
 let signature = "", scheduled = false, lastSelectedRoom = null;
 const expanded = new Set();
@@ -132,16 +133,19 @@ function focusRoom(entry) {
   closeForPlacement();
 }
 
+// The Project tab not chosen: no rooms / areas / rebuild until it shows again.
+const skipWhileHidden = hiddenRefreshGate(() => renderPlanningGuide());
 export function renderPlanningGuide() {
   const host = document.getElementById("planningGuide");
-  if (!host || S.action) return;
+  if (!host || S.action || skipWhileHidden(host)) return;
   const guide = planningGuide(S), faces = detectRooms();
   const entries = checklistStatus(S, faces);
   const areas = activeFloorArea();
   const selected = S.sel?.kind === "room" ? S.sel.ref : null;
   const calibration = S.blueprintTrace?.calibration;
   const calibratedScale = calibration && calibrationScale(calibration.p1, calibration.p2, calibration.distanceCm);
-  const referenceStatus = calibratedScale && Math.abs(calibratedScale - S.blueprintTrace.cmPerPx) < 1e-6
+  // a DXF underlay is drawn in its own units, so its scale is exact
+  const referenceStatus = S.blueprintTrace?.scaleSource === "dxf" || (calibratedScale && Math.abs(calibratedScale - S.blueprintTrace.cmPerPx) < 1e-6)
     ? "guide_calibrated" : S.blueprintTrace ? "guide_unscaled" : "guide_calibration_hint";
   const next = JSON.stringify([guide, entries, areas, selected, t("guide_title"), referenceStatus, currentHistoryId(), selected ? [[S.roomMeta[selected]?.name,S.roomMeta[selected]?.roomType,S.roomMeta[selected]?.floor,S.roomMeta[selected]?.wall,!!S.roomMeta[selected]?.floorTex], S.nodes, S.walls.map(w => [w.id,w.thickness,w.datum,w.loc,w.dimSide,w.layers,w.layersReversed]), S.openings.map(o => [o.id,o.wall,o.width,o.s])] : null, S.walls.length, expanded.has("redesign") ? (S.workspace.baselines || []).filter(b => expanded.has("compare-" + b.id)).map(b => compareBaseline(b, S)) : null, S.sel?.kind === "wall" ? S.sel.ref.id : null, S.workspace.redesign, (S.workspace.baselines || []).map(b => b.id)]);
   if (next === signature) return;
@@ -167,7 +171,7 @@ export function renderPlanningGuide() {
     (intention) => editPlanningGuide({ action: "settings", intention, enabled: true }))));
   const curSettings = loadUnitSettings();
   const currentChoice = curSettings.preset === 'auto' ? 'auto' :
-    curSettings.preset === 'metric_arch' ? 'm' :
+    curSettings.preset === 'metric_m' ? 'm' :
     curSettings.preset === 'metric_mm' ? 'mm' :
     curSettings.preset === 'metric_cm' ? 'cm' :
     curSettings.preset === 'imperial' ? 'ft' :
@@ -186,6 +190,7 @@ export function renderPlanningGuide() {
       rooms: { unit: 'auto', digits: 'auto' },
       openings: { unit: 'auto', digits: 'auto' },
       furniture: { unit: 'auto', digits: 'auto' },
+      cabinet: { unit: 'auto', digits: 'auto' },
       mep: { unit: 'auto', digits: 'auto' },
       details: { unit: 'auto', digits: 'auto' },
       site: { unit: 'auto', digits: 'auto' },
@@ -194,10 +199,12 @@ export function renderPlanningGuide() {
     };
     let effectiveUnit = unit;
     if (unit === 'auto') {
-      effectiveUnit = detectLocationUnitSystem().system === 'imperial' ? 'ft' : 'm';
       saveUnitSettings({ ...current, preset: 'auto', overrides: emptyOverrides });
+      // The plan's own unit, not "m": a stored "m" made every unlabelled
+      // readout metres while the plan beside it said cm or mm.
+      effectiveUnit = detectLocationUnitSystem().system === 'imperial' ? 'ft' : getDomainUnit('plan');
     } else if (unit === 'm') {
-      saveUnitSettings({ ...current, preset: 'metric_arch', overrides: emptyOverrides });
+      saveUnitSettings({ ...current, preset: 'metric_m', overrides: emptyOverrides });
     } else if (unit === 'mm') {
       saveUnitSettings({ ...current, preset: 'metric_mm', overrides: emptyOverrides });
     } else if (unit === 'cm') {

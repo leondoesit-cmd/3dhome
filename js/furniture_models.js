@@ -5,6 +5,7 @@ import {
 } from "./state.js";
 import { box, cyl, sph, lathe, tube, torus, drape } from "./primitives.js";
 import { buildCab } from "./cabinet_mesh.js";
+import { buildStairs } from "./stair_model.js";
 import { getLang } from "./i18n.js";
 import {
   handleBar, upholstered, legsUnder, slabWithHoles, basin, gooseneck,
@@ -985,6 +986,7 @@ export const FURN = {
     },
   },
   upper: {
+    taskLamp: { lumens: 400, ratedLength: 80, color: 0xffefd6, dist: 350 },
     label: "ארון עליון",
     w: 80,
     d: 35,
@@ -1488,6 +1490,7 @@ export const FURN = {
     },
   },
   hood: {
+    taskLamp: { lumens: 400, y: 149, color: 0xfff0dc, intensity: 0.5, dist: 400 },
     label: "קולט אדים",
     w: 62,
     d: 50,
@@ -1514,9 +1517,8 @@ export const FURN = {
     h: 70,
     col: "#7fb8c9",
     lamp: {
-      y: function (it) {
-        return it.h - 6;
-      },
+      lumens: 350,
+      y: it => it.h - 6,
       color: 0x9fd8e8,
       intensity: 0.45,
       dist: 300,
@@ -1607,79 +1609,9 @@ export const FURN = {
     h: 260,
     col: "#b09a76",
     build: function (g, it) {
-      /* Staircase, three plans (variant or it.configuration.shape):
-           straight — one flight up from the front (+z) to the back;
-           L        — up the left side to a quarter landing, then across the back;
-           curved   — a quarter-turn winder fanning round the back-left corner.
-         Treads have a nosing over each riser, closed stringers carry them, and
-         the open side gets a sloped handrail on balusters. */
-      var V = vspec(it), hw = it.w / 2, hd = it.d / 2, H = it.h, TR = 0xb09a76,
-        n = Math.max(2, Math.min(100, Math.round((it.configuration && it.configuration.stepCount) || it.steps || 14))),
-        shape = V.shape || (it.configuration && it.configuration.shape) || "straight", rise = H / n,
-        rail = { metal: 0.8, rough: 0.3 };
-      function step(x0, x1, z0, z1, k) {
-        // solid riser block with a 2 cm nosing tread on top
-        var y = (k + 1) * rise;
-        box(g, x0, x1, k * rise, y - 3, z0, z1, TR, { rough: 0.7, sharp: true });
-        box(g, x0, x1, y - 3, y, z0, z1, TR, { rough: 0.6, radius: 0.5 });
-      }
-      function railRun(x, z0, y0, z1, y1) {
-        var L = Math.hypot(z1 - z0, y1 - y0), r = cyl(g, x, (y0 + y1) / 2 + 90, (z0 + z1) / 2, 2.2, L, WOOD, { rough: 0.45, seg: 12 });
-        // tilt the cylinder's y axis onto the rise: up the flight, toward -z
-        if (r) r.rotation.x = Math.atan2(z1 - z0, y1 - y0);
-      }
-      if (shape === "L") {
-        var fw = Math.min(it.w * 0.45, 100), n1 = Math.max(1, Math.round(n * 0.55)), n2 = n - n1 - 1,
-          len1 = it.d - fw, len2 = it.w - fw;
-        for (var i = 0; i < n1; i++) step(-hw, -hw + fw, hd - ((i + 1) * len1) / n1, hd - (i * len1) / n1, i);
-        step(-hw, -hw + fw, -hd, -hd + fw, n1); // landing
-        for (var j = 0; j < n2; j++) step(-hw + fw + (j * len2) / n2, -hw + fw + ((j + 1) * len2) / n2, -hd, -hd + fw, n1 + 1 + j);
-        box(g, -hw + fw, -hw + fw + 3, 0, n1 * rise + 6, -hd + fw, hd, TR, { rough: 0.7, sharp: true }); // open stringer
-        railRun(-hw + fw + 1.5, hd, 0, -hd + fw, n1 * rise);
-        for (var b = 0; b < n1; b++) cyl(g, -hw + fw + 1.5, (b + 1) * rise + 45, hd - ((b + 0.5) * len1) / n1, 0.9, 90, 0x2b2e31, { metal: 0.6, rough: 0.4, seg: 8 });
-        return;
-      }
-      if (shape === "U") {
-        var flightW = Math.min(it.w * 0.45, 100), landingD = Math.min(flightW, it.d * 0.35);
-        var flightD = it.d - landingD, first = Math.max(1, Math.floor((n - 1) / 2)), second = Math.max(1, n - first - 1);
-        for (var u1 = 0; u1 < first; u1++)
-          step(-hw, -hw + flightW, hd - (u1 + 1) * flightD / first, hd - u1 * flightD / first, u1);
-        step(-hw, hw, -hd, -hd + landingD, first);
-        for (var u2 = 0; u2 < second; u2++)
-          step(hw - flightW, hw, -hd + landingD + u2 * flightD / second, -hd + landingD + (u2 + 1) * flightD / second, first + 1 + u2);
-        box(g, -hw + flightW - 3, -hw + flightW, 0, first * rise + 6, -hd + landingD, hd, TR, { rough: 0.7, sharp: true });
-        box(g, hw - flightW, hw - flightW + 3, first * rise, H, -hd + landingD, hd, TR, { rough: 0.7, sharp: true });
-        return;
-      }
-      if (shape === "curved") {
-        // treads fan round the back-left corner through a quarter turn
-        var ro = Math.min(it.w, it.d) - 2, ri = Math.max(12, ro * 0.18), cx = -hw, cz = -hd;
-        for (var k = 0; k < n; k++) {
-          var a0 = (k / n) * (Math.PI / 2), a1 = ((k + 1) / n) * (Math.PI / 2), am = (a0 + a1) / 2,
-            rm = (ri + ro) / 2, wdt = (a1 - a0) * ro + 4, y = (k + 1) * rise;
-          // a = 0 points toward the front (+z), a = π/2 toward the right (+x)
-          var tread = box(g, -(ro - ri) / 2, (ro - ri) / 2, y - 3, y, -wdt / 2, wdt / 2, TR, { rough: 0.6, radius: 0.5 });
-          var riser = box(g, -(ro - ri) / 2, (ro - ri) / 2, 0, y - 3, -wdt / 2 + 1, wdt / 2 - 1, TR, { rough: 0.7, sharp: true });
-          [tread, riser].forEach(function (m) {
-            if (!m) return;
-            m.position.x = cx + Math.sin(am) * rm;
-            m.position.z = cz + Math.cos(am) * rm;
-            m.rotation.y = Math.PI / 2 - am;
-          });
-          var bx = cx + Math.sin(am) * (ro - 2), bz = cz + Math.cos(am) * (ro - 2);
-          cyl(g, bx, y + 45, bz, 0.9, 90, 0x2b2e31, { metal: 0.6, rough: 0.4, seg: 8 });
-        }
-        cyl(g, cx + 0.1, H / 2, cz + 0.1, ri * 0.7, H, TR, { rough: 0.6, seg: 20 }); // newel column
-        return;
-      }
-      for (var s = 0; s < n; s++) step(-hw, hw, hd - ((s + 1) * it.d) / n, hd - (s * it.d) / n, s);
-      [-1, 1].forEach(function (sd) {
-        // closed stringers either side, following the pitch
-        box(g, sd * hw - (sd > 0 ? 3 : 0), sd * hw + (sd > 0 ? 0 : 3), 0, 12, -hd, hd, TR, { rough: 0.7, sharp: true });
-      });
-      railRun(hw - 3, hd, 0, -hd, H);
-      for (var b2 = 0; b2 < n; b2++) cyl(g, hw - 3, (b2 + 1) * rise + 45, hd - ((b2 + 0.5) * it.d) / n, 0.9, 90, 0x2b2e31, { metal: 0.6, rough: 0.4, seg: 8 });
-      cyl(g, hw - 3, 50, hd - 3, 3, 100, WOOD, { rough: 0.45, seg: 12 }); // newel
+      /* Staircase: a designed flight (configuration.stair) or one of the
+         catalogue plans — js/stair_model.js, laid out by js/stair_layout.js. */
+      buildStairs(g, it, vspec(it));
     },
   },
   fireplace: {
@@ -1688,7 +1620,7 @@ export const FURN = {
     d: 42,
     h: 115,
     col: "#6e6a66",
-    lamp: { y: 35, color: 0xff9a3c, intensity: 1.1, dist: 430 },
+    lamp: { lumens: 400, y: 35, color: 0xff9a3c, intensity: 1.1, dist: 430 },
     build: function (g, it) {
       /* Fireplace: a stone surround with a raised hearth and a mantel shelf,
          a sooted firebox with log grate, logs and flames. */
@@ -1761,13 +1693,13 @@ export const FURN = {
     d: 46,
     h: 10,
     col: "#fff4cf",
-    lamp: { y: MOUNTH - 9, color: 0xffe7bb, intensity: 0.95, dist: 680 },
+    lamp: { lumens: 1500, y: MOUNTH - 9, color: 0xffe7bb, intensity: 0.95, dist: 680 },
     build: function (g, it) {
       /* Flush ceiling light: a slim trim ring on the ceiling and a frosted
          opal dome diffuser glowing from within. */
       var r = it.w / 2;
       cyl(g, 0, MOUNTH - 1.2, 0, r, 2.4, 0xeef0ee, { rough: 0.4, metal: 0.2, seg: 48 });
-      var dome = sph(g, 0, MOUNTH - 2.4, 0, r * 0.88, 0xfff3d2, { emis: 0xffe6a8, rough: 0.3, cast: false, seg: 40, segV: 10, thetaLen: Math.PI / 2 });
+      var dome = sph(g, 0, MOUNTH - 2.4, 0, r * 0.88, 0xfff3d2, { lampShade: "opalCap", emis: 0xffe6a8, rough: 0.3, cast: false, seg: 40, segV: 10, thetaLen: Math.PI / 2 });
       if (dome) { dome.rotation.x = Math.PI; dome.scale.y = 7 / (r * 0.88); }
       cyl(g, 0, MOUNTH - 2.6, 0, r * 0.9, 0.5, 0xeef0ee, { rough: 0.4, metal: 0.2, seg: 48, open: true });
     },
@@ -1778,7 +1710,7 @@ export const FURN = {
     d: 34,
     h: 10,
     col: "#caa15e",
-    lamp: { y: MOUNTH - 58, color: 0xffd99a, intensity: 1.0, dist: 620 },
+    lamp: { lumens: 1000, y: MOUNTH - 58, color: 0xffd99a, intensity: 1.0, dist: 620 },
     build: function (g, it) {
       /* Pendant: a ceiling canopy, a fabric flex and socket, and a spun shade —
          cone, dome, glass globe, fabric drum or wire cage — with a white reflector
@@ -1789,14 +1721,14 @@ export const FURN = {
         sh = V.shape || "cone",
         W = it.w,
         cy = MOUNTH - drop,
-        so = { rough: V.shadeRough != null ? V.shadeRough : 0.45, metal: V.shadeMetal != null ? V.shadeMetal : 0.5, seg: 40 };
+        so = { lampShade: "metal", rough: V.shadeRough != null ? V.shadeRough : 0.45, metal: V.shadeMetal != null ? V.shadeMetal : 0.5, seg: 40 };
       lathe(g, 0, MOUNTH - 3, 0, [[0, 0], [5, 0], [5.6, 0.6], [5.6, 3], [0, 3]], 0x2b2f33, { metal: 0.4, rough: 0.4, seg: 28 }); // canopy
       cyl(g, 0, (MOUNTH - 3 + cy) / 2, 0, 0.35, MOUNTH - 3 - cy, 0x33383c, { rough: 0.8, seg: 8, cast: false }); // flex
       lathe(g, 0, cy - 5, 0, [[0, 0], [1.7, 0], [1.9, 1], [1.9, 5], [0, 5]], 0x2b2f33, { metal: 0.5, rough: 0.35, seg: 16 }); // socket
       var bulbY = cy - 9;
       if (sh === "globe") {
         var R = W * 0.42;
-        sph(g, 0, cy - 5 - R, 0, R, 0xfdf6e6, { trans: true, opacity: 0.5, rough: 0.08, metal: 0.05, seg: 32, segV: 20, cast: false });
+        sph(g, 0, cy - 5 - R, 0, R, 0xfdf6e6, { lampShade: "opal", trans: true, opacity: 0.94, rough: 0.42, metal: 0.05, seg: 32, segV: 20, cast: false });
         bulbY = cy - 5 - R;
       } else if (sh === "dome") {
         var dp = [[2, 0], [W * 0.16, -1.2], [W * 0.3, -4], [W * 0.42, -9], [W * 0.49, -14], [W * 0.5, -15.2]];
@@ -1816,10 +1748,10 @@ export const FURN = {
         return;
       } else if (sh === "drum") {
         var dc = V.shadeCol != null ? V.shadeCol : 0xe9dcc1;
-        lathe(g, 0, cy - 26, 0, [[W * 0.5, 0], [W * 0.5, 22]], dc, { rough: 0.7, trans: true, opacity: 0.94, seg: 48 });
+        lathe(g, 0, cy - 26, 0, [[W * 0.5, 0], [W * 0.5, 22]], dc, { lampShade: "linen", rough: 0.7, trans: true, opacity: 0.94, seg: 48 });
         torus(g, 0, cy - 4, 0, W * 0.5, 0.3, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 48, segR: 5 });
         torus(g, 0, cy - 26, 0, W * 0.5, 0.3, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 48, segR: 5 });
-        cyl(g, 0, cy - 25.6, 0, W * 0.49, 0.3, 0xf6efe0, { rough: 0.6, trans: true, opacity: 0.85, seg: 48, cast: false }); // diffuser
+        cyl(g, 0, cy - 25.6, 0, W * 0.49, 0.3, 0xf6efe0, { lampShade: "opalPanel", rough: 0.6, trans: true, opacity: 0.94, seg: 48, cast: false }); // diffuser
         bulbY = cy - 14;
       } else {
         var cp = [[1.9, 0], [2.6, -1], [4.2, -3], [W * 0.5, -17], [W * 0.5 + 0.2, -17.6]];
@@ -1837,9 +1769,8 @@ export const FURN = {
     h: 160,
     col: "#b9b29e",
     lamp: {
-      y: function (it) {
-        return it.h - 18;
-      },
+      lumens: 1000,
+      y: it => it.h - 18,
       color: 0xffe6b4,
       intensity: 0.85,
       dist: 520,
@@ -1855,7 +1786,7 @@ export const FURN = {
         W = it.w,
         rim = { metal: 0.8, rough: 0.3, seg: 40, segR: 5 };
       function drumShade(x, y0, rb, rt, H) {
-        lathe(g, x, y0, 0, [[rb, 0], [rt, H]], shade, { rough: 0.7, trans: true, opacity: 0.93, seg: 44 });
+        lathe(g, x, y0, 0, [[rb, 0], [rt, H]], shade, { lampShade: "linen", rough: 0.7, trans: true, opacity: 0.93, seg: 44 });
         torus(g, x, y0, 0, rb, 0.28, 0x8a857c, rim);
         torus(g, x, y0 + H, 0, rt, 0.28, 0x8a857c, rim);
         sph(g, x, y0 + H * 0.4, 0, 4, 0xfff2cc, { emis: 0xffe2a0, cast: false, seg: 18, segV: 12 });
@@ -1883,7 +1814,7 @@ export const FURN = {
         pts.push([xc + R, yc - 4, 0]);
         tube(g, pts, 1.5, stem, { metal: 0.6, rough: 0.35, seg: 10, steps: 64 });
         var ap = [[1.6, 0], [W * 0.12, -1.2], [W * 0.26, -5], [W * 0.34, -12], [W * 0.36, -16]];
-        lathe(g, xc + R, yc - 4, 0, ap, 0x2d3338, { metal: 0.55, rough: 0.35, seg: 36 });
+        lathe(g, xc + R, yc - 4, 0, ap, 0x2d3338, { lampShade: "darkMetal", metal: 0.55, rough: 0.35, seg: 36 });
         sph(g, xc + R, yc - 12, 0, 4, 0xfff2cc, { emis: 0xffe2a0, cast: false, seg: 18, segV: 12 });
         return;
       }
@@ -1892,7 +1823,7 @@ export const FURN = {
       cyl(g, 0, it.h * 0.45, 0, 1.6, 3, stem, { metal: 0.6, rough: 0.3, seg: 14 }); // collar
       if (style === "globe") {
         cyl(g, 0, sTop + 1, 0, 3, 3, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 16 });
-        sph(g, 0, it.h - 16, 0, W * 0.36, 0xfdf6e6, { trans: true, opacity: 0.5, rough: 0.08, seg: 32, segV: 20, cast: false });
+        sph(g, 0, it.h - 16, 0, W * 0.36, 0xfdf6e6, { lampShade: "opal", trans: true, opacity: 0.94, rough: 0.42, seg: 32, segV: 20, cast: false });
         sph(g, 0, it.h - 16, 0, 4, 0xfff2cc, { emis: 0xffe2a0, cast: false, seg: 18, segV: 12 });
         return;
       }
@@ -1906,9 +1837,8 @@ export const FURN = {
     h: 48,
     col: "#cdbf9a",
     lamp: {
-      y: function (it) {
-        return it.h - 10;
-      },
+      lumens: 470,
+      y: it => it.h - 10,
       color: 0xffe1ac,
       intensity: 0.6,
       dist: 360,
@@ -1922,7 +1852,7 @@ export const FURN = {
       if (body) body.scale.y = 0.9;
       cyl(g, 0, 20, 0, r * 0.22, 4, 0xd9d1c2, { rough: 0.25, seg: 20, r2: r * 0.14 });
       cyl(g, 0, (22 + sh0 + 6) / 2, 0, 0.9, sh0 + 6 - 22, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 10 });
-      cyl(g, 0, (sh0 + sh1) / 2, 0, r, sh1 - sh0, 0xefe4cb, { rough: 0.7, seg: 36, r2: r * 0.8, open: true, trans: true, opacity: 0.9 });
+      cyl(g, 0, (sh0 + sh1) / 2, 0, r, sh1 - sh0, 0xefe4cb, { lampShade: "linen", rough: 0.7, seg: 36, r2: r * 0.8, open: true, trans: true, opacity: 0.9 });
       cyl(g, 0, sh0 + 0.3, 0, r + 0.1, 0.6, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 36, open: true });
       cyl(g, 0, sh1 - 0.3, 0, r * 0.8 + 0.1, 0.6, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 36, open: true });
       sph(g, 0, sh0 + 5, 0, 3, 0xfff2cc, { emis: 0xffe2a0, cast: false });
@@ -1935,9 +1865,8 @@ export const FURN = {
     h: 2,
     col: "#dddddd",
     lamp: {
-      y: function (it) {
-        return it.h - 1;
-      },
+      lumens: 900, ratedLength: 100,
+      y: it => it.h - 1,
       color: 0xffffff,
       intensity: 1.0,
       dist: 500,
@@ -2204,7 +2133,7 @@ export const FURN = {
   led_grow_light: {
     label: "מנורת גידול לד",
     w: 60, d: 60, h: 5, col: "#b0b3b5",
-    lamp: { type: "omni", color: "#ff88ff", it: 1.5 },
+    lamp: { lumens: 2400, y: it => it.h - 3.5, color: 0xff88ff, intensity: 1.5, dist: 500 },
     build: function (g, it) {
       /* Bar-style LED grow light: parallel aluminium heat-sink bars each with a
          glowing diode strip underneath, joined by end rails, a driver box on

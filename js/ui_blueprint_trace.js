@@ -70,6 +70,9 @@ export function openBlueprintTraceModal() {
   empty.querySelector("span").textContent = t("bp_trace_empty");
   stage.appendChild(empty);
   modal.appendChild(stage);
+  var straightNote = el("p", "bp-import-hint", t("bp_trace_straightened"));
+  straightNote.hidden = true;
+  modal.appendChild(straightNote);
 
   var calibration = el("div", "bp-cal-panel");
   var instruction = el("div", "bp-cal-instruction");
@@ -188,6 +191,7 @@ export function openBlueprintTraceModal() {
     empty.querySelector("span").textContent = t("bp_trace_loading");
     try {
       raster = await rasterizeBlueprint(file, { page: page || 1 });
+      straightNote.hidden = !raster.straightened;
       drop.querySelector("div").textContent = file.name;
       pageInput.max = String(raster.pageCount || 1);
       pageInput.value = String(raster.page || 1);

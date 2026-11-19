@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {captureMotionStudyBaseline,createMotionStudy,addScrewMotor,evaluateMotionStudy} from '../js/cad_motion_study.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const start=source.indexOf('function motionScrewMateLabel(');
 const formSource=source.slice(start,source.indexOf('\n/* The Evaluate command',start));
 const saved=JSON.parse(readFileSync(new URL('./fixtures/shaper-head-browser-native-mates.json',import.meta.url),'utf8'));

@@ -119,12 +119,17 @@ export function applyStairMoveTo(list, it) {
 }
 
 /* Hole loops for a room polygon, in the same XZ point shape polyMesh wants.
-   Only openings whose centre sits in the room are punched; a void that
-   straddles two rooms is assigned to the room that owns its centre. */
+   Include centres on the boundary too, so a dividing wall cannot drop a void. */
 export function holesForRoom(roomPts, openings) {
   if (!roomPts || roomPts.length < 3) return [];
   return (openings || slabOpenings()).filter(function (o) {
-    return fin(o.x) && fin(o.z) && o.w >= 40 && o.d >= 40 && pointInPoly(o.x, o.z, roomPts);
+    if (!fin(o.x) || !fin(o.z) || !(o.w >= 40) || !(o.d >= 40)) return false;
+    return pointInPoly(o.x, o.z, roomPts) || roomPts.some(function (a, i) {
+      var b = roomPts[(i + 1) % roomPts.length], dx = b.x - a.x, dz = b.z - a.z;
+      var length2 = dx * dx + dz * dz;
+      var t = length2 ? Math.max(0, Math.min(1, ((o.x-a.x)*dx+(o.z-a.z)*dz)/length2)) : 0;
+      return Math.hypot(o.x-a.x-t*dx, o.z-a.z-t*dz) <= 1e-6;
+    });
   }).map(function (o) {
     var cs = openingCorners(o);
     // Earcut wants hole winding opposite the outer contour. Reverse if the
@@ -148,9 +153,17 @@ export function roomsWithOpenings() {
   });
 }
 
+/* One void per flight: a "cut stairwell" pressed twice used to stack a second
+   void on the first, so later duplicates sharing a `stairsId` are dropped. */
 export function normalizeSlabOpenings(list) {
+  var bound = new Set();
   return (Array.isArray(list) ? list : []).filter(function (o) {
-    return o && fin(o.x) && fin(o.z) && Number(o.w) >= 40 && Number(o.d) >= 40;
+    if (!(o && fin(o.x) && fin(o.z) && Number(o.w) >= 40 && Number(o.d) >= 40)) return false;
+    if (o.stairsId == null) return true;
+    var k = String(o.stairsId);
+    if (bound.has(k)) return false;
+    bound.add(k);
+    return true;
   }).map(function (o) {
     return {
       id: o.id != null ? o.id : uid(),

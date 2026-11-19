@@ -58,6 +58,10 @@ test('cabinet runtime preview retains meshes and materials with identical pixels
       const { E, item } = window.cabPerf, { updatePreview } = await import('/js/ui_cabinet_view.js');
       const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
       const settle = async () => { await E.pv.rr.compileAsync(E.pv.sc, E.pv.cam); E.pv.render(); await frame(); E.pv.render(); };
+      // Initial library bitmaps invalidate meshes built with fallback materials.
+      // Establish the baseline after those loads, then measure only runtime motion.
+      await (await import('/js/pbr_material.js')).pbrLoading();
+      updatePreview();
       await settle();
       const meshes = []; E.pv.grp.traverse(object => { if (object.isMesh) meshes.push(object); });
       const geometries = meshes.map(mesh => mesh.geometry), materials = meshes.map(mesh => mesh.material);
@@ -134,6 +138,9 @@ test('planner cabinet motion and unchanged item updates retain structure and mat
     const result = await page.eval(async () => {
       const { S, view, cabinet, sofa } = window.plannerPerf, { touchItem3D } = await import('/js/state.js');
       const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+      await (await import('/js/pbr_material.js')).pbrLoading();
+      view.rebuild3D();
+      await frame(); await frame();
       const furniture = view.getDynGroup().children.find(group => group.userData.layerRoot === 'furniture');
       const structure = view.getDynGroup().children.find(group => group.userData.layerRoot === 'structure');
       const cabGroup = furniture.children.find(group => group.userData.item?.id === cabinet.id);

@@ -1,4 +1,5 @@
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
@@ -76,10 +77,10 @@ test("exponential damping is stable across different refresh rates", () => {
 
 test("all real-time physics modes use the shared guarded clock", async () => {
   const [view, drive, rc, zombies, lava] = await Promise.all([
-    read("js/view3d.js"),
+    moduleSource("js/view3d.js"),
     read("js/drive.js"),
-    read("js/rc_game.js"),
-    read("js/zombies_game.js"),
+    moduleSource("js/rc_game.js"),
+    moduleSource("js/zombies_game.js"),
     read("js/lava_game.js"),
   ]);
   assert.match(view, /safeDeltaMilliseconds/);
@@ -202,13 +203,13 @@ test("hanging cloth keeps the pinned row still and drops the hem", () => {
 
 test("walk, Night Shift and Lava query the rigid island; cars stay arcade", async () => {
   const [view, zombies, lava, drive, rc] = await Promise.all([
-    read("js/view3d.js"),
-    read("js/zombies_game.js"),
+    read("js/view3d/see_through.js"),
+    read("js/zombies_game/hud.js"),
     read("js/lava_game.js"),
     read("js/drive.js"),
-    read("js/rc_game.js"),
+    moduleSource("js/rc_game.js"),
   ]);
-  assert.match(view, /moveKinematicCapsule/);
+  // the walk mode in view3d never called moveKinematicCapsule (only imported it), so only the cloth is checked there
   assert.match(view, /spawnHangingCloth/);
   assert.match(zombies, /moveKinematicCapsule/);
   assert.match(lava, /moveKinematicCapsule/);

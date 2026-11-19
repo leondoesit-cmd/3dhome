@@ -10,6 +10,7 @@
  * whole cut/finish loop below it is already generic, which these tests exercise
  * against the real WASM kernel rather than trusting that.
  */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -116,7 +117,7 @@ test("a 3D cut through a swept body removes exactly the tool", async () => {
 
 /* --- the editor wiring: js/modeler.js is a browser module ---------------- */
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const modeler = modelerSource().replace(/\r\n/g, "\n");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = readFileSync(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 

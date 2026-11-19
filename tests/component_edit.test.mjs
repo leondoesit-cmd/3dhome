@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { componentEditCopy, commitComponentEdit } from "../js/core/component_edit.js";
@@ -47,7 +48,7 @@ function finishFixture(working,regenerate){
     regenerateExactModel:regenerate,setDocumentType:type=>{events.push(type);E.docType=type;},
     H:{clear(){return this;},seed(){}},pushUndo:()=>events.push('undo'),commitComponentEdit,
     solveAssembly:()=>events.push('solve'),refreshAll:()=>{},fitPreview:()=>{}};
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const finish=new Function(...Object.keys(context),sourceFunctionText(source,'clearContextPartInteraction')+'\n'+sourceFunctionText(source,'finishContextPart')+';return finishContextPart;')(...Object.values(context));
   return{E,component,events,finish,edit};
 }

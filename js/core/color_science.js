@@ -44,6 +44,7 @@ export function parseColor(str) {
   // Hex: #rgb, #rgba, #rrggbb, #rrggbbaa
   if (s.startsWith("#")) {
     const hex = s.slice(1);
+    if (!/^[0-9a-f]+$/.test(hex)) return null;
     if (hex.length === 3) {
       return {
         r: parseInt(hex[0] + hex[0], 16),
@@ -80,7 +81,9 @@ export function parseColor(str) {
   }
 
   // rgb(r, g, b) or rgba(r, g, b, a) or rgb(r g b / a)
-  const rgbMatch = s.match(/^rgba?\(\s*([\d.]+%?)\s*[, ]\s*([\d.]+%?)\s*[, ]\s*([\d.]+%?)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/);
+  const number = '[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:e[+-]?\\d+)?';
+  const separator = '(?:\\s*,\\s*|\\s+)';
+  const rgbMatch = s.match(new RegExp('^rgba?\\(\\s*('+number+'%?)'+separator+'('+number+'%?)'+separator+'('+number+'%?)(?:\\s*[,/]\\s*('+number+'%?))?\\s*\\)$'));
   if (rgbMatch) {
     const parseChan = (val) => {
       if (val.endsWith("%")) return Math.round((parseFloat(val) / 100) * 255);
@@ -100,11 +103,11 @@ export function parseColor(str) {
   }
 
   // hsl(h, s%, l%) or hsla(h, s%, l%, a)
-  const hslMatch = s.match(/^hsla?\(\s*(-?[\d.]+)(?:deg)?\s*[, ]\s*([\d.]+)%\s*[, ]\s*([\d.]+)%(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/);
+  const hslMatch = s.match(new RegExp('^hsla?\\(\\s*('+number+')(?:deg)?'+separator+'('+number+')%'+separator+'('+number+')%(?:\\s*[,/]\\s*('+number+'%?))?\\s*\\)$'));
   if (hslMatch) {
     const h = ((parseFloat(hslMatch[1]) % 360) + 360) % 360;
-    const sat = parseFloat(hslMatch[2]) / 100;
-    const l = parseFloat(hslMatch[3]) / 100;
+    const sat = Math.max(0,Math.min(1,parseFloat(hslMatch[2]) / 100));
+    const l = Math.max(0,Math.min(1,parseFloat(hslMatch[3]) / 100));
     const a = hslMatch[4] ? (hslMatch[4].endsWith("%") ? parseFloat(hslMatch[4]) / 100 : parseFloat(hslMatch[4])) : 1;
     const rgb = hslToRgb(h, sat, l);
     return { ...rgb, a: Math.max(0, Math.min(1, a)) };
@@ -248,6 +251,17 @@ export function contrastRatio(color1, color2) {
   const lighter = Math.max(l1, l2);
   const darker = Math.min(l1, l2);
   return (lighter + 0.05) / (darker + 0.05);
+}
+
+/**
+ * The first of `inks` that reads at `minRatio` on the colour made by stacking
+ * `layers` (bottom to top: CSS strings, #rrggbbaa for a translucent fill, or
+ * {r,g,b,a}); when none does, black or white, whichever contrasts more.
+ */
+export function legibleInk(layers, inks, minRatio = 4.5) {
+  const bg = compositeStack((layers || []).map((c) => (typeof c === "string" ? parseColor(c) : c)));
+  for (const ink of inks || []) if (ink && contrastRatio(ink, bg) >= minRatio) return ink;
+  return contrastRatio("#000000", bg) >= contrastRatio("#ffffff", bg) ? "#000000" : "#ffffff";
 }
 
 /**

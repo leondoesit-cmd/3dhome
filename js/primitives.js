@@ -1,8 +1,10 @@
+import { pointFlux, spotFlux } from "./room_bounce.js";
 // Low-level THREE mesh helpers + procedural floor textures + flat polygon geometry.
 import { THREE, ADDONS } from "./three_lazy.js";
 import { S, fin, PHYSICS_MATS, MAT_PROPS, FABRIC, WOOD, TOP, BEDC, RUGC, STEEL, ISL, GREEN, CAB } from "./state.js";
 import { pbrPixels } from "./pbr_textures.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
+import { pbrEntryFor, pbrTextures, pbrDeferFallback, applyPbrMaps, legacyTextureUrl, sharedRepeat, noteTextureMiss } from "./pbr_material.js";
 
 // Classify a part's physical material from how it is actually rendered:
 // transmissive/transparent → glass, high metalness → metal, then the
@@ -15,18 +17,34 @@ function physProps(color, opt) {
 }
 
 export function emis(m, opt) {
+  if (opt.lampShade) m.userData.lampShade = opt.lampShade;
   if (opt.emis != null) {
     m.emissive = new THREE.Color(opt.emis);
-    m.emissiveIntensity = 0.4 + 1.4 * S.artK;
+    // The planner assigns practicals their lamp luminance. Appliance displays
+    // and indicators have a fixed output while powered, including at noon.
+    m.emissiveIntensity = 1;
     m.userData.glow = true;
   }
 }
 
-// Metals & polished surfaces should mirror the room/sky (IBL). Default matte
-// materials are barely touched; shiny appliances/glass get a strong reflection boost.
+// Roughness redistributes reflected light and the Fresnel term sets its
+// strength. A polished object samples the same incident sky as a matte one.
 function tuneEnv(m) {
-  var gloss = 1 - m.roughness;
-  m.envMapIntensity = 1 + m.metalness * 0.9 + Math.max(0, gloss - 0.6) * 0.8;
+  // Opaque solids cast from the surface the light strikes.
+  if (!m.transparent && !m.transmission && m.side === THREE.FrontSide) m.shadowSide = THREE.FrontSide;
+  m.envMapIntensity = 1;
+  limitPaintReflectance(m);
+}
+export function limitPaintReflectance(m) {
+  // A solid sRGB paint chip is used as a diffuse reflectance. Limit peak
+  // linear reflectance to bright interior white, preserving chromaticity.
+  // White multiplying an albedo texture and transparent dielectrics both
+  // need their full range. Metal base colours encode specular reflectance.
+  if (!m.map && !m.colorNode && !m.transparent && !m.transmission && m.metalness < 0.5) {
+    var peak = Math.max(m.color.r, m.color.g, m.color.b);
+    if (peak > 0.85) m.color.multiplyScalar(0.85 / peak);
+  }
+  return m;
 }
 
 /* ---- finish "skins" (furniture variants) --------------------------------
@@ -81,11 +99,22 @@ function withSkinTexture(opt) {
 export function applyTextureToMaterial(m, opt, width, height, depth) {
   opt = withSkinTexture(opt);
   if (!m || !opt || !opt.tex) return;
+  var texUrl = opt.tex;
+  // Library material: full PBR maps once loaded, its old preset meanwhile.
+  var lib = pbrEntryFor(texUrl);
+  if (lib) {
+    var libScale = opt.texScale || lib.sizeCm;
+    var libDim = Math.max(Math.abs(width) || 0, Math.abs(depth) || 0) || 100;
+    if (applyPbrMaps(m, lib, Math.max(libDim / libScale, 0.001), Math.max((Math.abs(height) || 100) / libScale, 0.001),
+      { tint: opt.texColor })) return;
+    texUrl = legacyTextureUrl(lib);
+    if (!texUrl) return;
+  }
   if (!S.customTexCache) S.customTexCache = {};
-  if (!S.customTexCache[opt.tex]) {
+  if (!S.customTexCache[texUrl]) {
     var loader = new THREE.TextureLoader();
     loader.setCrossOrigin("anonymous");
-    var tx = loader.load(opt.tex, function () {
+    var tx = loader.load(texUrl, function () {
       // Parts built while this was still loading were left untextured on
       // purpose; the event invalidates the item cache so they get rebuilt.
       S.dirty3D = true;
@@ -97,22 +126,25 @@ export function applyTextureToMaterial(m, opt, width, height, depth) {
     });
     tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
     if (THREE.SRGBColorSpace) tx.colorSpace = THREE.SRGBColorSpace;
-    S.customTexCache[opt.tex] = tx;
+    S.customTexCache[texUrl] = tx;
   }
   // Wait for the bitmap before handing the material a map. Texture.copy() sets
   // needsUpdate on every clone, so a clone taken while the loader is still
   // fetching is version>0 with `image === null` — and updateTexture() then
   // throws on `image.complete`, killing the render pass (black viewport).
   // The loader callback above flags a rebuild, which re-runs this with an image.
-  if (!S.customTexCache[opt.tex].image) return;
-  var tex = S.customTexCache[opt.tex].clone();
+  if (!S.customTexCache[texUrl].image) {
+    noteTextureMiss(); // built without it: rebuilt when it lands
+    return;
+  }
   var maxDim = Math.max(Math.abs(width) || 0, Math.abs(depth) || 0) || 100;
   var scale = opt.texScale || 200;
-  tex.repeat.set(Math.max(maxDim / scale, 0.001), Math.max((Math.abs(height) || 100) / scale, 0.001));
-  m.map = tex;
+  var ru = Math.max(maxDim / scale, 0.001), rv = Math.max((Math.abs(height) || 100) / scale, 0.001);
+  // shared per repeat, not cloned per part: each clone is its own GPU upload
+  m.map = sharedRepeat(S.customTexCache[texUrl], ru, rv, m);
   m.color.setHex(opt.texColor != null ? opt.texColor : 0xffffff);
 
-  var bUrl = getTexturePresetBumpUrl(opt.tex);
+  var bUrl = getTexturePresetBumpUrl(texUrl);
   if (bUrl) {
     if (!S.customBumpCache) S.customBumpCache = {};
     if (!S.customBumpCache[bUrl]) {
@@ -127,9 +159,7 @@ export function applyTextureToMaterial(m, opt, width, height, depth) {
     }
   }
   if (bUrl && S.customBumpCache[bUrl].image) { // same wait-for-bitmap rule as the map
-    var btxCloned = S.customBumpCache[bUrl].clone();
-    btxCloned.repeat.set(Math.max(maxDim / scale, 0.001), Math.max((Math.abs(height) || 100) / scale, 0.001));
-    m.bumpMap = btxCloned;
+    m.bumpMap = sharedRepeat(S.customBumpCache[bUrl], ru, rv, m);
     m.bumpScale = opt.texBump != null ? opt.texBump : 0.20;
   }
   m.needsUpdate = true;
@@ -206,7 +236,26 @@ function applyDetail(m, geo, srcColor, opt, finalColor) {
   if (!m || m.map || opt.tex || opt.trans || opt.transmission != null || opt.emis != null || opt.noDetail) return;
   var fam = opt.pbr || COLOR_PBR[srcColor];
   if (!fam) return;
-  if (fam === "oak" && finalColor != null && finalColor !== srcColor && paintedFinish(finalColor)) fam = "plaster";
+  var painted = fam === "oak" && finalColor != null && finalColor !== srcColor && paintedFinish(finalColor);
+  // Baked library detail (Codex source, Blender-derived normal + ORM) when
+  // it has loaded; the procedural family below until then.
+  var lib = pbrEntryFor("pbr:" + (painted ? "lacquer" : fam));
+  if (lib && pbrTextures(lib)) {
+    worldUVs(geo, lib.sizeCm);
+    // Keep the native, pale library finish on stock furniture. A reskinned
+    // part still needs its selected swatch on the tintable detail map.
+    applyPbrMaps(m, lib, 1, 1, { normalScale: 0.7, tint: finalColor !== srcColor ? finalColor : undefined });
+    var base = opt.rough != null ? opt.rough : m.roughness;
+    // the ORM map holds the catalogue's roughness; keep a part's own glossier
+    // or rougher intent by scaling it rather than discarding it
+    m.roughness = Math.min(1.6, Math.max(0.3, base / ((lib.rough[0] + lib.rough[1]) / 2 || 1)));
+    if (opt.metal != null) m.metalness = opt.metal;
+    return;
+  }
+  if (painted) fam = "plaster";
+  // a thumbnail build that is redone once the library bitmaps land: do not
+  // compute a procedural family only to throw it away
+  if (lib && !(fam in pbrCache) && pbrDeferFallback(lib)) return;
   var t = pbrTex(fam);
   if (!t || !t.map) return;
   worldUVs(geo, t.tileCm);
@@ -283,11 +332,11 @@ export function box(parent, x0, x1, y0, y1, z0, z1, color, opt) {
   if (opt.transmission != null && THREE.MeshPhysicalMaterial) {
     m = new THREE.MeshPhysicalMaterial({
       color: color,
-      metalness: opt.metal != null ? opt.metal : 0.1,
+      metalness: 0, // glass is dielectric, including its specular reflection
       roughness: opt.rough != null ? opt.rough : 0.05,
-      transparent: true,
+      transparent: false,
       transmission: opt.transmission,
-      opacity: opt.opacity != null ? opt.opacity : 1,
+      opacity: 1, // continuous pane coverage; transmission controls light through it
       ior: 1.5,
       thickness: Math.min(bw, bh, bd)
     });
@@ -1048,10 +1097,18 @@ export function floorPaintCanvas(type, px) {
 var meanCache = {};
 export function floorMeanColor(type) {
   if (meanCache[type]) return meanCache[type];
-  var c = floorPaintCanvas(type, 16);
   var col = "#d0cec9";
   try {
-    var d = c.getContext("2d").getImageData(0, 0, 16, 16).data,
+    /* Its own small canvas, CPU-backed (willReadFrequently): a readback of
+       an accelerated one waits for the GPU, and right after a plan is
+       generated the 3D view keeps the GPU busy — ~70 ms for a few floors
+       inside the first presentation paint. */
+    var c = document.createElement("canvas");
+    c.width = c.height = 16;
+    var x = c.getContext("2d", { willReadFrequently: true });
+    x.scale(16 / 256, 16 / 256);
+    (PAINT[type] || PAINT.concrete)(x);
+    var d = x.getImageData(0, 0, 16, 16).data,
       r = 0, g = 0, b = 0, n = d.length / 4;
     for (var i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
     col = "rgb(" + Math.round(r / n) + "," + Math.round(g / n) + "," + Math.round(b / n) + ")";
@@ -1194,4 +1251,182 @@ export function polyMesh(pts, y, tile, mat, holes) {
   m.receiveShadow = true;
   m.castShadow = false;
   return m;
+}
+
+/* Catalogue luminaire far-field photometry. Length and area stay in cm and
+   cm²: integrating intensity over solid angle and dividing by pi * area
+   then gives a radiance in exactly the renderer's material-emission units. */
+
+// Single-pass design values, not measured IES data. Reflected intercepted
+// light is redistributed through the openings, in proportion to solid angle.
+const OPTICS = {
+  linen: { transmit: 0.28, reflect: 0.42 },
+  metal: { transmit: 0, reflect: 0.78 }, // painted white pendant interior
+  darkMetal: { transmit: 0, reflect: 0.20 },
+  opal: { transmit: 0.78 }, opalCap: { transmit: 0.78 },
+};
+
+// A cabinet or hood with an integral task light keeps its furniture plan
+// symbol and placement rules. Both descriptors drive the same luminaire.
+export function fixtureLamp(entry) {
+  return entry?.lamp || entry?.taskLamp;
+}
+
+export function apertureProfile(radius, depth, sourceRadius) {
+  const d = Math.max(0.1, depth);
+  const inner = Math.atan2(Math.max(0, radius - sourceRadius), d);
+  const outer = Math.atan2(radius + sourceRadius, d);
+  return { angle: outer, penumbra: 1 - inner / outer,
+    fraction: (1 - Math.cos(Math.atan2(radius, d))) / 2,
+    // Move the effective apex just far enough toward the opening for the
+    // marginal ray to clear the rim. Its shadow cannot cut off the penumbra.
+    shift: d - radius / Math.tan(outer) };
+}
+
+// Measure the built meshes, including scaled bulb ellipsoids and rotated
+// domes. The triangle integral excludes the fictitious caps on open linen.
+function lampGeometry(mesh, THREE) {
+  const g = mesh.geometry, p = g.attributes.position, index = g.index;
+  const v = new THREE.Vector3(), a = new THREE.Vector3(), b = a.clone(), c = a.clone();
+  mesh.updateMatrix();
+  const axis = new THREE.Vector3(0, 1, 0).applyQuaternion(mesh.quaternion);
+  let faceArea = 0, area = 0, lo = Infinity, hi = -Infinity, rb = 0, rt = 0;
+  function vertex(i, dst) { return dst.fromBufferAttribute(p, i).applyMatrix4(mesh.matrix); }
+  for (let i = 0; i < p.count; i++) {
+    vertex(i, v);
+    const radius = Math.hypot(v.x - mesh.position.x, v.z - mesh.position.z);
+    if (v.y < lo - 0.001) { lo = v.y; rb = 0; }
+    if (v.y > hi + 0.001) { hi = v.y; rt = 0; }
+    if (v.y <= lo + 0.001) rb = Math.max(rb, radius);
+    if (v.y >= hi - 0.001) rt = Math.max(rt, radius);
+  }
+  for (let i = 0, n = index ? index.count : p.count; i + 2 < n; i += 3) {
+    vertex(index ? index.getX(i) : i, a);
+    vertex(index ? index.getX(i + 1) : i + 1, b);
+    vertex(index ? index.getX(i + 2) : i + 2, c);
+    const normal = b.sub(a).cross(c.sub(a));
+    area += normal.length() / 2;
+    // A backed LED lens radiates from its front face. Project the closed
+    // lens along its mounting axis; the opposite face covers the same area.
+    faceArea += Math.abs(normal.dot(axis)) / 4;
+  }
+  return { area: Math.max(0.1, area), faceArea: Math.max(0.1, faceArea), lo, hi, rb, rt };
+}
+
+function lampComponent(position, fraction, radius, sign, angle, penumbra, pitch = 0) {
+  return { position: position.clone(), fraction, radius, sign, angle, penumbra, pitch };
+}
+
+function shadeComponents(shade, panel, bulb, THREE, emit) {
+  const kind = shade.material.userData.lampShade, optics = OPTICS[kind];
+  const g = lampGeometry(shade, THREE), p = bulb.position, parts = [];
+  if (kind.startsWith("opal")) {
+    const cap = kind === "opalCap", centre = p.clone();
+    centre.y = cap ? g.lo - 0.3 : (g.hi + g.lo) / 2;
+    // Closed globe radiates in all directions. A backed dome emits into
+    // the lower hemisphere; a full-width smooth cone approximates its cosine.
+    parts.push(lampComponent(centre, optics.transmit, Math.sqrt(g.area / (4 * Math.PI)),
+      cap ? -1 : 0, Math.PI / 2, 1));
+    emit(shade, optics.transmit, g.area);
+    return parts;
+  }
+  const radius = Math.sqrt(lampGeometry(bulb, THREE).area / (4 * Math.PI));
+  const openings = [{ sign: -1, r: g.rb, d: p.y - g.lo }];
+  if (kind === "linen") openings.push({ sign: 1, r: g.rt, d: g.hi - p.y });
+  let open = 0;
+  for (const edge of openings) {
+    const a = apertureProfile(edge.r, edge.d, radius);
+    const part = lampComponent(p, a.fraction, radius, edge.sign, a.angle, a.penumbra);
+    part.position.y += edge.sign * a.shift;
+    open += a.fraction;
+    parts.push(part);
+  }
+  const struck = 1 - open;
+  for (const part of parts) part.fraction *= 1 + struck * optics.reflect / open;
+  if (panel) {
+    // A drum pendant has an additional opal disk across its lower mouth.
+    // The outward face scatters the lower opening flux over a hemisphere.
+    const lower = parts[0], disk = lampGeometry(panel, THREE);
+    lower.fraction *= OPTICS.opal.transmit;
+    lower.position.y = disk.lo - 0.1;
+    lower.angle = Math.PI / 2;
+    lower.penumbra = 1;
+    lower.radius = disk.rb;
+    emit(panel, lower.fraction, Math.PI * disk.rb ** 2);
+  }
+  if (optics.transmit) {
+    const centre = p.clone(); centre.y = (g.lo + g.hi) / 2;
+    const halo = lampComponent(centre, struck * optics.transmit, (g.rb + g.rt) / 2, 0);
+    halo.diffuseShade = true;
+    parts.push(halo);
+    emit(shade, halo.fraction, g.area);
+  }
+  return parts;
+}
+
+export function fixtureOptics(group, it, THREE, lamp) {
+  const bulbs = group.children.filter(o => o.material?.userData.glow);
+  const shade = group.children.find(o => o.material?.userData.lampShade);
+  const panel = group.children.find(o => o.material?.userData.lampShade === "opalPanel");
+  const surfaces = [];
+  function emit(mesh, fraction, area) { surfaces.push({ material: mesh.material, fraction, area }); }
+  const parts = [];
+  for (const bulb of bulbs) {
+    const g = lampGeometry(bulb, THREE);
+    if (shade) {
+      if (shade !== bulb) emit(bulb, 1 / bulbs.length, g.area);
+      continue;
+    }
+    const angle = Math.max(0.01, Math.min(Math.PI / 2, (it.cone ?? 45) * Math.PI / 180));
+    const strip = it.type === "lightStrip" || it.type === "upper", track = it.type === "trackLight";
+    const downward = ["aquarium", "hood", "upper", "led_grow_light"].includes(it.type);
+    const lens = strip || track || downward;
+    emit(bulb, 1 / bulbs.length, lens ? g.faceArea : g.area);
+    const sign = it.spot || track || downward ? -1 : strip ? 1 : 0;
+    const count = strip ? Math.max(1, Math.min(12, Math.ceil(it.w / 30))) : 1;
+    for (let i = 0; i < count; i++) {
+      const p = bulb.position.clone();
+      if (strip) p.x += it.w * ((i + 0.5) / count - 0.5);
+      if (downward || strip) p.y = sign > 0 ? g.hi + 0.1 : g.lo - 0.1;
+      parts.push(lampComponent(p, 1 / (count * bulbs.length), Math.sqrt((lens ? g.faceArea : g.area / 4) / (Math.PI * count)),
+        sign, it.spot ? angle : track ? Math.PI / 5 : Math.PI / 2, track || it.spot ? 0.5 : 1,
+        it.spot ? (it.pitch || 0) * Math.PI / 180 : track ? -bulb.rotation.x : 0));
+    }
+  }
+  if (shade && bulbs.length) parts.push(...shadeComponents(shade, panel, bulbs[0], THREE, emit));
+  // A user-fitted spotlight optic aims the lower beam. Keep its flux as
+  // the cone narrows; the fabric and the upper aperture still emit theirs.
+  if (shade && it.spot) {
+    const aimed = parts.find(part => part.sign === -1) || parts[0];
+    if (aimed) {
+      aimed.sign = -1;
+      aimed.angle = Math.max(0.01, Math.min(aimed.angle || Math.PI / 2, (it.cone ?? 45) * Math.PI / 180));
+      aimed.penumbra = Math.min(aimed.penumbra ?? 0.5, 0.5);
+      aimed.pitch = (it.pitch || 0) * Math.PI / 180;
+    }
+  }
+  if (!parts.length && lamp) {
+    // User catalogue descriptors can supply a mounting height without
+    // supplying a procedural bulb mesh.
+    const y = typeof lamp.y === "function" ? lamp.y(it) : lamp.y;
+    if (Number.isFinite(y)) parts.push(lampComponent(new THREE.Vector3(0, y, 0), 1, 1,
+      it.spot ? -1 : 0, (it.cone ?? 45) * Math.PI / 180, 0.5, (it.pitch || 0) * Math.PI / 180));
+  }
+  return { parts, surfaces };
+}
+
+// The separate photo worker samples spherical sources and multiplies their
+// power by 70000 before diffuse reflection. Match integrated flux even for
+// a directional fixture and pre-expose before its firefly clamp.
+export function photoLampPower(light, exposure) {
+  const flux = light.userData.hemisphereSign ? Math.PI * light.intensity : light.isSpotLight
+    ? spotFlux(light.intensity, light.angle, light.penumbra) : pointFlux(light.intensity);
+  return flux * exposure / (4 * Math.PI * Math.PI * 70000);
+}
+
+export function lampChromaticity(color, hex) {
+  color.set(hex);
+  const y = color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
+  if (y > 0) color.multiplyScalar(1 / y);
+  return color;
 }

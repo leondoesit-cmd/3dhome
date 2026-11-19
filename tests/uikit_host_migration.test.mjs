@@ -80,6 +80,19 @@ test("precise polygon migration runs once, preserving previous precision removal
   assert.ok(!migrated.nodes["md:grpSketch"].children.includes(id));
 });
 
+test("a saved sketch ribbon gains Convert Entities beside Copy face boundary, once",()=>{
+  const doc=defaultLayout(),id="cmd:grpSketch:convertentities";
+  assert.ok(doc.nodes["md:grpSketch"].children.includes(id),"a fresh layout has it");
+  delete doc.convertEntitiesRibbonVersion;delete doc.nodes[id];
+  doc.nodes["md:grpSketch"].children=doc.nodes["md:grpSketch"].children.filter(child=>child!==id);
+  const out=migrateSavedLayout(doc),children=out.nodes["md:grpSketch"].children;
+  assert.equal(children.indexOf(id),children.indexOf("cmd:grpSketch:faceboundary")+1);
+  assert.equal(out.nodes[id].ref,id);
+  // a later deliberate removal stays removed
+  children.splice(children.indexOf(id),1);delete out.nodes[id];
+  assert.deepEqual(migrateSavedLayout(out),out);
+});
+
 /* The shape the previous build wrote: menus were leaves, their items lived in
    slot-bound containers parked at the root, and the three toolbar-centre
    regions were called panel:* before that prefix came to mean "one of the

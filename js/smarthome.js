@@ -182,7 +182,14 @@ export function defaultState(type) {
 
 export function ensureSmart(it) {
   if (!it || !TYPE_CAP[it.type]) return null;
-  if (!it.smart || typeof it.smart !== "object") it.smart = defaultState(it.type);
+  if (!it.smart || typeof it.smart !== "object") {
+    it.smart = defaultState(it.type);
+    if (TYPE_CAP[it.type].kind === "light") {
+      it.smart.on = it.lightOn !== false;
+      if (fin(it.lightI)) it.smart.brightness = clamp(Math.round(it.lightI * 100), 0, 200);
+      if (fin(it.lightColor)) it.smart.color = hexStr(it.lightColor);
+    }
+  }
   var d = defaultState(it.type);
   Object.keys(d).forEach(function (k) {
     if (it.smart[k] === undefined) it.smart[k] = d[k];
@@ -200,10 +207,16 @@ export function applyCommand(it, patch, opts) {
 
   if (cap.kind === "light") {
     if (fin(p.brightness)) st.brightness = clamp(Math.round(p.brightness), 0, 100);
-    if (typeof p.color === "string" && /^#[0-9a-fA-F]{6}$/.test(p.color)) st.color = p.color.toLowerCase();
-    if (fin(p.colorTemp)) st.colorTemp = clamp(Math.round(p.colorTemp), 153, 500);
+    if (fin(p.colorTemp)) {
+      st.colorTemp = clamp(Math.round(p.colorTemp), 153, 500); // mireds
+      st.color = temperatureColor(st.colorTemp);
+      st.colorMode = "ct";
+    } else if (typeof p.color === "string" && /^#[0-9a-fA-F]{6}$/.test(p.color)) {
+      st.color = p.color.toLowerCase();
+      st.colorMode = "rgb";
+    }
+    if (p.on === true && st.brightness === 0 && p.brightness == null) st.brightness = 100;
     if (st.brightness === 0) st.on = false;
-    if (p.on === true && st.brightness === 0) st.brightness = 100;
     syncLampVisual(it, st);
   } else if (cap.kind === "climate" || cap.kind === "heater" || cap.kind === "fridge") {
     if (typeof p.hvacMode === "string") st.hvacMode = sanitizeHvac(p.hvacMode);
@@ -280,10 +293,38 @@ function sanitizeHvac(mode) {
 function syncLampVisual(it, st) {
   it.lightOn = !!st.on;
   it.lightI = (st.brightness || 0) / 100;
-  if (st.color) {
+  // A brightness-only command keeps the fixture's own catalogue spectrum.
+  // Older saves can carry an RGB choice without the newer mode field.
+  if (st.color && (st.colorMode || it.lightColor != null || st.color !== KIND_DEFAULTS.light.color)) {
     var n = parseInt(st.color.slice(1), 16);
     if (isFinite(n)) it.lightColor = n;
   }
+}
+
+// Kang et al. (2002) Planckian locus for the hub's 2000–6536 K range.
+// Convert CIE xyY at Y=1 to linear sRGB. Normalize its peak before encoding
+// the chromaticity into the planner's 8-bit colour field; power is separate.
+function temperatureColor(mired) {
+  var q = mired / 1000, kelvin = 1000000 / mired;
+  var x = kelvin <= 4000
+    ? ((-0.2661239 * q - 0.2343589) * q + 0.8776956) * q + 0.179910
+    : ((-3.0258469 * q + 2.1070379) * q + 0.2226347) * q + 0.24039;
+  var y = kelvin <= 2222 ? ((-1.1063814 * x - 1.3481102) * x + 2.18555832) * x - 0.20219683
+    : kelvin <= 4000 ? ((-0.9549476 * x - 1.37418593) * x + 2.09137015) * x - 0.16748867
+    : ((3.0817580 * x - 5.8733867) * x + 3.75112997) * x - 0.37001483;
+  return xyColor(x, y);
+}
+function xyColor(x, y) {
+  var X = x / y, Z = (1 - x - y) / y;
+  var r = 3.2404542 * X - 1.5371385 - 0.4985314 * Z;
+  var g = -0.9692660 * X + 1.8760108 + 0.0415560 * Z;
+  var b = 0.0556434 * X - 0.2040259 + 1.0572252 * Z;
+  var peak = Math.max(r, g, b);
+  function encoded(c) {
+    c = Math.max(0, c / peak);
+    return 255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+  }
+  return rgbToHex(encoded(r), encoded(g), encoded(b));
 }
 
 export function syncSmartFromLamp(it) {
@@ -291,7 +332,10 @@ export function syncSmartFromLamp(it) {
   var st = ensureSmart(it);
   st.on = it.lightOn !== false;
   if (fin(it.lightI)) st.brightness = clamp(Math.round(it.lightI * 100), 0, 200);
-  if (fin(it.lightColor)) st.color = hexStr(it.lightColor);
+  if (fin(it.lightColor) && st.color !== hexStr(it.lightColor)) {
+    st.color = hexStr(it.lightColor);
+    st.colorMode = "rgb";
+  }
   return st;
 }
 
@@ -770,9 +814,10 @@ export function haServiceFor(it, patch) {
   var on = p.on !== undefined ? p.on : st.on;
 
   if (cap.kind === "light" || domain === "light") {
-    if (on === false) return { domain: domain || "light", service: "turn_off", data: data };
+    if (on === false || p.brightness === 0) return { domain: domain || "light", service: "turn_off", data: data };
     if (fin(p.brightness)) data.brightness_pct = clamp(Math.round(p.brightness), 1, 100);
-    if (typeof p.color === "string") {
+    if (fin(p.colorTemp)) data.color_temp_kelvin = Math.round(1000000 / clamp(p.colorTemp, 153, 500));
+    else if (typeof p.color === "string") {
       var rgb = hexToRgb(p.color);
       if (rgb) data.rgb_color = rgb;
     }
@@ -832,8 +877,28 @@ export function stateFromHaEntity(entity) {
   var on = st !== "off" && st !== "unavailable" && st !== "unknown" && st !== "closed" && st !== "locked";
 
   if (domain === "light") {
+    if (entity.hueId != null) {
+      var hueLight = { on: on };
+      if (fin(a.bri)) hueLight.brightness = Math.round(a.bri / 254 * 100);
+      if (a.colormode === "ct" && fin(a.ct)) hueLight.colorTemp = a.ct;
+      else if (a.colormode === "xy" && Array.isArray(a.xy) && fin(a.xy[0]) && a.xy[1] > 0)
+        hueLight.color = xyColor(a.xy[0], a.xy[1]);
+      else if (a.colormode === "hs" && fin(a.hue) && fin(a.sat)) {
+        var hue = 6 * a.hue / 65535, saturation = a.sat / 254;
+        function channel(offset) {
+          var k = (hue + offset) % 6;
+          return 255 * (1 - saturation * clamp(Math.min(k, 4 - k), 0, 1));
+        }
+        hueLight.color = rgbToHex(channel(5), channel(3), channel(1));
+      }
+      return hueLight;
+    }
     var bri = a.brightness != null ? Math.round((Number(a.brightness) / 255) * 100) : (on ? 100 : 0);
     var color = Array.isArray(a.rgb_color) ? rgbToHex(a.rgb_color[0], a.rgb_color[1], a.rgb_color[2]) : undefined;
+    if (a.color_mode === "color_temp" || (!a.color_mode && !color)) {
+      var ct = a.color_temp_kelvin > 0 ? Math.round(1000000 / a.color_temp_kelvin) : a.color_temp;
+      if (fin(ct)) return { on: on, brightness: bri, colorTemp: ct };
+    }
     return { on: on, brightness: bri, color: color };
   }
   if (domain === "climate" || domain === "water_heater") {
@@ -928,11 +993,14 @@ export function hueStateFrom(it, patch) {
   var st = it && it.smart ? it.smart : {};
   var p = patch || {};
   var on = p.on !== undefined ? !!p.on : !!st.on;
+  if (p.brightness === 0) on = false;
   var body = { on: on };
   var bri = fin(p.brightness) ? p.brightness : st.brightness;
   if (on && fin(bri)) body.bri = clamp(Math.round((bri / 100) * 254), 1, 254);
   var color = typeof p.color === "string" ? p.color : st.color;
-  if (on && color) {
+  if (on && (fin(p.colorTemp) || (!p.color && st.colorMode === "ct"))) {
+    body.ct = clamp(Math.round(p.colorTemp ?? st.colorTemp), 153, 500);
+  } else if (on && color) {
     var rgb = hexToRgb(color);
     if (rgb) {
       var hs = rgbToHueSat(rgb[0], rgb[1], rgb[2]);

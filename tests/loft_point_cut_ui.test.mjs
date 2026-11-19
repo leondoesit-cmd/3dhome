@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -6,7 +7,7 @@ import {analyzeSketchProfiles} from '../js/sketch_profiles.js';
 import {resolveProfilePoints} from '../js/sketch_solver.js';
 import {loftSectionSourceRecord,loftSourceRecord,resolveSketchSources} from '../js/core/swept_sources.js';
 import {featureDefaults} from '../js/core/feature_catalog.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const actual=JSON.parse(fs.readFileSync(new URL('../artifacts/planchard/DRAFTING-1.9-preloft-browser-2026-10-09.mforge',import.meta.url),'utf8')).mainModel;
 function harness(){
  const def=structuredClone(actual),E={def,sel:null},state={undo:0,refresh:0,queued:0},parts=def.parts;

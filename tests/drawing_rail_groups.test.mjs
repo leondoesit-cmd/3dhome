@@ -1,8 +1,10 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {drawingRailPlan} from '../js/core/drawing_rail_groups.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const commands=[...source.slice(source.indexOf('id="mdDrawingTools"'),source.indexOf('id="mdSheetPanel"')).matchAll(/(?:data-drawing-tool|id)="([^"]+)"/g)].map(m=>m[1]);
 test('every native Drawing command stays reachable through purpose groups and bounded pages',()=>{
   for(const size of [1,3,6]){
@@ -20,7 +22,7 @@ test('every native Drawing command stays reachable through purpose groups and bo
   }
 });
 test('More keeps the actual name/status on their own row and aligns Description with Price',()=>{
-  const css=readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');
+  const css=stylesSource();
   assert.match(css,/\.md-sheet-fields \.md-head-inputs\s*\{ display:grid !important;[^}]*align-items:start/);
   assert.match(css,/\.md-field:has\(#mdName\)\s*\{ grid-column:1 \/ -1/);
   assert.match(css,/#mdDraftStatus\s*\{ display:block;[^}]*white-space:normal/);

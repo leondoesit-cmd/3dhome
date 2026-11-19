@@ -1,6 +1,7 @@
 import { createDefinition, createParameter, mainReferences } from "./schema.js";
 import { inferAuthoringMode } from "./authoring_mode.js";
 import { topologyDescriptorSignature } from "./topology.js";
+import {modelDimensions} from './model_dimensions.js';
 
 const finite = (value) => typeof value === "number" && Number.isFinite(value);
 const clone = (value) => value == null ? value : typeof structuredClone === "function"
@@ -188,13 +189,16 @@ function transformBounds(bounds, origin, frame, unitScale=1) {
 
 function transformDescriptor(descriptor, origin, frame, unitScale=1, kind="") {
   const output=clone(descriptor || {});
-  if (output.origin) output.origin=transformPoint(output.origin,origin,frame,unitScale);
-  if (output.center) output.center=transformPoint(output.center,origin,frame,unitScale);
-  if (output.normal) output.normal=transformVector(output.normal,frame);
-  if (output.axis) output.axis=transformVector(output.axis,frame);
-  if (output.endpoints) output.endpoints=output.endpoints.map((point)=>transformPoint(point,origin,frame,unitScale));
+  for(const key of ['origin','center','referenceOrigin','point','start','end','arcMidpoint'])
+    if(output[key])output[key]=transformPoint(output[key],origin,frame,unitScale);
+  for(const key of ['normal','axis','xDir','direction'])
+    if(output[key])output[key]=transformVector(output[key],frame);
+  for(const key of ['endpoints','points'])
+    if(Array.isArray(output[key]))output[key]=output[key].map(point=>transformPoint(point,origin,frame,unitScale));
   if (output.bounds) output.bounds=transformBounds(output.bounds,origin,frame,unitScale);
-  if (finite(output.radius)) output.radius*=unitScale;
+  for(const key of ['radius','majorRadius','minorRadius'])if(finite(output[key]))output[key]*=unitScale;
+  if(Array.isArray(output.axisRange))output.axisRange=output.axisRange.map(value=>value*unitScale);
+  if(output.along)output.along={...output.along,min:output.along.min*unitScale,max:output.along.max*unitScale};
   if (finite(output.measure)) output.measure*=kind==="face" ? unitScale*unitScale : unitScale;
   return output;
 }
@@ -327,9 +331,16 @@ export function normalizeImportedGeometry(source = {}) {
     z:preliminaryOrigin.z+frame.xAxis.z*localCorrection.x+frame.yAxis.z*localCorrection.y+frame.zAxis.z*localCorrection.z,
   };
   const meshData={...clone(source.meshData),positions};
-  const importKey=source.importId || "import:"+stableHash((source.name || source.sourceName || "body")+":"+(source.size || positions.length)+":"+positions.length);
+  if(meshData.normals?.length){
+    const normals=[];
+    for(let i=0;i+2<meshData.normals.length;i+=3){const n=transformVector({x:meshData.normals[i],y:meshData.normals[i+1],z:meshData.normals[i+2]},frame);normals.push(n.x,n.y,n.z);}
+    meshData.normals=normals;
+  }
+  const descriptors=topology.map(entry=>transformDescriptor(entry.descriptor,sourceCenter,frame,unitScale,entry.kind));
+  const geometryKey=stableHash(JSON.stringify({positions,topology:topology.map((entry,i)=>({kind:entry.kind,descriptor:descriptors[i]}))}));
+  const importKey=source.importId || "import:"+stableHash((source.name || source.sourceName || "body")+":"+(source.size || positions.length)+":"+positions.length+":"+geometryKey);
   const normalizedTopology=topology.map((entry,index)=>{
-    const descriptor=transformDescriptor(entry.descriptor,sourceCenter,frame,unitScale,entry.kind);
+    const descriptor=descriptors[index];
     return {
       ...entry,ownerFeatureId:importKey,
       persistentId:entry.persistentId ? importKey+":"+entry.kind+":"+stableHash(entry.persistentId) : importKey+":"+(entry.kind || "topology")+":"+(index+1),
@@ -436,7 +447,7 @@ export function createImportedDefinition(source = {}, options = {}) {
       source:"import",adapter:"model-editor",derivedRepresentation:{meshPartIds:(parts || [part]).map((entry)=>entry.id),collision:"envelope",lod:"generated"},
     },
   });
-  definition.w=Math.max(1,b.max.x-b.min.x); definition.d=Math.max(1,b.max.z-b.min.z); definition.h=Math.max(1,b.max.y-b.min.y);
+  Object.assign(definition,modelDimensions({x0:b.min.x,x1:b.max.x,y0:b.min.y,y1:b.max.y,z0:b.min.z,z1:b.max.z}));
   definition.authoringMode=inferAuthoringMode(definition);
   return definition;
 }

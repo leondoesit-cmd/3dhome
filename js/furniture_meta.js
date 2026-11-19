@@ -203,6 +203,19 @@ export function itemPrice(it) {
 // navigation tiles are drawn from it, so each one has to depict its own subject
 // (a bed for bedroom, a washing machine for laundry) rather than borrow the
 // picture of whichever item happens to sit first in the list.
+/* Words people search the library with that no label contains: the room a
+   piece is for, or the everyday name of it. Matched by js/main.js on top of
+   the labels, the type id and the shelf names. */
+export const SEARCH_ALIASES = {
+  table: "dining", roundTable: "dining", chair: "dining", sideboard: "dining buffet",
+  sofa: "couch settee", armchair: "lounge chair", tvunit: "tv stand media console",
+  nightstand: "bedside table", wardrobe: "closet cupboard", dresser: "chest of drawers",
+  bed: "double queen king single", bunk: "kids",
+  sink: "basin", pedestalSink: "basin", vanity: "basin bathroom", toilet: "wc loo",
+  bathtub: "bath", fridge: "refrigerator", base: "counter worktop cabinet",
+  upper: "wall cabinet", tall: "tall cabinet", cooktop: "hob stove", oven: "stove",
+};
+
 export const CATALOG = [
   { id: "furniture", label: "ריהוט", icon: "ph-couch", sub: [
     { id: "living", label: "סלון", icon: "ph-couch", items: ["sofa", "armchair", "recliner", "pouf", "bench", "stool", "barstool", "table", "roundTable", "coffee", "sideTable", "console", "tvunit", "sideboard"] },

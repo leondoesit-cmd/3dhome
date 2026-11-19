@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -130,7 +131,7 @@ test("signatures change with content and missing models are found by key", () =>
 });
 
 test("the modeler mirrors changed library records and restores without overwriting", async () => {
-  const source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+  const source = modelerSource();
   const saveLib = source.slice(source.indexOf("async function saveLib("), source.indexOf("function loadAssemblies("));
   assert.match(saveLib, /mirrorLibraryToDisk\(options\.mode==="merge" \? result\.puts : \[records\]\)/, "saveLib mirrors only records changed in this tab");
   assert.match(source, /function initializeModelLibrary[\s\S]*?mirrorLibraryToDisk\(modelLibraryCache\);\r?\n\}/, "models already present get a copy at load");

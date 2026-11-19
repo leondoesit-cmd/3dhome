@@ -9,10 +9,12 @@ import {
   itemsInRoom,
 } from "./geometry.js";
 import { openModal, flash } from "./ui.js";
+import { csvCell } from "./wall_schedule.js";
 import { weldCoincidentNodes } from "./interaction.js";
 import { deleteRoom } from "./interaction.js";
 import { PRICE, itemPrice, flabel } from "./furniture.js";
 import { t } from "./i18n.js";
+import { voidDisplayName } from "./stair_strings.js";
 import { partCode } from "./part_codes.js";
 import { fmtLen, fmtAreaM2 } from "./display_units.js";
 import { render2D, frameBounds } from "./plan2d.js";
@@ -216,11 +218,8 @@ export function exportCostCSV() {
   rows.push(["", "", t("cost_total"), Math.round(total)]);
   var csv = rows
     .map(function (r) {
-      return r
-        .map(function (c) {
-          return '"' + String(c).replace(/"/g, '""') + '"';
-        })
-        .join(",");
+      // csvCell: a custom piece's name starting = + - @ must not run as a formula
+      return r.map(csvCell).join(",");
     })
     .join("\r\n");
   var blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
@@ -662,7 +661,7 @@ function appendVoidsGroup(body) {
       "trItem" + (S.sel && S.sel.kind === "slabvoid" && S.sel.ref === o ? " sel" : "");
     var lbl = document.createElement("span");
     lbl.className = "trName";
-    lbl.textContent = (o.name || t("sv_void")) + " · " + Math.round(o.w) + "×" + Math.round(o.d);
+    lbl.textContent = (voidDisplayName(o) || t("sv_void")) + " · " + Math.round(o.w) + "×" + Math.round(o.d);
     row.appendChild(lbl);
     var del = document.createElement("span");
     del.className = "trDel";

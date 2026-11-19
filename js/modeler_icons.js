@@ -760,6 +760,19 @@ export const CAD_ICONS = {
   },
 
   // Convert / Project Entities: 3D model edge projecting down onto sketch plane
+  // Convert Entities: two picked model edges of a box face become sketch lines
+  convertentities: function () {
+    return (
+      // the model face's outline, faint
+      p("M3 6 L13 6 L13 16 L3 16 Z", 0.08, 1) +
+      // the two picked edges, converted into sketch geometry
+      colorPath("M3 6 L13 6 L13 16", "none", "#17834f", 2) +
+      '<circle cx="13" cy="6" r="1.6" fill="#2684c7" stroke="currentColor" stroke-width="0.9"/>' +
+      // the arrow into the sketch
+      colorPath("M15 3 L18 3 L18 6 M18 3 L14.5 6.5", "none", "#2684c7", 1.3)
+    );
+  },
+
   project: function () {
     return (
       // 3D model edge in space
@@ -1156,6 +1169,32 @@ export const CAD_ICONS = {
     );
   },
 
+  /* Bottom, Back and Left: the faces the cube turns away from you, so their
+     edges meet at the hidden corner (10,10) and are drawn dashed, the way a
+     CAD view cube shows the far side. Before, these three reused the Top,
+     Front and Right glyphs and the rail showed three identical pairs. */
+  view_bottom: function () {
+    return (
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.1, 1.2) +
+      l("M3 7.5 L10 11 L17 7.5 M10 11 L10 17", 1.1) +
+      p("M3 13.5 L10 10 L17 13.5 L10 17 Z", 0.55, 1.3, ' fill="#2684c7" stroke="#2684c7" stroke-dasharray="1.6 1.4"')
+    );
+  },
+  view_back: function () {
+    return (
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.1, 1.2) +
+      l("M3 7.5 L10 11 L17 7.5 M10 11 L10 17", 1.1) +
+      p("M10 4 L17 7.5 L17 13.5 L10 10 Z", 0.55, 1.3, ' fill="#2684c7" stroke="#2684c7" stroke-dasharray="1.6 1.4"')
+    );
+  },
+  view_left: function () {
+    return (
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.1, 1.2) +
+      l("M3 7.5 L10 11 L17 7.5 M10 11 L10 17", 1.1) +
+      p("M3 7.5 L10 4 L10 10 L3 13.5 Z", 0.55, 1.3, ' fill="#2684c7" stroke="#2684c7" stroke-dasharray="1.6 1.4"')
+    );
+  },
+
   // Isometric View: 3D cube with balanced shading on all 3 faces
   isoView: function () {
     return (
@@ -1316,138 +1355,8 @@ export const CAD_ICONS = {
 };
 
 // Aliases mapping command IDs, feature names, and phosphor classes to CAD icons
-export const ICON_ALIASES = {
-  /* Selection operations have no drawn CAD glyph of their own; they fall
-     through to Phosphor, which needs the ph- name rather than the command id.
-     Without these the context menu drew an empty box where the icon goes. */
-  selectloop: "ph-circle-notch",
-  selecttangency: "ph-flow-arrow",
-  selectconnected: "ph-graph",
-  selectinvert: "ph-selection-inverse",
-  selectgrow: "ph-arrows-out",
-  selectshrink: "ph-arrows-in",
-  selectsave: "ph-bookmark-simple",
-  selectrecall: "ph-bookmarks-simple",
-  // Feature Catalog names & command IDs
-  extrudeCut: "extrudecut",
-  revolve: "revolvefeature",
-  revolveCut: "revolvecutfeature",
-  sweepCut: "sweepcutfeature",
-  sweep: "sweepfeature",
-  loft: "loftfeature",
-  fillet: "filletfeature",
-  chamfer: "chamferfeature",
-  shell: "shellfeature",
-  dome: "domefeature",
-  draft: "draftfeature",
-  thicken: "thickenfeature",
-  rib: "ribfeature",
-  splitBody: "splitbodyfeature",
-  moveBody: "movebodyfeature",
-  pattern: "patternfeature",
-  mirror: "mirrorfeature",
-  boolean: "booleanfeature",
-  hole: "holefeature",
-  helix: "helixfeature",
-  thread: "threadfeature",
-  knurl: "knurlfeature",
-  insert: "insertfeature",
-  helixfeature: "helixfeature",
-  threadfeature: "threadfeature",
-  knurlfeature: "knurlfeature",
-  insertfeature: "insertfeature",
-  appearance: "insertfeature",
-  config: "config",
-  rect: "directbox",
-  circle: "directcyl",
-  sph: "directsph",
-  poly: "directpoly",
-  rev: "directrev",
-  "ph-selection-background": "section",
-
-  // Phosphor font classes
-  "ph-cube": "extrude",
-  "ph-scissors": "extrudecut",
-  "ph-arrow-counter-clockwise": "revolvefeature",
-  "ph-path": "sweepfeature",
-  "ph-stack": "loftfeature",
-  "ph-circle-dashed": "holefeature",
-  "ph-corners-out": "filletfeature",
-  "ph-corners-in": "chamferfeature",
-  "ph-bowl-food": "shellfeature",
-  "ph-angle": "draftfeature",
-  "ph-stack-simple": "thickenfeature",
-  "ph-triangle": "ribfeature",
-  "ph-square-split-horizontal": "splitbodyfeature",
-  "ph-arrows-out-cardinal": "movebodyfeature",
-  "ph-dots-nine": "patternfeature",
-  "ph-circles-three": "circpattern",
-  "ph-flip-horizontal": "mirrorfeature",
-  "ph-intersect": "booleanfeature",
-  "ph-square-half": "refplane",
-  "ph-axis-arrow": "refaxis",
-  "ph-crosshair": "coordsys",
-  "ph-screwdriver": "stdscrew",
-  "ph-gear-six": "stdgear",
-  "ph-cylinder": "directcyl",
-  "ph-sphere": "directsph",
-  "ph-polygon": "directpoly",
-  "ph-spiral": "directrev",
-  "ph-diamond": "knurlfeature",
-  "ph-gear": "threadfeature",
-
-  // Sketch Tools
-  "ph-pencil-line": "newsketch",
-  "ph-cursor": "select",
-  "ph-line-segment": "wall",
-  "ph-rectangle": "srect",
-  "ph-bezier-curve": "sarc",
-  "ph-pill": "sslot",
-  "ph-hexagon": "spoly",
-  "ph-circle": "sell",
-  "ph-ruler": "dim",
-  "ph-arrows-out-line-horizontal": "extend",
-  "ph-check": "finishsketch",
-  "ph-copy-simple": "offset",
-  "ph-line-segments": "constr",
-  "ph-projector-screen": "project",
-  "ph-compass-tool": "mode2d",
-
-  // Evaluate & Utilities
-  "ph-arrows-clockwise": "regen",
-  "ph-crosshair-simple": "fit",
-  "ph-file-svg": "drawing",
-  "ph-scales": "mass",
-  "ph-seal-check": "standards",
-  "ph-paint-brush": "paint",
-  "ph-note-pencil": "note",
-  "ph-package": "bundle",
-  "ph-upload-simple": "stepin",
-  "ph-file-step": "stepout",
-  "ph-file-arrow-down": "igesout",
-
-  // Assembly
-  "ph-link": "mates",
-  "ph-cube-focus": "partdoc",
-  "ph-arrows-out": "explode",
-  "ph-arrows-out-line-horizontal": "explodestep",
-  "ph-play-circle": "motion",
-  "ph-table": "bom",
-  "ph-eye": "isolate",
-
-  // Views & Display
-  "ph-arrow-line-down": "view_top",
-  "ph-arrow-line-right": "view_front",
-  "ph-arrow-line-up": "view_right",
-  "ph-arrows-in-cardinal": "normalTo",
-  "ph-square": "modelEdges",
-  "ph-hand": "pan",
-
-  // Tabs
-  "ph-tree-structure": "treeTab",
-  "ph-folder-open": "libTab",
-  "ph-sliders-horizontal": "paramsTab",
-};
+import { ICON_ALIASES } from "./modeler_icon_aliases.js";
+export { ICON_ALIASES };
 
 /**
  * Renders a precision CAD SVG icon.

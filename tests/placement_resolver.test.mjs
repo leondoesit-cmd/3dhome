@@ -148,7 +148,7 @@ test("beside placement at a wall endpoint refuses overlap instead of clamping th
   assert.equal(result.reason, "NO_PLACEMENT_FIT");
 });
 
-test("curved wall placement fails closed until full OBB clearance can be proven", () => {
+test("curved wall placement refuses a pose outside the supplied room polygon", () => {
   const scene = { floorId: "floor-a",
     items: [{ id: 20, x: 100, z: 100, w: 120, d: 60, rot: 0 }],
     walls: [wall("curve", { x: 0, z: 0 }, { x: 200, z: 0 }, { curved: true,
@@ -159,5 +159,5 @@ test("curved wall placement fails closed until full OBB clearance can be proven"
   };
   const result = resolvePlacementIntent({ itemId: 20, wall: "top", face: "into-room" }, scene);
   assert.equal(result.ok, false);
-  assert.equal(result.reason, "CURVED_WALL_PLACEMENT_UNSUPPORTED");
+  assert.equal(result.reason, "NO_PLACEMENT_FIT");
 });

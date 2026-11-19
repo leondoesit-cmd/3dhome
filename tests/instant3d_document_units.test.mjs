@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {instant3dDisplayValue,instant3dModelValue,instant3dValueLabel} from '../js/modeler_instant3d.js';
 import {featureControlValue} from '../js/modeler_feature_form.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 for(const [unit,display] of [['mm',6],['cm',.6],['in',.6/2.54]])test('Instant3D depth display and model roundtrip in '+unit,()=>{
   assert.ok(Math.abs(instant3dDisplayValue(.6,'depth',unit)-display)<1e-12);
   assert.ok(Math.abs(instant3dModelValue(display,'depth',unit)-.6)<1e-12);

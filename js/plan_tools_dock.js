@@ -1248,7 +1248,7 @@ function applyStick(key, f, w, pw, ph) {
   else if (stick === "max") { f.x = Math.max(0, pw - 46); f.y = 12; }
   else if (stick === "tune") { f.x = Math.max(0, pw - 246); f.y = Math.max(0, ph - 320); }
   else if (stick === "entry") { f.x = 80; f.y = Math.max(0, ph - 90); }
-  else if (stick === "trace") { f.x = 12; f.y = 12; }
+  else if (stick === "trace") { f.x = 12; f.y = Math.max(0, ph - hh - 64); }
   else if (stick === "hint") { f.x = Math.max(0, (pw - Math.max(ww, 200)) / 2); f.y = Math.max(0, ph - 80); }
 }
 

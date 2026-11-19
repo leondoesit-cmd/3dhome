@@ -12,10 +12,9 @@ const ORIGIN_TOL = 1e-9;
 
 export function sketchOriginPoint(sketch) {
   const fixedAt = new Set((sketch?.constraints || [])
-    .filter((c) => c.type === "fixed" && Math.abs(Number(c.x) || 0) < ORIGIN_TOL && Math.abs(Number(c.y) || 0) < ORIGIN_TOL)
+    .filter((c) => c.type === "fixed" && !c.suppressed && c.enabled!==false && Math.abs(Number(c.x) || 0) < ORIGIN_TOL && Math.abs(Number(c.y) || 0) < ORIGIN_TOL)
     .map((c) => c.point));
-  return (sketch?.points || []).find((p) => p.origin === true)
-    || (sketch?.points || []).find((p) => Math.abs(p.x) < ORIGIN_TOL && Math.abs(p.y) < ORIGIN_TOL && (p.fixed || fixedAt.has(p.id)))
+  return (sketch?.points || []).find((p) => Math.abs(p.x) < ORIGIN_TOL && Math.abs(p.y) < ORIGIN_TOL && (p.fixed || fixedAt.has(p.id)))
     || null;
 }
 

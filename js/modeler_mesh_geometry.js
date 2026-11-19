@@ -1,3 +1,5 @@
+import { holeLoop } from "./core/profile_mesh_geometry.js";
+export { holeLoop };
 /* Mesh, edge and face geometry for the model editor.
 
    Everything here is pure: it takes a part, a descriptor or a THREE mesh and
@@ -9,20 +11,15 @@
    are cleared through clearTopologyCache(part) rather than by whoever happens
    to notice a part changed. */
 import { THREE } from "./three_lazy.js";
+import { holeSpan } from "./core/hole_span.js";
 import { fin } from "./state.js";
 import { meshFeatureEdges, meshSmoothFaces } from "./core/mesh_projection.js";
 import { framePoint } from "./core/frame.js";
 import { cutWallTopology, fitProfileCircle, mergeSmoothTopology, pointWithinCylinderArc } from "./core/topology.js";
 import { curveSegments } from "./sketch_profiles.js";
+import { ellipseEdgePoints } from "./sketch_intersection.js";
 import { circularEdgeSweep } from "./modeler_topology_pick.js";
 import { circularMeshBoundary } from "./core/circular_edge_display.js";
-
-export function holeLoop(hl, includeSuppressed) {
-  if (!hl) return [];
-  if (Array.isArray(hl)) return hl;
-  if (!includeSuppressed && hl.suppressed) return [];
-  return hl.points || hl.loop || [];
-}
 
 export function hexNum(s) { return parseInt(String(s || "#999999").replace("#", ""), 16); }
 
@@ -75,6 +72,7 @@ export function buildExactMesh(parent, p) {
   if (!p.meshData || (!Array.isArray(p.meshData.positions) && !ArrayBuffer.isView(p.meshData.positions)) || p.meshData.positions.length < 9) return null;
   var geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(p.meshData.positions, 3));
+  if (p.meshData.indices?.length) geometry.setIndex(Array.from(p.meshData.indices));
   if (p.meshData.normals) {
     geometry.setAttribute("normal", new THREE.Float32BufferAttribute(p.meshData.normals, 3));
   } else {
@@ -184,7 +182,8 @@ export function holeAndCutEdges(part, featureId) {
    and the face pass read them from. */
 export function forEachCutLoop(part, visit) {
   (part.holes || []).forEach(function (hl, index) {
-    visit(holeLoop(hl), "profile:" + index, part.from, part.to, part.frame, part.axis);
+    var span = holeSpan(part, hl);
+    if (span.from < span.to) visit(holeLoop(hl), "profile:" + index, span.from, span.to, part.frame, part.axis);
   });
   (part.cuts3d || []).forEach(function (cut, index) {
     if (!cut || cut.suppressed) return;
@@ -268,6 +267,7 @@ export function meshFaceEntries(part, featureId) {
 
 export function edgePoints(descriptor) {
   if (!descriptor) return [];
+  if (descriptor.curve === "ellipse" && descriptor.ellipse) return ellipseEdgePoints(descriptor);
   var origin = descriptor.origin, axis = descriptor.axis;
   if (descriptor.curve === "circle" && origin && axis && fin(Number(descriptor.radius))) {
     var radius = Number(descriptor.radius);
@@ -316,7 +316,8 @@ export function edgePoints(descriptor) {
 export function edgesGeometricallyMatch(a, b) {
   if (!a || !b) return false;
   var da = a.descriptor || {}, db = b.descriptor || {};
-  if ((da.curve === "circle" || db.curve === "circle") && (da.curve === "circle" && db.curve === "circle")) {
+  if (da.curve && db.curve && da.curve !== db.curve) return false;
+  if (da.curve === "circle" && db.curve === "circle") {
     return circleDescriptorsMatch(da, db);
   }
   var pa = edgePoints(da), pb = edgePoints(db);
@@ -459,7 +460,7 @@ export function initFaceScratchVectors() {
   }
 }
 
-export function faceHighlightMesh(mesh, descriptor, color, opacity, reference) {
+export function faceHighlightMesh(mesh, descriptor, color, opacity, reference, parent) {
   if (!mesh || !mesh.geometry || !descriptor) return null;
   var surface = descriptor.surface;
   var round = surface === "cylinder" && descriptor.axis && fin(Number(descriptor.radius));
@@ -494,7 +495,12 @@ export function faceHighlightMesh(mesh, descriptor, color, opacity, reference) {
     var half = Number(descriptor.measure) / (2 * Math.PI * radius) / 2;
     alongSpan = { min: -half, max: half };
   }
-  mesh.updateMatrixWorld(true);   // built this frame; its matrix is not current yet
+  // Descriptors and the overlay live in the part's containing frame. A mesh
+  // already attached to an assembly has a world pose; baking that pose into
+  // a sibling overlay applies the component transform a second time.
+  mesh.updateWorldMatrix(true, false);
+  if (parent) parent.updateWorldMatrix(true, false);
+  var matrix = parent ? parent.matrixWorld.clone().invert().multiply(mesh.matrixWorld) : mesh.matrixWorld;
   initFaceScratchVectors();
   var a = _faceVecA, b = _faceVecB, c = _faceVecC;
   var ab = _faceVecAB, ac = _faceVecAC, tn = _faceVecTN, radial = _faceVecRadial;
@@ -503,12 +509,12 @@ export function faceHighlightMesh(mesh, descriptor, color, opacity, reference) {
     if (listed && !listed[t]) continue;
     var i = t * 3;
     var ia = index ? index.getX(i) : i, ib = index ? index.getX(i+1) : i+1, ic = index ? index.getX(i+2) : i+2;
-    a.fromBufferAttribute(position, ia).applyMatrix4(mesh.matrixWorld);
-    b.fromBufferAttribute(position, ib).applyMatrix4(mesh.matrixWorld);
-    c.fromBufferAttribute(position, ic).applyMatrix4(mesh.matrixWorld);
+    a.fromBufferAttribute(position, ia).applyMatrix4(matrix);
+    b.fromBufferAttribute(position, ib).applyMatrix4(matrix);
+    c.fromBufferAttribute(position, ic).applyMatrix4(matrix);
     tn.crossVectors(ab.subVectors(b, a), ac.subVectors(c, a));
     if (tn.lengthSq() < 1e-12) continue;
-    tn.normalize();   // already world space — the corners were transformed above
+    tn.normalize();   // in the overlay parent's frame, like the descriptor
     if (!listed) {
       if (ball) {
         radial.subVectors(a, centre);

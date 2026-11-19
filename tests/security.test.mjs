@@ -55,7 +55,9 @@ test("smart-home LAN resolver allows home hubs and refuses metadata / public SSR
   assert.equal(isLanAddress("192.168.1.42"), true);
   assert.equal(isLanAddress("10.0.0.5"), true);
   assert.equal(isLanAddress("127.0.0.1"), true);
-  assert.equal(isLanAddress("100.64.1.8"), true);
+  // carrier-grade NAT space is shared with other ISP customers: LAN only when
+  // listed in HOME3D_LAN_EXTRA_CIDRS (Tailscale users add 100.64.0.0/10)
+  assert.equal(isLanAddress("100.64.1.8"), false);
   assert.equal(isLanAddress("169.254.169.254"), false);
   assert.equal(isLanAddress("8.8.8.8"), false);
   assert.equal(isLanAddress("224.0.0.1"), false);
@@ -234,7 +236,12 @@ test("relay rejects cross-origin WebSockets and does not expose wildcard CORS", 
   });
   assert.equal(unchanged.status, 304);
   const vendor = await fetch(`http://127.0.0.1:${port}/vendor/three/three.module.js`);
-  assert.match(vendor.headers.get("cache-control") || "", /immutable/);
+  assert.equal(vendor.headers.get("cache-control"), "no-cache");
+  const vendor304 = await fetch("http://127.0.0.1:" + port + "/vendor/three/three.module.js", {
+    headers: { "if-none-match": vendor.headers.get("etag") },
+  });
+  assert.equal(vendor304.status, 304);
+  assert.equal(vendor304.headers.get("cache-control"), "no-cache");
   const font = await fetch(`http://127.0.0.1:${port}/vendor/phosphor/Phosphor.woff2`);
   assert.equal(font.status, 200);
   assert.equal(font.headers.get("content-type"), "font/woff2");

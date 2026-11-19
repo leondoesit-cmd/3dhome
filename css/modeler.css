@@ -6,3 +6,11 @@
 .md-edge-browser-choices button { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 4px; }
 .md-edge-browser-marker { width: 14px; }
 .md-edge-browser-label { min-width: 0; }
+
+.md-edge-browser-filter { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin: 6px 0; min-width: 0; }
+.md-edge-browser-search { width: 100%; min-width: 0; box-sizing: border-box; }
+.md-edge-browser-count { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.md-edge-browser-choices { overflow-x: hidden; }
+.md-edge-browser-choices button { width: 100%; box-sizing: border-box; min-width: 0; }
+.md-edge-browser-choices button[hidden] { display: none !important; }
+.md-edge-browser-label { white-space: normal; overflow-wrap: anywhere; }

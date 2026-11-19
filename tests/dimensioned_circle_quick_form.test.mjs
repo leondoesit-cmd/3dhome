@@ -1,3 +1,5 @@
+import {registerQuickForm} from '../js/modeler_quick_form.js';
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +8,7 @@ import {featureField,featureControlValue,validateFeatureInputs} from '../js/mode
 import {addDimensionedCircle} from '../js/sketch_dimensioned_circle.js';
 import {solveSketch} from '../js/sketch_solver.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function node(tag,cls='',text=''){
  return {tagName:tag.toUpperCase(),className:cls,textContent:text,dataset:{},children:[],listeners:{},attrs:{},classList:{add(){},remove(){}},value:'',validity:'',
   appendChild(child){this.children.push(child);child.parent=this;},setAttribute(key,value){this.attrs[key]=value;},removeAttribute(key){delete this.attrs[key];},
@@ -16,7 +18,7 @@ function node(tag,cls='',text=''){
 }
 function fixture(){
  const host=node('div'),sketch={points:[],entities:[],constraints:[]},E={authoring:{phase:'sketch'},def:{},ssel:[]},frames=[],buttons=[];let serial=0;
- const context={E,root:{querySelector:()=>host},motionPlaybackCancel:null,modelLengthUnit:()=> 'mm',featureField:(host,field,value)=>featureField(host,field,value,{el:node,units:{length:'mm'}}),featureControlValue,validateFeatureInputs,el:node,
+ const context={registerQuickForm,E,root:{querySelector:()=>host},motionPlaybackCancel:null,modelLengthUnit:()=> 'mm',featureField:(host,field,value)=>featureField(host,field,value,{el:node,units:{length:'mm'}}),featureControlValue,validateFeatureInputs,el:node,
   t:key=>key,namedButton:button=>button,btn:(label,callback,cls)=>{const button=node('button',cls,label);button.click=callback;buttons.push(button);return button;},requestAnimationFrame:callback=>frames.push(callback),syncCommandManager(){},document:{body:{classList:{contains:()=>false}}},closeFeaturePanel(){},refreshAll(){},fin:Number.isFinite,flash(){},setTool(){},
   appendToSketch:(name,apply)=>apply(sketch),addDimensionedCircle,uid:()=>++serial,markDrawnSelection:made=>E.ssel=made};
  const load=name=>new Function(...Object.keys(context),sourceFunctionText(source,name)+';return '+name+';')(...Object.values(context));

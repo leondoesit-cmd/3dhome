@@ -71,14 +71,14 @@ export function mountCabinetJoinery(host,getItems,download,onChange=change=>chan
       const owner=getItems().find(item=>String(item.id)===entry.ownerItemId),plans=owner?.cab?.joineryPlans;
       const load=el('button',text('Load and revalidate','טעינה ובדיקה מחדש'));load.type='button';
       load.addEventListener('click',()=>{try{
-        const plan=plans.find(p=>p?.id===entry.id);if(!plan?.request)throw new Error('This plan has no valid request. Remove it and create a new plan.');
+        const plan=Array.isArray(plans)?plans.find(p=>p?.id===entry.id):null;if(!plan?.request)throw new Error('This plan has no valid request. Remove it and create a new plan.');
         loadPanels();const request=plan.request;face.value=request.facePanel?.id;options(edge,request.edgePanel?.id,face.value);
         for(const key of ['manufacturer','sku','revision','sourceDrawing','kind'])fields[key].value=request.article?.[key]||'';
         for(const [key,value]of Object.entries({...request.article?.dimensions,...request.article?.drilling})){if(key==='faceThrough')through.checked=!!value;else if(fields[key])fields[key].value=value;}
         positions.value=Array.isArray(request.positions)?request.positions.join(','):'';fields.faceOffsetMm.value=request.faceOffsetMm??'';fields.edgeOffsetMm.value=request.edgeOffsetMm??'';
         editing={ownerItemId:entry.ownerItemId,id:entry.id};reviewed=build();render(reviewed);status.textContent+=text(' Inspect the current operations and save to replace this plan.',' בדקו את הפעולות הנוכחיות ושמרו להחלפת התכנית.');
       }catch(error){invalidate();status.textContent=error.message;}});row.appendChild(load);
-      const remove=el('button',text('Remove plan','הסרת תכנית'));remove.type='button';remove.addEventListener('click',()=>{onChange(()=>{owner.cab.joineryPlans=plans.filter(p=>p?.id!==entry.id);});editing=null;invalidate();renderSaved();});row.appendChild(remove);savedList.appendChild(row);
+      const remove=el('button',text('Remove plan','הסרת תכנית'));remove.type='button';remove.addEventListener('click',()=>{if(owner&&owner.cab){const existing=Array.isArray(owner.cab.joineryPlans)?owner.cab.joineryPlans:[];onChange(()=>{owner.cab.joineryPlans=existing.filter(p=>p?.id!==entry.id);});}editing=null;invalidate();renderSaved();});row.appendChild(remove);savedList.appendChild(row);
     }
     for(const issue of report.issues.filter(i=>!i.planId))savedList.appendChild(el('p',issue.message));
   }
@@ -105,6 +105,7 @@ export function mountCabinetJoinery(host,getItems,download,onChange=change=>chan
   persist.addEventListener('click',()=>{try{
     const current=build();if(!reviewed||reviewed.signature!==current.signature||!current.report.operations.length)throw new Error('Review the current design and operations before saving.');
     const plan=createSavedCabinetJoinery(getItems(),current.request,editing?{id:editing.id}:{}),owner=getItems().find(item=>String(item.id)===plan.ownerItemId);
+    if(!owner||!owner.cab)throw new Error('Owning cabinet not found.');
     if(editing&&editing.ownerItemId!==plan.ownerItemId)throw new Error('Revalidated plan must remain on its owning cabinet. Create a new review for another cabinet.');
     const existing=Array.isArray(owner.cab.joineryPlans)?owner.cab.joineryPlans:[];
     onChange(()=>{owner.cab.joineryPlans=[...existing.filter(p=>p?.id!==plan.id),plan];});editing=null;invalidate();renderSaved();status.textContent=text('Saved to cabinet. Create a fresh production revision to include it.','נשמר בארון. צרו גרסת ייצור חדשה כדי לכלול את התכנית.');

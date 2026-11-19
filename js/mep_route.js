@@ -22,7 +22,7 @@
 // instead of each detouring via the wall's corners.
 
 import { S } from "./state.js";
-import { wallGeom } from "./geometry.js";
+import { wallGeom, wallPointAt, wallProject } from "./geometry.js";
 
 var SPUR_W = 1.7; // cost multiplier for a segment that leaves the wall
 var TAP_EPS = 2; // taps within this distance on one wall are the same tap
@@ -57,6 +57,10 @@ function Router(avoidOpenings) {
         .map(function (o) { return { a: o.s - o.width / 2, b: o.s + o.width / 2 }; }),
     };
     self.wallIds.push(w.id);
+    if(g.kind==='arc'){
+      const steps=Math.max(2,Math.ceil(g.L/20));
+      for(let i=1;i<steps;i++)self._wallTap(self.walls[w.id],g.L*i/steps);
+    }
   });
 }
 
@@ -79,7 +83,8 @@ Router.prototype._wallTap = function (W, s) {
   s = Math.max(0, Math.min(W.g.L, s));
   for (var i = 0; i < W.taps.length; i++)
     if (Math.abs(W.taps[i].s - s) < TAP_EPS) return W.taps[i].vi;
-  var vi = this._v(W.g.a.x + W.g.ux * s, W.g.a.z + W.g.uz * s, null);
+  var p=wallPointAt(W.w,s);
+  var vi = this._v(p.x,p.z,null);
   W.taps.push({ s: s, vi: vi });
   return vi;
 };
@@ -89,11 +94,8 @@ Router.prototype._nearestWall = function (p) {
   var best = null;
   for (var i = 0; i < this.wallIds.length; i++) {
     var W = this.walls[this.wallIds[i]];
-    var t = (p.x - W.g.a.x) * W.g.ux + (p.z - W.g.a.z) * W.g.uz;
-    t = Math.max(0, Math.min(W.g.L, t));
-    var qx = W.g.a.x + W.g.ux * t, qz = W.g.a.z + W.g.uz * t;
-    var d = Math.hypot(p.x - qx, p.z - qz);
-    if (!best || d < best.d) best = { W: W, s: t, d: d };
+    var hit=wallProject(W.w,p.x,p.z);
+    if(hit&&(!best||hit.distance<best.d))best={W:W,s:hit.s,d:hit.distance};
   }
   return best;
 };
@@ -104,7 +106,7 @@ Router.prototype._nearestWall = function (p) {
 Router.prototype.tap = function (p, wall, s) {
   if (wall != null && this.walls[wall]) {
     var W = this.walls[wall];
-    return this._wallTap(W, s != null ? s : (p.x - W.g.a.x) * W.g.ux + (p.z - W.g.a.z) * W.g.uz);
+    return this._wallTap(W, s != null ? s : wallProject(W.w,p.x,p.z).s);
   }
   var near = this._nearestWall(p);
   if (!near) return this._v(p.x, p.z, null); // no walls at all
@@ -229,7 +231,8 @@ export function simplify(pts) {
     // dropping b would disconnect the device the run exists to feed
     if (base < 1) { i++; continue; }
     var cross = (b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x);
-    if (Math.abs(cross) / base < COLL_EPS) out.splice(i, 1);
+    var along = ((b.x-a.x)*(c.x-a.x)+(b.z-a.z)*(c.z-a.z))/(base*base);
+    if (along >= 0 && along <= 1 && Math.abs(cross) / base < COLL_EPS) out.splice(i, 1);
     else i++;
   }
   return out;

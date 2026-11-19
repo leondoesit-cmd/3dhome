@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -25,7 +26,7 @@ test("plan style: unknown or missing values fall back to the technical plan", ()
 });
 
 test("plan style: saved with the scene and restored through the normalizer", async () => {
-  const ui = await src("js/ui.js");
+  const ui = moduleSource("js/ui.js");
   assert.match(ui, /\n\s+planStyle: S\.planStyle,/);
   assert.match(ui, /S\.planStyle = normalizePlanStyle\(d\.planStyle\);/);
   assert.match(ui, /act === "togglePlanStyle"/);
@@ -40,8 +41,9 @@ test("plan style: every new string exists in both locales", () => {
 });
 
 test("presentation plan: room layer keyed on style, knockout replaced, sprites repaint", async () => {
-  const p = await src("js/plan2d.js");
+  const p = moduleSource("js/plan2d.js");
   assert.match(p, /"\|" \+ planStyle\(\) \+ "\|"/);
+  // prose-ok: the point is that the knockout swap carries its explanatory comment
   assert.match(p, /if \(isPresentation\(\)\) \{\r?\n\s+\/\*[^]*?\*\/\r?\n\s+var pth = planTheme\(\)/);
   assert.match(p, /addEventListener\("planSpritesReady"/);
   assert.match(p, /clipOutsideOpenings\(list\)/);

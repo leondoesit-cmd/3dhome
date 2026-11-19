@@ -22,6 +22,7 @@ test("manual through join carries the selected wall across the adjoining wall", 
   const wall = corner("through"), outline = wallOutline(wall);
   assert.equal(outline[1].x, 110);
   assert.equal(outline[2].x, 110);
-  assert.equal(wallCuts(wall).b, -10);
+  // what is built changes, the measured face does not (WALL_JUNCTIONS_PLAN Invariant M)
+  assert.equal(wallCuts(wall).b, 10);
 });
 

@@ -11,6 +11,7 @@
 // while visiting. The room's owner is the authority for the scene: on
 // join, visitors ask the owner for the live layout (see js/visit.js).
 
+import { sha256 } from "./core/sha256.js";
 import { sanitizeDisplayName } from "./safe.js";
 
 const LS_ID = "home3d_mp_id",
@@ -22,12 +23,14 @@ function cleanName(n) {
   return sanitizeDisplayName(n, 24);
 }
 
-function randCode() {
-  // short, human-shareable friend code (no confusable 0/O/1/I)
-  const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let s = "";
-  for (let i = 0; i < 8; i++) s += A[Math.floor(Math.random() * A.length)];
-  return s.slice(0, 4) + "-" + s.slice(4);
+export function codeFor(token) {
+  const digest = sha256(token);
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let bits = 0;
+  for (let i = 0; i < 5; i++) bits = bits * 256 + digest[i];
+  let code = "";
+  for (let shift = 35; shift >= 0; shift -= 5) code += alphabet[Math.floor(bits / 2 ** shift) & 31];
+  return code.slice(0, 4) + "-" + code.slice(4);
 }
 
 function randToken() {
@@ -47,23 +50,55 @@ export const NET = {
   room: null, // current room id (apt:<code>)
   roster: [], // [{code,name,room}] — everyone on the relay
   peers: {}, // code -> {name} for peers in MY current room
+  joined: false, // the relay has admitted this connection to NET.room
+  admissions: Object.create(null), // code -> view/edit, held only by the owner
+  knocks: Object.create(null),
 };
+
+// Transport membership and owner approval are independent of a saved UI role.
+export function remoteContext() {
+  return { code: NET.code, owner: roomOwner(), joined: NET.joined,
+    members: NET.peers, admissions: NET.admissions };
+}
+export function acceptRemote(kind, from, ctx) {
+  if (!ctx?.joined || !ctx.code || !ctx.owner || !from || from === ctx.code ||
+      !Object.hasOwn(ctx.members || {}, from)) return false;
+  const host = ctx.code === ctx.owner;
+  const right = Object.hasOwn(ctx.admissions || {}, from) ? ctx.admissions[from] : null;
+  const admitted = right === "view" || right === "edit";
+  if (["plan_sync", "plan_op", "scene", "project_present"].includes(kind))
+    return !host && from === ctx.owner;
+  if (kind === "plan_op_req") return host && right === "edit";
+  if (kind === "plan_hello" || kind === "scene_req") return host && admitted;
+  if (kind === "survey_photo_request") return host ? admitted : from === ctx.owner;
+  if (kind === "survey_photo_chunk") return host ? right === "edit" : from === ctx.owner;
+  if (["project_comment", "plan_cursor", "rtc"].includes(kind)) return host ? admitted : true;
+  return false;
+}
+export function sameProject(mine, theirs) {
+  return typeof mine === "string" && !!mine && typeof theirs === "string" && !!theirs && mine === theirs;
+}
+export function answerKnock(code, right) {
+  if (!Object.hasOwn(NET.knocks, code) || !["view", "edit", "deny"].includes(right)) return false;
+  if (!send({ t: right === "deny" ? "deny" : "admit", code })) return false;
+  if (right !== "deny") NET.admissions[code] = right;
+  delete NET.knocks[code];
+  emit("knocks");
+  return true;
+}
 
 try {
   NET.code = localStorage.getItem(LS_ID);
-  if (!NET.code) {
-    NET.code = randCode();
-    localStorage.setItem(LS_ID, NET.code);
-  }
   NET.token = localStorage.getItem(LS_TOKEN);
-  if (!NET.token) {
-    NET.token = randToken();
-    localStorage.setItem(LS_TOKEN, NET.token);
-  }
   NET.name = cleanName(localStorage.getItem(LS_NAME) || "");
-} catch (_) {
-  NET.code = NET.code || randCode();
+} catch (_) {}
+if (!NET.code || !NET.token) {
   NET.token = NET.token || randToken();
+  NET.code = codeFor(NET.token);
+  try {
+    localStorage.setItem(LS_TOKEN, NET.token);
+    localStorage.setItem(LS_ID, NET.code);
+  } catch (_) {}
 }
 
 export function myRoom() {
@@ -91,6 +126,10 @@ export function serverURL() {
     u = localStorage.getItem(LS_URL) || "";
   } catch (_) {}
   if (u) return u;
+  // The desktop shell (desktop/src-tauri) names the relay: its own origin
+  // (http://mf.localhost, mf://localhost) serves files, not WebSockets.
+  const desktop = typeof window !== "undefined" ? window.__MF_DESKTOP__ : null;
+  if (desktop) return desktop.relayUrl || "ws://localhost:8765";
   // served by the bundled relay? then the same host speaks WebSocket too
   if (location.protocol === "http:" || location.protocol === "https:")
     return (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
@@ -106,7 +145,7 @@ export function setServerURL(u) {
 // ---- tiny event bus -------------------------------------------------------
 // events: status(connected), roster, room(peers changed), chat({from,name,text}),
 //         pose({from,pose}), data({from,data}), peer-join({code,name}),
-//         peer-leave({code,name}), voice-state
+//         peer-leave({code,name}), voice-state, identity-changed({from,to})
 const subs = {};
 export function on(ev, fn) {
   (subs[ev] = subs[ev] || []).push(fn);
@@ -122,6 +161,182 @@ function emit(ev, arg) {
       console.error("net handler failed", ev, e);
     }
   });
+}
+
+
+// 256 K UTF-16 chars fit in <= 768 KB UTF-8. Eight unacknowledged parts bound
+// a slow recipient's relay queue to ~2-6 MB. 20 ms leaves room under 120 msgs/s
+// for cursors/poses and receiver acks; 64 M chars bounds reassembly memory.
+export const TRANSFER = Object.freeze({ chunkChars: 256 * 1024, window: 8, partIntervalMs: 20,
+  highWater: 4 * 1024 * 1024, stallMs: 30000, maxChars: 64 * 1024 * 1024,
+  maxPartChars: 1024 * 1024, maxIncoming: 2 });
+
+export function transferBounds(text, chunkChars) {
+  if (!Number.isInteger(chunkChars) || chunkChars < 2) throw new RangeError("chunkChars must be >= 2");
+  const bounds = [0];
+  while (bounds[bounds.length - 1] < text.length) {
+    let end = Math.min(text.length, bounds[bounds.length - 1] + chunkChars);
+    if (end < text.length && text.charCodeAt(end - 1) >= 0xd800 && text.charCodeAt(end - 1) <= 0xdbff &&
+        text.charCodeAt(end) >= 0xdc00 && text.charCodeAt(end) <= 0xdfff) end--;
+    bounds.push(end);
+  }
+  return bounds;
+}
+
+export function createTransfers({ send, bufferedAmount = () => 0, emit = () => {}, admit = () => false,
+  limits = TRANSFER, now = () => performance.now(), setTimer = setTimeout, clearTimer = clearTimeout,
+  randomId = () => randToken().slice(0, 32) }) {
+  const cfg = { ...TRANSFER, ...limits }, outgoing = new Map(), incoming = new Map();
+  let timer = null, nextPartAt = -Infinity;
+  function wire(data, to) { try { return send(data, to) !== false; } catch (_) { return false; } }
+  function event(record, state) { emit("transfer", { from: record.from, kind: record.kind, id: record.id, state }); }
+  function cancel(id, to) { wire({ k: "xfer_cancel", id }, to); }
+  function finish(record, ok, notify = true) {
+    if (!outgoing.delete(record.id)) return;
+    if (!ok && notify) cancel(record.id, record.to);
+    record.resolve(ok);
+  }
+  function fail(record, notify = true) {
+    if (incoming.get(record.from) !== record) return;
+    incoming.delete(record.from);
+    if (notify) cancel(record.id, record.from);
+    event(record, "failed");
+  }
+  function schedule() {
+    if (timer !== null) { clearTimer(timer); timer = null; }
+    if (!outgoing.size && !incoming.size) return;
+    const at = now();
+    let delay = Infinity;
+    for (const record of incoming.values()) delay = Math.min(delay, Math.max(1, record.at + cfg.stallMs - at));
+    for (const record of outgoing.values()) {
+      delay = Math.min(delay, Math.max(1, record.at + cfg.stallMs - at));
+      if (record.next < record.n && record.next - record.ack - 1 < cfg.window)
+        delay = Math.min(delay, bufferedAmount() > cfg.highWater ? 50 : Math.max(0, nextPartAt - at));
+    }
+    timer = setTimer(pump, delay);
+  }
+  function pump() {
+    timer = null;
+    const at = now();
+    for (const record of incoming.values()) if (at - record.at >= cfg.stallMs) fail(record);
+    for (const record of outgoing.values()) if (at - record.at >= cfg.stallMs) finish(record, false);
+    if (at >= nextPartAt && bufferedAmount() <= cfg.highWater) {
+      for (const record of outgoing.values()) {
+        if (record.next >= record.n || record.next - record.ack - 1 >= cfg.window) continue;
+        const i = record.next++;
+        outgoing.delete(record.id); outgoing.set(record.id, record);
+        nextPartAt = at + cfg.partIntervalMs;
+        const data = { k: "xfer", kind: record.kind, id: record.id, i, n: record.n,
+          total: record.text.length, part: record.text.slice(record.bounds[i], record.bounds[i + 1]) };
+        if (record.projectId !== undefined) data.projectId = record.projectId;
+        if (!wire(data, record.to)) finish(record, false);
+        break;
+      }
+    }
+    schedule();
+  }
+  function allowed(kind, from, header) { try { return admit(kind, from, header) === true; } catch (_) { return false; } }
+  function validId(id) { return typeof id === "string" && id.length >= 1 && id.length <= 64; }
+  return {
+    send(data, to) {
+      if (typeof to !== "string" || !to) return Promise.resolve(false);
+      let text;
+      try { text = JSON.stringify(data); } catch (_) { return Promise.resolve(false); }
+      if (typeof text !== "string" || text.length > cfg.maxChars) return Promise.resolve(false);
+      for (const record of outgoing.values()) if (record.to === to && record.kind === data.k) finish(record, false);
+      if (text.length <= cfg.chunkChars) { schedule(); return Promise.resolve(wire(data, to)); }
+      if (typeof data.k !== "string" || !data.k || data.k.length > 64) return Promise.resolve(false);
+      const id = randomId();
+      if (!validId(id) || outgoing.has(id)) return Promise.resolve(false);
+      const bounds = transferBounds(text, cfg.chunkChars);
+      return new Promise(resolve => {
+        outgoing.set(id, { id, kind: data.k, to, text, bounds, n: bounds.length - 1, next: 0, ack: -1,
+          projectId: typeof data.projectId === "string" ? data.projectId : undefined, at: now(), resolve });
+        schedule();
+      });
+    },
+    receive(from, d) {
+      if (!d || !["xfer", "xfer_ack", "xfer_cancel"].includes(d.k)) return false;
+      if (!validId(d.id)) {
+        // An invalid id cannot name live work; bound any data reflected back.
+        if (d.k === "xfer") cancel(typeof d.id === "string" ? d.id.slice(0, 64) : "", from);
+        return true;
+      }
+      if (d.k !== "xfer") {
+        const record = outgoing.get(d.id);
+        if (record && record.to === from) {
+          if (d.k === "xfer_cancel") finish(record, false, false);
+          else if (Number.isInteger(d.i) && d.i >= 0 && d.i < record.n && d.i < record.next && d.i > record.ack) {
+            record.ack = d.i; record.at = now();
+            if (record.ack === record.n - 1) finish(record, true);
+          }
+        }
+        const received = incoming.get(from);
+        if (d.k === "xfer_cancel" && received?.id === d.id) fail(received, false);
+        schedule(); return true;
+      }
+      let record = incoming.get(from);
+      // Stale parts cannot disrupt a newer transfer from the same sender.
+      if (Number.isInteger(d.i) && d.i > 0 && record?.id !== d.id) return true;
+      const valid = typeof d.kind === "string" && d.kind.length > 0 && d.kind.length <= 64 &&
+        Number.isInteger(d.total) && d.total >= 1 && d.total <= cfg.maxChars &&
+        Number.isInteger(d.n) && d.n >= 1 && d.n <= d.total &&
+        Number.isInteger(d.i) && d.i >= 0 && d.i < d.n &&
+        typeof d.part === "string" && d.part.length >= 1 && d.part.length <= cfg.maxPartChars &&
+        (d.projectId === undefined || typeof d.projectId === "string");
+      if (!valid || !allowed(d.kind, from, d)) {
+        if (record?.id === d.id) fail(record); else cancel(d.id, from);
+        schedule(); return true;
+      }
+      if (d.i === 0) {
+        if (record) incoming.delete(from);
+        let total = d.total;
+        for (const active of incoming.values()) total += active.total;
+        if (incoming.size >= cfg.maxIncoming || total > cfg.maxChars) {
+          cancel(d.id, from); schedule(); return true;
+        }
+        record = { from, id: d.id, kind: d.kind, projectId: d.projectId, total: d.total, n: d.n,
+          parts: [], length: 0, at: now() };
+        incoming.set(from, record); event(record, "start");
+      }
+      if (d.i !== record.parts.length || d.n !== record.n || d.total !== record.total ||
+          d.kind !== record.kind || d.projectId !== record.projectId || record.length + d.part.length > record.total) {
+        fail(record); schedule(); return true;
+      }
+      record.parts.push(d.part); record.length += d.part.length; record.at = now();
+      if (record.parts.length === record.n) {
+        let payload;
+        try { payload = JSON.parse(record.parts.join("")); } catch (_) {}
+        if (record.length !== record.total || !payload || Object.getPrototypeOf(payload) !== Object.prototype ||
+            payload.k !== record.kind || (record.projectId !== undefined && payload.projectId !== record.projectId)) {
+          fail(record); schedule(); return true;
+        }
+        incoming.delete(from);
+        wire({ k: "xfer_ack", id: d.id, i: d.i }, from);
+        emit("data", { from, data: payload }); event(record, "done");
+      } else wire({ k: "xfer_ack", id: d.id, i: d.i }, from);
+      schedule(); return true;
+    },
+    dropPeer(code) {
+      for (const record of outgoing.values()) if (record.to === code) finish(record, false);
+      const record = incoming.get(code); if (record) fail(record);
+      schedule();
+    },
+    reset() {
+      for (const record of outgoing.values()) finish(record, false);
+      for (const record of incoming.values()) fail(record);
+      nextPartAt = -Infinity; schedule();
+    },
+  };
+}
+
+const largeAdmissions = new Map();
+const transfers = createTransfers({ send: sendData, bufferedAmount: () => NET.ws?.bufferedAmount || 0,
+  emit, admit: (kind, from, header) => largeAdmissions.get(kind)?.(from, header) === true });
+export function sendLarge(data, to) { return transfers.send(data, to); }
+export function receiveLarge(kind, admit) {
+  largeAdmissions.set(kind, admit);
+  return () => { if (largeAdmissions.get(kind) === admit) largeAdmissions.delete(kind); };
 }
 
 // ---- connection (auto-reconnect with backoff) -----------------------------
@@ -152,7 +367,11 @@ export function connect() {
     return;
   }
   NET.ws = ws;
+  /* A socket replaced while it was still closing (connect() right after a
+     close) keeps its handlers: its late close must not reset the live
+     connection's state, nor its last messages reach the new session. */
   ws.onopen = () => {
+    if (NET.ws !== ws) return;
     retryMs = 1000;
     NET.connected = true;
     send({ t: "hello", code: NET.code, name: NET.name, token: NET.token });
@@ -162,8 +381,14 @@ export function connect() {
     emit("status", true);
   };
   ws.onclose = () => {
+    if (NET.ws !== ws) return;
     const was = NET.connected;
     NET.connected = false;
+    NET.joined = false;
+    transfers.reset();
+    NET.admissions = Object.create(null);
+    NET.knocks = Object.create(null);
+    emit("knocks");
     NET.peers = {};
     NET.roster = [];
     if (was) {
@@ -176,6 +401,7 @@ export function connect() {
   };
   ws.onerror = () => {}; // onclose follows and handles it
   ws.onmessage = (ev) => {
+    if (NET.ws !== ws) return;
     let m;
     try {
       m = JSON.parse(ev.data);
@@ -215,6 +441,8 @@ function send(obj) {
 // ---- rooms ----------------------------------------------------------------
 export function joinRoom(room) {
   NET.room = room;
+  NET.joined = false;
+  transfers.reset();
   NET.peers = {};
   closeAllVoice(); // per-room mesh; the new room re-establishes it
   send({ t: "join", room });
@@ -252,8 +480,42 @@ export function sendPose(pose) {
 
 function handle(m) {
   switch (m.t) {
+    case "knock":
+      NET.knocks[m.code] = { code: m.code, name: cleanName(m.name) };
+      emit("knocks");
+      break;
+    case "pending":
+    case "denied":
+      if (m.room !== (NET.room || myRoom())) break;
+      NET.joined = false;
+      transfers.reset();
+      NET.peers = {};
+      closeAllVoice();
+      emit("room");
+      emit(m.t, { room: m.room });
+      break;
+    case "admitted":
+      if (m.room !== (NET.room || myRoom())) break;
+      NET.joined = true;
+      emit("admitted", { room: m.room });
+      break;
     case "error":
       if (m.code === "identity_in_use" || m.code === "bad_identity") {
+        const derived = codeFor(NET.token);
+        if (NET.code !== derived) {
+          const from = NET.code;
+          NET.code = derived;
+          if (NET.room === "apt:" + from) NET.room = myRoom();
+          try {
+            localStorage.setItem(LS_TOKEN, NET.token);
+            localStorage.setItem(LS_ID, NET.code);
+          } catch (_) {}
+          emit("identity-changed", { from, to: derived });
+          // onclose retries with the derived identity. Another rejection then
+          // takes the terminal path below, so migration cannot loop.
+          if (NET.ws) NET.ws.close();
+          break;
+        }
         wantConnect = false;
         emit("server-error", m.code);
       }
@@ -266,14 +528,14 @@ function handle(m) {
       // refresh my in-room peer table from the roster (names may change)
       NET.peers = {};
       NET.roster.forEach((u) => {
-        if (u.room === (NET.room || myRoom()) && u.code !== NET.code)
+        if (NET.joined && u.room === (NET.room || myRoom()) && u.code !== NET.code)
           NET.peers[u.code] = { name: u.name };
       });
       emit("roster");
       emit("room");
       break;
     case "joined":
-      if (m.code !== NET.code) {
+      if (NET.joined && m.room === (NET.room || myRoom()) && m.code !== NET.code) {
         const name = cleanName(m.name);
         NET.peers[m.code] = { name };
         emit("peer-join", { code: m.code, name });
@@ -281,6 +543,7 @@ function handle(m) {
       }
       break;
     case "left":
+      transfers.dropPeer(m.code);
       if (NET.peers[m.code]) {
         const name = NET.peers[m.code].name;
         delete NET.peers[m.code];
@@ -291,6 +554,7 @@ function handle(m) {
       break;
     case "msg": {
       const d = m.data || {};
+      if (transfers.receive(m.from, d)) break;
       if (d.k === "chat") {
         const text = String(d.text || "")
           .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
@@ -299,7 +563,9 @@ function handle(m) {
           emit("chat", { from: m.from, name: peerName(m.from), text });
       } else if (d.k === "pose") emit("pose", { from: m.from, pose: d.p });
       else if (d.k === "nopose") emit("pose", { from: m.from, pose: null });
-      else if (d.k === "rtc") handleRTC(m.from, d);
+      else if (d.k === "rtc") {
+        if (acceptRemote("rtc", m.from, remoteContext())) handleRTC(m.from, d);
+      }
       else emit("data", { from: m.from, data: d });
       break;
     }

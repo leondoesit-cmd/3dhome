@@ -13,6 +13,8 @@ for(const walk of [false,true])test(`Shift selects multiple planning corners wit
   await page.waitUntil(async()=>(await import('/js/view3d.js')).has3D(),{ms:30000,what:'GPU'});
   const points=await page.eval(async(walk)=>{
    const v=await import('/js/view3d.js'),{S}=await import('/js/state.js'),{THREE}=await import('/js/three_lazy.js');
+   await (await import('/js/gpu.js')).ready(v.getRenderer());
+   while(S.dirty3D)await new Promise(requestAnimationFrame);
    v.restoreNavigationView({walk,walkView:'fpv',position:{x:0,y:0,z:-300},yaw:0,pitch:-.3,orbit:{theta:0,phi:.7,radius:750,target:{x:0,y:0,z:100}}});
    v.requestRender();await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);
    const r=document.getElementById('v3d').getBoundingClientRect();
@@ -21,6 +23,7 @@ for(const walk of [false,true])test(`Shift selects multiple planning corners wit
   const samples=[];
   for(let i=0;i<points.length;i++){
    const p=await page.eval(async(i)=>{await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);const v=await import('/js/view3d.js'),{S}=await import('/js/state.js'),{THREE}=await import('/js/three_lazy.js'),r=document.getElementById('v3d').getBoundingClientRect(),n=S.nodes[i],q=new THREE.Vector3(n.x,0,n.z).project(v.getMainCamera());return {x:r.left+(q.x+1)*r.width/2,y:r.top+(1-q.y)*r.height/2};},i);
+   assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y),'ready camera must produce finite pointer coordinates');
    samples.push(await page.eval(async(p)=>({hit:(await import('/js/view3d.js')).plannerPointer3D(p.x,p.y),element:document.elementFromPoint(p.x,p.y)?.id}),p));
    await page.send('Input.dispatchMouseEvent',{type:'mousePressed',...p,button:'left',buttons:1,clickCount:1,modifiers:8});
    await page.send('Input.dispatchMouseEvent',{type:'mouseReleased',...p,button:'left',buttons:0,clickCount:1,modifiers:8});
@@ -36,7 +39,10 @@ for(const walk of [false,true])test(`wall surface points retain measured height 
   await page.eval(async()=>{const {S}=await import('/js/state.js');await (await import('/js/ui.js')).applyData({nodes:[{x:-200,z:100},{x:200,z:100}],walls:[{id:1,a:0,b:1,height:270,thickness:20,lock:false}],openings:[],items:[],markers:[],roomMeta:{}});S.snap=false;S.gsnap=false;S.structLocked=false;(await import('/js/interaction.js')).setTool('point');window.__setViewMode('3d');});
   await page.waitUntil(async()=>(await import('/js/view3d.js')).has3D(),{ms:30000,what:'GPU'});
   const aim=await page.eval(async(walk)=>{
+   (await import('/js/wall_view.js')).setNearCut(false);
    const v=await import('/js/view3d.js'),{THREE}=await import('/js/three_lazy.js');v.restoreNavigationView({walk,walkView:'fpv',position:{x:0,y:0,z:-300},yaw:0,pitch:0,orbit:{theta:-Math.PI/2,phi:1.2,radius:750,target:{x:0,y:130,z:100}}});
+   await (await import('/js/gpu.js')).ready(v.getRenderer());
+   while((await import('/js/state.js')).S.dirty3D)await new Promise(requestAnimationFrame);
    v.requestRender();await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);
    const r=document.getElementById('v3d').getBoundingClientRect(),q=new THREE.Vector3(0,135,90).project(v.getMainCamera()),p={x:r.left+(q.x+1)*r.width/2,y:r.top+(1-q.y)*r.height/2};
    return {...p,height:v.plannerPointer3D(p.x,p.y).hit?.point.y};
@@ -59,10 +65,14 @@ test('completed arc draft points and survey mission survive 2D, split, orbit and
    send(0,0);send(150,100);const draft=JSON.stringify(S.arcDraft),survey=JSON.stringify(S.workspace.survey),floor=S.workspace.activeFloor;
    const kept=[];
    for(const mode of ['plan','3d','split']){window.__setViewMode(mode);kept.push(JSON.stringify(S.arcDraft)===draft&&S.tool==='arcwall'&&S.workspace.activeFloor===floor&&JSON.stringify(S.workspace.survey)===survey);}
-   const active=document.documentElement.dataset.plannerViewport;v.toggleWalk(true);kept.push(JSON.stringify(S.arcDraft)===draft);send(300,0);
-   const walls=S.walls.length,arc=S.walls[0]?.geometry;return {kept,active,walls,arc};
+   const splitActive=document.documentElement.dataset.plannerViewport;
+   // Split intentionally starts with plan controls. The real Walk action
+   // activates the 3D pane before changing navigation mode.
+   document.querySelector('.pn-walk').click();
+   const active=document.documentElement.dataset.plannerViewport;kept.push(JSON.stringify(S.arcDraft)===draft);send(300,0);
+   const walls=S.walls.length,arc=S.walls[0]?.geometry;return {kept,splitActive,active,walls,arc};
   });
-  assert.ok(result.kept.every(Boolean),JSON.stringify(result));assert.equal(result.active,'3d');assert.equal(result.walls,1);assert.ok(result.arc,JSON.stringify(result));
+  assert.ok(result.kept.every(Boolean),JSON.stringify(result));assert.equal(result.splitActive,'plan');assert.equal(result.active,'3d');assert.equal(result.walls,1);assert.ok(result.arc,JSON.stringify(result));
  }finally{await page.close();}
 });
 test('arc drafts do not split hosts until commit, and both splits undo with the arc',opts,async()=>{

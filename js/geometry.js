@@ -1,6 +1,7 @@
 import {shapeBoundarySignature} from "./room_shapes.js";
 // Pure topology / geometry helpers over the wall graph (no DOM, no THREE).
 import { S, WALL_H, WALL_T, fin, clamp, uid } from "./state.js";
+import { hideUserLayerItems } from "./user_layers.js";
 import {
   wallCurveGeom,
   pointAtWall,
@@ -10,6 +11,10 @@ import {
   normalizeWallKind,
   HALF_WALL_HEIGHT,
 } from "./wall_curves.js";
+import { faceClearShift, faceShiftAt } from "./wall_junctions.js";
+export { faceShiftAt };
+// for js/wall_junctions.js (live bindings: it sees every reassignment)
+export { jointContext };
 
 var roomCycleCache = { sig: "", rooms: [] };
 var contentBoundsCache = { sig: "", value: null };
@@ -52,11 +57,12 @@ function topologySignature() {
 function boundsSignature() {
   var out = topologySignature() + "|" + S.items.length + "|" + (S.slabOpenings || []).length;
   S.items.forEach(function (it) {
-    out += ";" + it.id + "," + it.x + "," + it.z + "," + it.w + "," + it.d;
+    out += ";" + it.id + "," + it.x + "," + it.z + "," + it.w + "," + it.d + "," + it.rot;
   });
   (S.slabOpenings || []).forEach(function (o) {
     out += ";v" + o.id + "," + o.x + "," + o.z + "," + o.w + "," + o.d + "," + o.rot;
   });
+  out += JSON.stringify(S.walls.map(w=>[w.thickness,w.bulge,w.loc,w.dimSide]));
   return out;
 }
 
@@ -247,10 +253,10 @@ export function nearestWallLanding(x, z, maxDist, excludeNodes) {
    choosing only the lowest-id wall as "through" makes its continuation stop
    short and leaves the triangular tear that is especially visible in a
    corridor.  Crossings classify every arm as a continuation. */
-export function wallJoinRole(w, nodeId) {
+export function wallJoinRole(w, nodeId, context) {
   if (!w || (w.a !== nodeId && w.b !== nodeId)) return null;
   var arms = [];
-  S.walls.forEach(function (ow) {
+  (context ? context.arms.get(nodeId) || [] : S.walls).forEach(function (ow) {
     var other = ow.a === nodeId ? ow.b : ow.b === nodeId ? ow.a : null;
     if (other == null) return;
     var p = S.nodes[nodeId],
@@ -395,20 +401,46 @@ function firstFinite() {
   }
   return null;
 }
-export function wallSolidAtNode(w, nodeId, atHeight) {
+// A context lives for one synchronous joint/outline calculation. No revision
+// guess: opening reassignment, splice, undo and retained-reference edits are
+// all visible on the very next public call. Within that calculation index the
+// openings once, instead of scanning the project for every arm and face.
+function jointContext(nodeIds) {
+  var arms = new Map(nodeIds.map(function (id) { return [id, []]; }));
+  S.walls.forEach(function (wall) {
+    if (arms.has(wall.a)) arms.get(wall.a).push(wall);
+    if (wall.b !== wall.a && arms.has(wall.b)) arms.get(wall.b).push(wall);
+  });
+  return { arms: arms, openings: null };
+}
+function jointOpenings(context, id) {
+  if (!context.openings) {
+    context.openings = new Map();
+    S.openings.forEach(function (opening) {
+      if (!opening) return;
+      var key = String(opening.wall), list = context.openings.get(key);
+      if (!list) context.openings.set(key, list = []);
+      list.push(opening);
+    });
+  }
+  return context.openings.get(String(id)) || [];
+}
+export function wallSolidAtNode(w, nodeId, atHeight, context) {
   if (!w) return false;
   if (atHeight != null && wallSolidTop(w) <= atHeight + 0.5) return false;
   var atA = w.a === nodeId,
     atB = w.b === nodeId;
   if (!atA && !atB) return true;
-  var L = wallGeom(w).L,
+  var L,
     H = w.height || 0,
-    tol = 0.5;
-  for (var i = 0; i < S.openings.length; i++) {
-    var o = S.openings[i];
+    tol = 0.5,
+    openings = context ? jointOpenings(context, w.id) : S.openings;
+  for (var i = 0; i < openings.length; i++) {
+    var o = openings[i];
     if (!o || String(o.wall) !== String(w.id) || !fin(o.s) || !fin(o.width)) continue;
     var y0 = o.sill || 0;
     if (y0 > 0.01 || y0 + (o.height || 0) < H - 0.01) continue;
+    if (L === undefined) L = wallGeom(w).L;
     var half = Math.max(0, o.width) / 2;
     if (atA ? o.s - half <= tol : o.s + half >= L - tol) return false;
   }
@@ -421,10 +453,11 @@ export function wallSolidAtNode(w, nodeId, atHeight) {
    returned because a thickness edit has to translate the whole run rather than
    pull on this one shared node (see moveWallSideways in constraint_engine.js);
    `straightThroughAt` is the boolean the mitre code and the 3D builder ask. */
-export function straightThroughWallAt(nodeId, ux, uz, except, atHeight) {
+export function straightThroughWallAt(nodeId, ux, uz, except, atHeight, context) {
+  context ||= jointContext([nodeId]);
   var hit = null;
-  S.walls.forEach(function (ow) {
-    if (hit || ow === except || !wallSolidAtNode(ow, nodeId, atHeight)) return;
+  (context.arms.get(nodeId) || []).forEach(function (ow) {
+    if (hit || ow === except || !wallSolidAtNode(ow, nodeId, atHeight, context)) return;
     var o = ow.a === nodeId ? ow.b : ow.b === nodeId ? ow.a : null;
     if (o == null) return;
     var p = S.nodes[nodeId],
@@ -444,8 +477,8 @@ export function straightThroughWallAt(nodeId, ux, uz, except, atHeight) {
 /* Exported because the 3D builder has to make exactly the same call: whatever
    this says is not a corner gets no mitre, so the plain end cut it falls back
    on must already be right on its own. */
-export function straightThroughAt(nodeId, ux, uz, except, atHeight) {
-  return !!straightThroughWallAt(nodeId, ux, uz, except, atHeight);
+export function straightThroughAt(nodeId, ux, uz, except, atHeight, context) {
+  return !!straightThroughWallAt(nodeId, ux, uz, except, atHeight, context);
 }
 /* Every node of the maximal STRAIGHT RUN through `w`: this wall plus every
    wall reachable from either end through a straight-through joint. Two
@@ -476,116 +509,6 @@ export function straightRunNodes(w) {
     }
   });
   return out;
-}
-
-/* How far the face on `side` of a segment leaving `nodeId` in direction
-   (ux,uz) starts AFTER the node (positive) or BEFORE it (negative), given the
-   other walls standing at that corner. Half the neighbour's thickness, divided
-   by sin of the angle between them (a shallow joint eats more), signed by
-   whether the neighbour leans toward that face or away from it. Walls running
-   straight on (a split wall) are not corners and are skipped.
-   Multiple neighbours: the one that eats most wins, as with the old rule. */
-export function faceShiftAt(nodeId, ux, uz, side, except, myHalf, atHeight) {
-  if (!side) return 0;
-  var nx = -uz * side,
-    nz = ux * side,
-    hm = myHalf || 0,
-    best = null,
-    /* Both walls' lines used to pass through the shared node, so the joint was
-       decided by thicknesses and the angle alone. With location lines they no
-       longer do, and every intersection below picks up ONE extra term: the
-       lateral gap between the two lines, seen along the neighbour's direction.
-       At `loc: "center"` this is 0 and the arithmetic is bit-identical. */
-    vMe = wallOffsetVec(except);
-  var endKey = except && except.a === nodeId ? "a" : except && except.b === nodeId ? "b" : null,
-    manualJoin = endKey && except.join && except.join[endKey];
-  if (manualJoin === "through") {
-    var throughExtension = 0;
-    S.walls.forEach(function (ow) {
-      if (ow === except || !wallSolidAtNode(ow, nodeId, atHeight)) return;
-      var other = ow.a === nodeId ? ow.b : ow.b === nodeId ? ow.a : null;
-      if (other == null || !S.nodes[nodeId] || !S.nodes[other]) return;
-      var tp = S.nodes[nodeId], tq = S.nodes[other], tdx = tq.x - tp.x, tdz = tq.z - tp.z,
-        tl = Math.hypot(tdx, tdz);
-      if (tl < 1) return;
-      tdx /= tl; tdz /= tl;
-      var crossAbs = Math.abs(ux * tdz - uz * tdx);
-      if (crossAbs < 0.08) return;
-      throughExtension = Math.max(
-        throughExtension,
-        ((ow.thickness || 0) / 2 + Math.abs(lineGap(vMe, ow, tdx, tdz))) / crossAbs,
-      );
-    });
-    return -throughExtension;
-  }
-  /* A manual butt join gives this wall a square end at the nearest face of
-     the adjoining wall. Both of this wall's faces receive the same shift, so
-     the cut stays perpendicular instead of becoming a mitre. */
-  if (manualJoin === "butt") {
-    var butt = null;
-    S.walls.forEach(function (ow) {
-      if (ow === except || !wallSolidAtNode(ow, nodeId, atHeight)) return;
-      var other = ow.a === nodeId ? ow.b : ow.b === nodeId ? ow.a : null;
-      if (other == null || !S.nodes[nodeId] || !S.nodes[other]) return;
-      var bp = S.nodes[nodeId], bq = S.nodes[other], bdx = bq.x - bp.x, bdz = bq.z - bp.z,
-        bl = Math.hypot(bdx, bdz);
-      if (bl < 1) return;
-      bdx /= bl; bdz /= bl;
-      var crossAbs = Math.abs(ux * bdz - uz * bdx);
-      if (crossAbs < 0.08) return;
-      var bgap = lineGap(vMe, ow, bdx, bdz),
-        shift = Math.min(
-          Math.abs(bgap - (ow.thickness || 0) / 2),
-          Math.abs(bgap + (ow.thickness || 0) / 2),
-        ) / crossAbs;
-      if (butt == null || shift < butt) butt = shift;
-    });
-    return butt || 0;
-  }
-  /* A branch meeting a straight-through run is a T, not two separate mitred
-     elbows.  Keep the through wall square at the shared centre node and let
-     the branch butt into its outside face.  Without this ownership rule each
-     half of the through wall chased a different face of the branch, producing
-     the long triangular spike visible at the left side of a T-junction. */
-  if (manualJoin !== "miter" && manualJoin !== "mitre" && straightThroughAt(nodeId, ux, uz, except, atHeight)) return 0;
-  S.walls.forEach(function (ow) {
-    if (ow === except || !wallSolidAtNode(ow, nodeId, atHeight)) return;
-    var o = ow.a === nodeId ? ow.b : ow.b === nodeId ? ow.a : null;
-    if (o == null) return;
-    var p = S.nodes[nodeId],
-      q = S.nodes[o];
-    if (!p || !q) return;
-    var dx = q.x - p.x,
-      dz = q.z - p.z,
-      L = Math.hypot(dx, dz) || 1;
-    dx /= L;
-    dz /= L;
-    var cross = ux * dz - uz * dx;
-    if (Math.abs(cross) < 0.08) return; // in line with us: a split wall, not a corner
-    /* Where our face line meets the neighbour's. Both of the neighbour's face
-       lines are candidates; the corner picks the far one on the convex side
-       (the face runs PAST the node) and the near one on the concave side (it
-       stops short). At a right angle the cos term drops out and this is the
-       old +/- half-a-thickness; the difference is entirely the oblique case,
-       where the shift also depends on OUR half-thickness. */
-    var ho = (ow.thickness || 0) / 2,
-      cos = ux * dx + uz * dz,
-      gap = lineGap(vMe, ow, dx, dz),
-      t1 = (gap - ho + hm * side * cos) / cross,
-      t2 = (gap + ho + hm * side * cos) / cross,
-      concave = dx * nx + dz * nz > 0,
-      shift = concave ? Math.max(t1, t2) : Math.min(t1, t2);
-    if (best === null || shift > best) best = shift;
-  });
-  return best || 0;
-}
-/* (neighbour's line - mine) x (neighbour's direction): how far apart the two
-   walls' own lines run at the shared node, in the units the intersections
-   above are solved in. Zero unless a location line is in play. */
-function lineGap(vMe, ow, dx, dz) {
-  var vo = wallOffsetVec(ow);
-  if (!vo.x && !vo.z && !vMe.x && !vMe.z) return 0;
-  return (vo.x - vMe.x) * dz - (vo.z - vMe.z) * dx;
 }
 
 /* ---- equal-angle snap for a translated cut-corner wall -----------------
@@ -693,10 +616,11 @@ export function equalWallAngleTranslation(w, base, dx, dz) {
    each of its faces butts the through-wall on that side, and the outline
    picks up the two extra corners on the joint. Equal-thickness T's return
    null and keep the ordinary two-corner end. */
-export function tJoinStep(w, end, atHeight) {
+export function tJoinStep(w, end, atHeight, context) {
   if (!w || (end !== "a" && end !== "b")) return null;
   var nodeId = w[end];
-  if (wallJoinRole(w, nodeId) !== "branch") return null;
+  context ||= jointContext([nodeId]);
+  if (wallJoinRole(w, nodeId, context) !== "branch") return null;
   var g = wallGeom(w),
     h = (w.thickness || 0) / 2,
     lim = cutLimit(g),
@@ -705,8 +629,8 @@ export function tJoinStep(w, end, atHeight) {
   var leavingUx = end === "a" ? g.ux : -g.ux,
     leavingUz = end === "a" ? g.uz : -g.uz,
     sidePlus = end === "a" ? 1 : -1,
-    tp = clampShift(faceShiftAt(nodeId, leavingUx, leavingUz, sidePlus, w, h, atHeight), lim),
-    tm = clampShift(faceShiftAt(nodeId, leavingUx, leavingUz, -sidePlus, w, h, atHeight), lim);
+    tp = clampShift(faceShiftAt(nodeId, leavingUx, leavingUz, sidePlus, w, h, atHeight, context), lim),
+    tm = clampShift(faceShiftAt(nodeId, leavingUx, leavingUz, -sidePlus, w, h, atHeight, context), lim);
   if (Math.abs(tp - tm) < 0.5) return null;
   var nx = -g.uz,
     nz = g.ux;
@@ -744,16 +668,17 @@ export function tJoinStep(w, end, atHeight) {
    Kept separate from wallOutline because the step insertion changes the array
    length, and anything that wants to interpolate "the a end" or "the b end"
    (wallBandOutline) must key off corners, not positions in a spliced list. */
-function wallBaseCorners(w, atHeight) {
+function wallBaseCorners(w, atHeight, context) {
   var g = wallGeom(w),
     h = (w.thickness || 0) / 2,
     lim = cutLimit(g);
   if (!g || g.kind === "arc") return null;
+  context ||= jointContext([w.a, w.b]);
   function corner(s) {
     var nx = -g.uz * s,
       nz = g.ux * s,
-      ta = clampShift(faceShiftAt(w.a, g.ux, g.uz, s, w, h, atHeight), lim),
-      tb = clampShift(faceShiftAt(w.b, -g.ux, -g.uz, -s, w, h, atHeight), lim);
+      ta = clampShift(faceShiftAt(w.a, g.ux, g.uz, s, w, h, atHeight, context), lim),
+      tb = clampShift(faceShiftAt(w.b, -g.ux, -g.uz, -s, w, h, atHeight, context), lim);
     return [
       { x: g.a.x + g.ux * ta + nx * h, z: g.a.z + g.uz * ta + nz * h },
       { x: g.b.x - g.ux * tb + nx * h, z: g.b.z - g.uz * tb + nz * h },
@@ -766,10 +691,10 @@ function wallBaseCorners(w, atHeight) {
 export function wallOutline(w, atHeight) {
   var g = wallGeom(w);
   if (g && g.kind === "arc") return curvedWallOutline(w, w.thickness || 0, S.nodes);
-  var out = wallBaseCorners(w, atHeight);
+  var context = jointContext([w.a, w.b]), out = wallBaseCorners(w, atHeight, context);
   if (!out) return null;
-  var stepB = tJoinStep(w, "b", atHeight),
-    stepA = tJoinStep(w, "a", atHeight);
+  var stepB = tJoinStep(w, "b", atHeight, context),
+    stepA = tJoinStep(w, "a", atHeight, context);
   if (stepB) out.splice(2, 0, stepB.plusJoint, stepB.minusJoint);
   if (stepA) out.push(stepA.minusJoint, stepA.plusJoint);
   return out;
@@ -782,9 +707,11 @@ export function wallOutline(w, atHeight) {
    Built from the step-free base corners: a T-step inserts extra joints into
    wallOutline's polygon, so indexing THAT array assumes a length it no
    longer has (a b-end step shifted every later slot by two). */
-export function wallBandOutline(w, offset0, offset1, atHeight) {
+// `measure`: every corner as the face meeting point (the mitre), for dimensions
+export function wallBandOutline(w, offset0, offset1, atHeight, measure) {
   if (!w) return null;
-  var base = wallBaseCorners(w, atHeight),
+  var ctx = measure ? Object.assign(jointContext([w.a, w.b]), { measure: true }) : undefined,
+    base = wallBaseCorners(w, atHeight, ctx),
     h = (w.thickness || 0) / 2;
   if (!base) return null;
   function at(minus, plus, offset) {
@@ -825,10 +752,11 @@ export function wallCuts(w) {
     h = (w.thickness || 0) / 2,
     lim = cutLimit(g),
     ta = g.kind === "arc" ? wallTangentAt(w, 0) : { x: g.ux, z: g.uz },
-    tb = g.kind === "arc" ? wallTangentAt(w, g.L) : { x: g.ux, z: g.uz };
+    tb = g.kind === "arc" ? wallTangentAt(w, g.L) : { x: g.ux, z: g.uz },
+    context = jointContext([w.a, w.b]);
   return {
-    a: clampShift(faceShiftAt(w.a, ta.x, ta.z, s, w, h), lim),
-    b: clampShift(faceShiftAt(w.b, -tb.x, -tb.z, -s, w, h), lim),
+    a: clampShift(faceClearShift(w.a, ta.x, ta.z, s, w, h, undefined, context), lim),
+    b: clampShift(faceClearShift(w.b, -tb.x, -tb.z, -s, w, h, undefined, context), lim),
   };
 }
 /* The wall's length as measured along its reference face — the number the plan
@@ -868,10 +796,10 @@ export function pendingCuts(fromNode, pt) {
   var ux = dx / L,
     uz = dz / L,
     side = pendingSide(fromNode, ux, uz);
-  var cut = faceShiftAt(fromNode, ux, uz, side, null);
+  var cut = faceClearShift(fromNode, ux, uz, side, null);
   var hit = nodeAtPoint(pt);
   if (hit != null && hit !== fromNode)
-    cut += faceShiftAt(hit, -ux, -uz, -side, null);
+    cut += faceClearShift(hit, -ux, -uz, -side, null);
   return cut;
 }
 function pendingSide(nodeId, ux, uz) {
@@ -1044,20 +972,22 @@ export function contentBounds() {
   });
   S.items.forEach(function (it) {
     if (!fin(it.x) || !fin(it.z) || !fin(it.w) || !fin(it.d)) return;
-    var r = Math.max(it.w, it.d) / 2;
-    minx = Math.min(minx, it.x - r);
-    maxx = Math.max(maxx, it.x + r);
-    minz = Math.min(minz, it.z - r);
-    maxz = Math.max(maxz, it.z + r);
+    var angle=(it.rot||0)*Math.PI/180,c=Math.abs(Math.cos(angle)),s=Math.abs(Math.sin(angle));
+    var rx=(it.w*c+it.d*s)/2,rz=(it.w*s+it.d*c)/2;
+    minx = Math.min(minx, it.x - rx);
+    maxx = Math.max(maxx, it.x + rx);
+    minz = Math.min(minz, it.z - rz);
+    maxz = Math.max(maxz, it.z + rz);
     any = true;
   });
   (S.slabOpenings || []).forEach(function (o) {
     if (!fin(o.x) || !fin(o.z) || !(o.w > 0) || !(o.d > 0)) return;
-    var rr = Math.max(o.w, o.d) / 2;
-    minx = Math.min(minx, o.x - rr);
-    maxx = Math.max(maxx, o.x + rr);
-    minz = Math.min(minz, o.z - rr);
-    maxz = Math.max(maxz, o.z + rr);
+    var angle=(o.rot||0)*Math.PI/180,c=Math.abs(Math.cos(angle)),s=Math.abs(Math.sin(angle));
+    var rx=(o.w*c+o.d*s)/2,rz=(o.w*s+o.d*c)/2;
+    minx = Math.min(minx, o.x - rx);
+    maxx = Math.max(maxx, o.x + rx);
+    minz = Math.min(minz, o.z - rz);
+    maxz = Math.max(maxz, o.z + rz);
     any = true;
   });
   if (!any) {
@@ -1424,6 +1354,8 @@ export function anyRoomHidden() {
    Returns { items:{id:1}, walls:{id:1} }; both empty when nothing is hidden. */
 export function hiddenSets(rooms) {
   var res = { items: {}, walls: {} };
+  // pieces on a hidden user layer (js/user_layers.js) leave by the same door
+  hideUserLayerItems(res.items);
   if (!anyRoomHidden()) return res;
   rooms = rooms || detectRooms();
   var hid = rooms.filter(function (r) {

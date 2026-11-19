@@ -1,17 +1,15 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import {sourceFunctionText} from './helpers/source_function.mjs';
 import {frameFromPlane,framePoint} from '../js/core/frame.js';
 import {alignExtrusionToSupport} from '../js/cad_feature_tree.js';
 import {dimensionUnit} from '../js/sketch_equations.js';
 import {toleranceFields,makeDimensionTolerance} from '../js/core/dimension_tolerance.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function load(name, context) {
-  let start=source.indexOf(`function ${name}(`);
-  if(source.slice(start-6,start)==='async ')start-=6;
-  const end=source.indexOf('\n}',start)+2;
-  return vm.runInNewContext(`(${source.slice(start,end)})`,{cloneData:structuredClone,toleranceFields,makeDimensionTolerance,...context});
+  return vm.runInNewContext(`(${sourceFunctionText(source,name)})`,{cloneData:structuredClone,toleranceFields,makeDimensionTolerance,...context});
 }
 
 test('camera view changes preserve an active principal-plane model sketch',()=>{
@@ -74,7 +72,7 @@ test('explicit new sketch on the same face preserves the earlier profile and own
  });
  assert.equal(attach(false),true);
  assert.equal(E.def.sketches.length,1);
- assert.equal(attach(true),true);
+ assert.equal(attach(true,false),true);
  assert.equal(E.def.sketches.length,2);
  assert.equal(E.def.activeSketch,'terminals');
  assert.equal(E.def.sketches[0],old);
@@ -133,15 +131,20 @@ test('editing an offset plane keeps its parent despite a retained face selection
 test('Copy face boundary prefers the selected circular edge over a planar face',()=>{
  const edge={kind:'edge',persistentId:'rear-inner-circle',descriptor:{curve:'circle'}};
  const sketch={support:{kind:'face',descriptor:{surface:'plane'}}};
- let chosen;
+ const E={def:{},authoring:{phase:'sketch'},topologySelection:[edge,sketch.support]};
+ let chosen,conversions=0;
  const convert=load('openFaceBoundary',{
-  E:{def:{},authoring:{phase:'sketch'},topologySelection:[edge]},
+  E,selectedModelEdges:load('selectedModelEdges',{E}),
   ensureSketch:()=>sketch,selectedSketchableFace:()=>sketch.support,
   openCircularConversion:(actualSketch,actualEdge)=>{chosen={actualSketch,actualEdge};},
+  convertModelEdgesToSketch:()=>{conversions++;},
  });
  convert();
  assert.equal(chosen.actualSketch,sketch);
  assert.equal(chosen.actualEdge,edge);
+ assert.equal(conversions,0);
+ chosen=null;E.topologySelection.push({kind:'edge',persistentId:'straight-edge',descriptor:{curve:'line'}});
+ convert();assert.equal(chosen,null);assert.equal(conversions,1,'multiple selected edges use Convert Entities');
  const other={kind:'edge',persistentId:'front-circle',descriptor:{curve:'circle',radius:1,origin:{z:0}}};
  let form;
  const open=load('openCircularConversion',{

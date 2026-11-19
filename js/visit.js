@@ -107,7 +107,9 @@ export async function goHome() {
 }
 
 export function initVisit() {
+  let sceneRequestedOwner = null;
   net.on("data", ({ from, data }) => {
+    if (!data || !net.acceptRemote(data.k, from, net.remoteContext())) return;
     if (data.k === "scene_req") {
       // I'm the owner being asked for my layout — only answer with MY home
       // (never re-share someone else's apartment I happen to be visiting)
@@ -129,6 +131,18 @@ export function initVisit() {
           console.error("live scene failed to load", e);
         }
       }
+    }
+  });
+
+  // The first request may precede admission; ask once membership is visible.
+  net.on("room", () => {
+    if (!VISIT.friend || !net.NET.joined || !net.NET.peers[VISIT.friend.code]) {
+      sceneRequestedOwner = null;
+      return;
+    }
+    if (sceneRequestedOwner !== VISIT.friend.code) {
+      sceneRequestedOwner = VISIT.friend.code;
+      net.sendData({ k: "scene_req" }, VISIT.friend.code);
     }
   });
 

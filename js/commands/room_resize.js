@@ -5,6 +5,17 @@ import { wallLayerBands } from '../wall_types.js';
 
 const fail = reason => ({ ok: false, reason });
 const near = (a, b) => Math.abs(a - b) < 1e-6;
+function crossesBounds(a,b,bounds,pad){
+  let lo=0,hi=1;
+  for(const axis of ['x','z']){
+    const lower=bounds[axis+'0']-pad,upper=bounds[axis+'1']+pad,d=b[axis]-a[axis];
+    if(Math.abs(d)<1e-12){if(a[axis]<=lower||a[axis]>=upper)return false;continue;}
+    const t0=(lower-a[axis])/d,t1=(upper-a[axis])/d;
+    lo=Math.max(lo,Math.min(t0,t1));hi=Math.min(hi,Math.max(t0,t1));
+    if(lo>=hi)return false;
+  }
+  return lo<hi;
+}
 
 export const roomResizeCommand = Object.freeze({
   id: 'room.resize_exact',
@@ -69,7 +80,8 @@ export const roomResizeCommand = Object.freeze({
       const touchesFixedCorner = own.some(w => w.a === wall.a || w.a === wall.b || w.b === wall.a || w.b === wall.b);
       const pad = touchesFixedCorner ? -1e-6 : margin;
       if (Math.min(g.a.x,g.b.x) < bounds.x1 + pad && Math.max(g.a.x,g.b.x) > bounds.x0 - pad &&
-          Math.min(g.a.z,g.b.z) < bounds.z1 + pad && Math.max(g.a.z,g.b.z) > bounds.z0 - pad)
+          Math.min(g.a.z,g.b.z) < bounds.z1 + pad && Math.max(g.a.z,g.b.z) > bounds.z0 - pad &&
+          crossesBounds(g.a,g.b,bounds,pad))
         return fail('RESIZE_NEIGHBOUR');
     }
     const clear = {x0:measurement.interiorBounds.x0+bounds.x0-x0,x1:measurement.interiorBounds.x1+bounds.x1-x1,

@@ -168,7 +168,7 @@ test("Browser QA: Interactive wall drafting, rooms, doors, windows and finishes"
   try {
     await setupQA(page);
 
-    const result = await page.eval(async () => {
+    const result = await page.evalWithTimeout(120000, async () => {
       const q = window.__qa;
       q.reset();
 

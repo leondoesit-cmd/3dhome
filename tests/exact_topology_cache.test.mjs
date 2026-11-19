@@ -153,6 +153,18 @@ test('a zero attached-face offset stamp matches documents saved before supportOf
  assert.equal(verifiedExactTopology(document,current).size,0,'a real offset still expires the stamp');
 });
 
+test('a Hole tool stamped holeOffsetNormal matches Holes saved before the flag existed unless it moves the cut',()=>{
+ const document={parameters:{},sketches:[{id:'s',points:[],entities:[],constraints:[]}]};
+ const tool=params=>[{id:'h:tool',type:'holeTool',params:{sketchId:'s',diameter:.5,from:0,to:-1,...params},inputs:[]}];
+ for(const legacy of [{},{direction:'reverse'},{baseOffset:1},{baseOffset:1,direction:'forward'}]){
+  document.exactTopologyCache=captureExactTopology(document,tool(legacy),{results:new Map([['h:tool',{shape:{},topology:[{persistentId:'h:tool:face',kind:'face'}]}]])});
+  assert.equal(verifiedExactTopology(document,tool({...legacy,holeOffsetNormal:true})).size,1,JSON.stringify(legacy)+' is the same geometry');
+ }
+ // A reversed cut off a support face now starts on the other side of it.
+ document.exactTopologyCache=captureExactTopology(document,tool({baseOffset:1,direction:'reverse'}),{results:new Map([['h:tool',{shape:{},topology:[{persistentId:'h:tool:face',kind:'face'}]}]])});
+ assert.equal(verifiedExactTopology(document,tool({baseOffset:1,direction:'reverse',holeOffsetNormal:true})).size,0,'a moved Hole still expires the stamp');
+});
+
 test('old native implementation topology is rejected while unchanged upstream remains verified',()=>{
  const document={sketches:[]},features=[{id:'shell',type:'shell',params:{}},{id:'blend',type:'fillet',params:{radius:.6},inputs:['shell']}];
  const run={results:new Map(features.map(f=>[f.id,{shape:{},topology:[{persistentId:f.id+':face',kind:'face'}]}]))};

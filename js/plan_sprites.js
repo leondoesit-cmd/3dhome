@@ -9,31 +9,51 @@
    Baking is never on the paint path. itemSprite() answers from the cache or
    returns a fallback (the piece's previous picture stretched to its new size,
    or null → the caller draws its line glyph) and queues the bake. The queue
-   runs in idle slices of a few milliseconds, newest request per piece wins
+   runs one piece at a time in idle moments, newest request per piece wins
    (a resize drag asks for a new size every pointermove and only the last one
-   matters), and "planSpritesReady" is dispatched once per slice that
-   produced something, so the plan repaints once, not once per picture.
+   matters), and "planSpritesReady" is dispatched at most every NOTE_MS while
+   pictures land, so the plan repaints once per batch, not once per picture.
+   Several pieces are baked together (bakeBatch()), sharing one compile and
+   one GPU wait; how many comes from the device budget (js/device_budget.js).
+
+   One bake is several short steps, not one long one (see bakeBatch()): the 2k
+   library bitmaps are shrunk off the main thread and the pipelines compiled
+   with compileAsync before the piece is drawn and read back in one short
+   synchronous step.
 
    Frame: the camera looks down -y with up = -z, so screen right is +x and
    screen down is +z — exactly the frame drawItem() draws in after rotating,
    with the piece's front (+z) toward the bottom edge. */
 import { THREE } from "./three_lazy.js";
-import { offscreenGL, offscreenDead, useRig } from "./offscreen_gl.js";
-import { FURN, buildItem } from "./furniture.js";
+import { offscreenGL, offscreenDead, offscreenIdle, useRig, shrinkAll, useSmallTextures, setSpritesUrgent } from "./offscreen_gl.js";
+import { FURN, buildItem, itemVSpan } from "./furniture.js";
+import { rememberVSpan, seedVSpan, spanOfBox, vSpanKeyOf } from "./furniture_api.js";
+import { deviceBudget, noteBakeMs, adaptBatch } from "./device_budget.js";
+import { PictureQueue, pickBatch, storeCounted, quietStep } from "./plan_sprite_batch.js";
 import { clearGroup } from "./primitives.js";
+import { pictureMaterialLoads } from "./pbr_material.js";
+import { S } from "./state.js";
+import { isPresentation } from "./plan_style.js";
 import { spriteKey, spriteBucket, SPRITE_BUCKETS, SPRITE_VERSION } from "./plan_sprite_key.js";
 
-const PIXEL_BUDGET = 48e6; // ~190 MB of RGBA at most, usually far less
-const SLICE_MS = 8,
-  SLICE_BAKES = 3;
+// cache size from the shared device budget (js/device_budget.js): ~64-190 MB
+// of RGBA at most, usually far less
+function pixelBudget() {
+  return deviceBudget().spritePixelBudget;
+}
+const NOTE_MS = 150; // at most one plan repaint this often while pictures land
 
-/* What a key is made of beyond the item itself: `texRev` moves when a custom
-   texture finishes loading (a picture baked before it is stale), and a custom
-   model's definition hash moves when the modeler edits it. Built-in models
-   change only with the code, which SPRITE_VERSION covers — so a key is stable
-   across sessions and a picture can be kept on disk. */
-let texRev = 0;
+/* What a key is made of beyond the item itself: a custom model's definition
+   hash, which moves when the modeler edits it. Built-in models change only
+   with the code, which SPRITE_VERSION covers — so a key is stable across
+   sessions and a picture can be kept on disk.
+   Textures still loading are NOT in the key (a load counter there made every
+   texture that landed re-bake every piece, and made every picture on disk
+   miss in the next session): a picture baked while any load was pending is
+   marked provisional instead (see prepare()), is never kept on disk, and is
+   dropped when a load lands. */
 const defSigs = new Map();
+const spriteDefaults = new Map();
 function hashStr(str) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619) >>> 0;
@@ -50,17 +70,34 @@ function defSig(type) {
   return sig;
 }
 function keyFor(it, bucket) {
-  return spriteKey(it, bucket, texRev) + "|" + defSig(it.type);
+  const definition = it.definitionId && S.parametric?.definitions?.[it.definitionId];
+  return spriteKey(it, bucket, 0, FURN[it.type], definition, spriteDefaults) + "|" + defSig(it.type);
 }
 const cache = new Map(); // key -> sprite (Map order = LRU order)
 const lastById = new Map(); // item id -> its most recent sprite, any key
-const queue = new Map(); // item id -> {key, it, bucket, pri}
+const queue = new PictureQueue();
 const failed = new Set(); // keys whose model would not render: never retried
 let pixels = 0,
-  scheduled = false;
+  // pieces per bake batch, adapted per slice (pump()), at most the budget's
+  batchSize = 0,
+  sliceLongMs = 0,
+  scheduled = false,
+  baking = false,
+  // bumped by every texture load (invalidateTexturedSprites): a provisional
+  // bake that was in flight across one missed that invalidation
+  texGen = 0;
 
 function now() {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+
+/* Bumped whenever an earlier answer of itemSprite() may have changed without
+   any item changing: the kept pictures' index loaded, a texture landed, the
+   catalogue changed, the renderer came up. The prewarm pass
+   (js/plan_sprite_prewarm.js) repeats only when this or its inputs moved. */
+let generation = 0;
+export function spriteGeneration() {
+  return generation;
 }
 
 function remember(key, sp) {
@@ -68,13 +105,7 @@ function remember(key, sp) {
   cache.set(key, sp);
 }
 function store(key, sp) {
-  remember(key, sp);
-  pixels += sp.px;
-  while (pixels > PIXEL_BUDGET && cache.size > 1) {
-    const oldest = cache.keys().next().value;
-    pixels -= cache.get(oldest).px;
-    cache.delete(oldest);
-  }
+  pixels = storeCounted(cache, key, sp, pixels, pixelBudget());
 }
 
 /* The picture for `it` at the current zoom, or the best stand-in, or null.
@@ -87,11 +118,12 @@ export function itemSprite(it, SC, dpr, opts) {
   const maxPx = Math.max(it.w || 0, it.d || 0) * SC * (dpr || 1);
   const bucket = spriteBucket(maxPx);
   const key = keyFor(it, bucket);
+  if (quietWake && urgentWork()) quietWake();
   const hit = cache.get(key);
   if (hit) {
     remember(key, hit);
     if (it.id != null) lastById.set(it.id, hit);
-    queue.delete(it.id);
+    queue.cancel(String(it.id ?? key));
     return hit;
   }
   // the same piece at another zoom: better than a stretched stand-in
@@ -101,14 +133,14 @@ export function itemSprite(it, SC, dpr, opts) {
     if (other) { near = other; break; }
   }
   if (persisted.has(key)) fromDisk(key);
-  else if (!(opts && opts.noQueue) && !failed.has(key)) enqueue(it, bucket, key, maxPx);
+  else if (!(opts && opts.noQueue) && !failed.has(key)) enqueue(it, bucket, key, maxPx + ((opts && opts.boost) || 0));
   return near || (it.id != null ? lastById.get(it.id) : null) || null;
 }
 
-function enqueue(it, bucket, key, pri) {
-  const id = it.id != null ? it.id : key;
-  const cur = queue.get(id);
-  if (cur && cur.key === key) return;
+function enqueue(it, bucket, key, pri, ahead) {
+  const id = (it.id != null ? it.id : key) + (ahead ? "|ahead" : "");
+  const cur = queue.get(key)?.members.get(id);
+  if (cur && cur.pri >= pri) return;
   let clone;
   try {
     clone = JSON.parse(JSON.stringify(it));
@@ -118,46 +150,192 @@ function enqueue(it, bucket, key, pri) {
   clone.x = 0;
   clone.z = 0;
   clone.rot = 0;
-  queue.set(id, { key: key, it: clone, bucket: bucket, pri: pri });
+  queue.request(id, { key, it: clone, bucket, pri, ahead: !!ahead });
   schedule();
 }
 
-function schedule() {
-  if (scheduled || !queue.size) return;
-  scheduled = true;
-  if (typeof requestIdleCallback === "function") requestIdleCallback(pump, { timeout: 150 });
-  else setTimeout(pump, 16);
+/* The next zoom step's picture, made ahead of time on devices with room for
+   it (js/plan_sprite_prewarm.js asks): zooming in then finds it ready. It
+   waits behind every picture someone is looking at, in quiet moments only,
+   and is its own queue entry, so it never replaces the piece's current one. */
+export function prebakeSprite(it, bucket) {
+  if (!it || offscreenDead() || typeof document === "undefined") return;
+  const key = keyFor(it, bucket);
+  if (cache.has(key) || persisted.has(key) || failed.has(key)) return;
+  enqueue(it, bucket, key, -1, true);
+}
+// anything queued that a viewer is waiting for (not only pictures ahead)
+function waitedFor() {
+  for (const req of queue.values()) if (!req.ahead) return true;
+  return false;
+}
+let bakingCurrent = false;
+export function currentPicturesPending() {
+  return !offscreenDead() && (bakingCurrent || waitedFor());
 }
 
-function pump() {
+// A replacement apartment can arrive while the boot scene is still queued.
+export function retainSpriteRequests(items) {
+  if (!queue.size) return;
+  const ids = new Set((items || []).map(it => it?.id));
+  for (const group of queue.values()) {
+    for (const [slot, req] of group.members) {
+      if (!ids.has(req.it.id)) queue.cancel(slot);
+    }
+  }
+}
+
+const idle = typeof requestIdleCallback === "function"
+  ? function (fn) { requestIdleCallback(fn, { timeout: 150 }); }
+  : function (fn) { setTimeout(fn, 16); };
+function idleTick() {
+  return new Promise(function (resolve) { idle(resolve); });
+}
+
+/* Pictures someone is looking at (the presentation plan on screen) bake at
+   once and go before the library tiles' warm-up; pictures made ahead of
+   time (js/plan_sprite_prewarm.js, while the technical plan is shown) wait
+   for a quiet moment — no input for a while, a real idle period — and stop
+   for the next pointer press. */
+function urgentWork() {
+  return isPresentation() && (typeof document === "undefined" || document.visibilityState !== "hidden");
+}
+let lastInput = -Infinity;
+if (typeof window !== "undefined") {
+  const touch = function () { lastInput = now(); };
+  ["pointerdown", "wheel", "keydown", "touchstart"].forEach(function (ev) {
+    window.addEventListener(ev, touch, { capture: true, passive: true });
+  });
+  window.addEventListener("pointermove", function (e) { if (e.buttons) touch(); }, { capture: true, passive: true });
+}
+// set while pump() waits for a quiet moment: a paint of the presentation
+// plan wakes it at once instead of leaving it parked until the page is idle
+let quietWake = null;
+function quietSlot() {
+  return new Promise(function (resolve) {
+    let done = false;
+    const finish = function () {
+      if (done) return;
+      done = true;
+      quietWake = null;
+      resolve();
+    };
+    quietWake = finish;
+    const ask = function () {
+      if (done) return;
+      // urgent: the user switched to the presentation plan meanwhile
+      const step = quietStep({ urgent: urgentWork(), now: now(), lastInput: lastInput });
+      if (step.go) return void finish();
+      if (step.waitMs) return void setTimeout(ask, step.waitMs);
+      const resume = function () {
+        if (quietStep({ urgent: urgentWork(), now: now(), lastInput }).waitMs) ask();
+        else finish();
+      };
+      if (typeof requestIdleCallback !== "function") return void setTimeout(resume, 50);
+      requestIdleCallback(resume, { timeout: 80 });
+    };
+    ask();
+  });
+}
+
+let readingIndex = false;
+function schedule() {
+  if (readingIndex || scheduled || baking || !queue.size) return;
+  scheduled = true;
+  // Start backend/PMREM initialization on the first cold miss. thumbsReady
+  // resumes this queue after initialization; disk hits never enter here.
+  if (offscreenGL()) idle(pump);
+  else {
+    scheduled = false;
+    if (offscreenDead()) queue.clear();
+  }
+}
+
+function announce() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("planSpritesReady"));
+}
+// One repaint for a burst of pictures arriving on their own (from disk).
+let notePending = false;
+function announceSoon() {
+  if (notePending) return;
+  notePending = true;
+  setTimeout(function () {
+    notePending = false;
+    announce();
+  }, NOTE_MS / 3);
+}
+
+async function pump() {
   scheduled = false;
-  const g = offscreenGL();
-  if (!g) {
+  if (!offscreenGL()) {
     // still coming up: "thumbsReady" re-runs us. Dead: drop the queue, the
     // plan keeps its glyphs.
     if (offscreenDead()) queue.clear();
     return;
   }
-  const t0 = now();
-  let made = 0;
-  while (queue.size && made < SLICE_BAKES && now() - t0 < SLICE_MS) {
-    let bestId = null,
-      best = null;
-    queue.forEach(function (req, id) {
-      if (!best || req.pri > best.pri) { best = req; bestId = id; }
-    });
-    queue.delete(bestId);
-    if (cache.has(best.key)) continue;
-    const sp = bake(g, best.it, best.bucket);
-    if (sp) {
-      store(best.key, sp);
-      if (best.it.id != null) lastById.set(best.it.id, sp);
-      if (persistable(best.it)) persist(best.key, sp);
-      made++;
-    } else failed.add(best.key);
+  baking = true;
+  let made = 0,
+    noted = now();
+  try {
+    while (queue.size && !offscreenDead()) {
+      const urgent = urgentWork() && waitedFor();
+      if (!urgent) {
+        // parked: the library tiles' warm-up may use the renderer meanwhile
+        setSpritesUrgent(false);
+        await quietSlot();
+        if (!queue.size || offscreenDead()) break;
+      }
+      // the plan's pictures go before the library tiles' warm-up, even those
+      // made ahead of time: a closed panel's tiles are what nobody is about to
+      // look at, and the warm-up's readback stalls on the GPU work of a bake
+      // (a 200+ ms task when the two met). Held only while a batch bakes.
+      setSpritesUrgent(true);
+      // the best few requests (highest priority first), one bake per picture
+      const top = Math.max(1, deviceBudget().bakesPerSlice);
+      batchSize = Math.min(batchSize || top, top);
+      const batch = pickBatch(queue, batchSize, function (key) { return cache.has(key); });
+      if (!batch.length) continue;
+      sliceLongMs = 0;
+      bakingCurrent = batch.some(b => !b.req.ahead);
+      const gen = texGen;
+      const sps = await bakeBatch(batch.map(function (b) { return b.req; }));
+      bakingCurrent = false;
+      // a long task this slice caused halves the next batch, a clean one grows it back
+      batchSize = adaptBatch(batchSize, { longTaskMs: sliceLongMs }, top);
+      batch.forEach(function (b, i) {
+        const sp = sps[i], best = b.req;
+        const show = function () {
+          for (const req of best.members.values()) if (req.it.id != null) lastById.set(req.it.id, sp);
+        };
+        if (sp && sp.prov && gen !== texGen) {
+          // a texture landed while this one was baking: its invalidation ran
+          // before the picture existed, so caching it would keep the fallback
+          // look for good. Show it as the stand-in and bake it again.
+          show();
+          for (const [slot, req] of best.members) if (!queue.slots.has(slot)) queue.request(slot, req);
+        } else if (sp) {
+          store(best.key, sp);
+          show();
+          if (persistable(best.it, sp)) persist(best.key, sp);
+          made++;
+        } else if (!offscreenDead()) failed.add(best.key);
+      });
+      if (made && now() - noted > NOTE_MS) {
+        announce();
+        made = 0;
+        noted = now();
+      }
+      if (urgentWork()) await idleTick(); // background batches already yield in quietSlot
+    }
+  } finally {
+    bakingCurrent = false;
+    baking = false;
+    setSpritesUrgent(false);
   }
-  if (made && typeof window !== "undefined") window.dispatchEvent(new Event("planSpritesReady"));
-  if (queue.size) schedule();
+  if (made) announce();
+  if (offscreenDead()) queue.clear();
+  else schedule();
+  flushPersist();
 }
 
 /* Frame the piece: its bounding box united with its nominal footprint (a
@@ -172,62 +350,204 @@ export function spriteRect(box, w, d) {
   return { x0: x0 - pad, x1: x1 + pad, z0: z0 - pad, z1: z1 + pad };
 }
 
-function bake(g, it, bucket) {
-  let out = null;
+/* Texture size for a picture `bucket` px across: a material's bitmap covers
+   at most the whole piece, so it never needs more pixels than the picture. */
+function texPx(bucket) {
+  return bucket <= 256 ? 256 : 512;
+}
+
+// Points the camera (and the shadow-casting key light) straight down at `rect`.
+function aim(g, box, rect, L) {
+  const rw = rect.x1 - rect.x0,
+    rd = rect.z1 - rect.z0,
+    cx = (rect.x0 + rect.x1) / 2,
+    cz = (rect.z0 + rect.z1) / 2,
+    cam = g.cam;
+  cam.left = -rw / 2;
+  cam.right = rw / 2;
+  cam.top = rd / 2;
+  cam.bottom = -rd / 2;
+  cam.near = 1;
+  cam.far = box.max.y - Math.min(0, box.min.y) + 1000;
+  cam.position.set(cx, box.max.y + 500, cz);
+  cam.up.set(0, 0, -1);
+  cam.lookAt(cx, 0, cz);
+  cam.updateProjectionMatrix();
+  cam.updateMatrixWorld();
+  // the shadow camera must cover the whole piece, however big
+  const key = g.rigs.sprite.children.find(function (c) { return c.isDirectionalLight && c.castShadow; });
+  if (key) {
+    const r = L * 0.75 + 60,
+      sc = key.shadow.camera;
+    key.position.set(cx - 160, box.max.y + 520, cz - 200);
+    key.target.position.set(cx, 0, cz);
+    key.target.updateMatrixWorld();
+    sc.left = -r; sc.right = r; sc.top = r; sc.bottom = -r;
+    sc.updateProjectionMatrix();
+  }
+}
+/* Every picture is drawn into the top-left W x H of one canvas the size of
+   the largest bucket, not into a canvas resized to each piece: a resize
+   reallocates the drawing buffer, ~30-60 ms on the WebGL2 fallback, and
+   every piece has a size of its own. */
+const CANVAS_PX = SPRITE_BUCKETS[SPRITE_BUCKETS.length - 1];
+// true when it had to resize (the library tiles draw at their own size)
+function fitCanvas(g) {
+  const cv = g.r.domElement;
+  if (cv.width === CANVAS_PX && cv.height === CANVAS_PX) return false;
+  g.r.setSize(CANVAS_PX, CANVAS_PX, false);
+  return true;
+}
+function setUp(g, box, rect, L, W, H) {
+  aim(g, box, rect, L);
+  useRig(g, "sprite");
+  fitCanvas(g);
+  g.r.setViewport(0, 0, W, H);
+}
+
+/* Plain custom texture caches have no per-build load promise. Keep their
+   conservative invalidation until the images arrive. */
+function texturesPending() {
+  return [S.customTexCache, S.customBumpCache].some(function (c) {
+    if (!c) return false;
+    for (const k in c) if (c[k] && !c[k].image) return true;
+    return false;
+  });
+}
+const LOAD_WAIT_MS = 3000;
+function wait(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+/* Pictures in batches, in steps that each keep the main thread short. Each
+   piece is built off-scene in a task of its own and its big bitmaps shrunk
+   off the main thread (to small per-picture textures, freed after the
+   readback); then the whole batch's pipelines are compiled with ONE
+   compileAsync and ONE wait for the GPU to drain, and each piece is put
+   under g.root for one draw and the same-task readback, again one task per
+   piece. The fixed waits (compile, drain, idle tick) are paid once per batch
+   instead of once per piece; the pictures are the ones a single bake makes.
+   The renderer is shared with the library tiles, which may use it in any of
+   the gaps, so camera, rig and size are set again right before each draw.
+   Resolves to one sprite (or null when the piece will not render) per
+   request, in order. */
+function yieldTask() {
+  return new Promise(function (resolve) { setTimeout(resolve, 0); });
+}
+async function prepare(it, bucket) {
+  const model = new THREE.Group(), px = texPx(bucket);
+  const p = { it: it, bucket: bucket, model: model, px: px, proxies: [], syncMs: 0 };
   try {
-    clearGroup(g.root);
-    buildItem(g.root, it);
-    if (!g.root.children.length) return null;
-    g.root.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(g.root);
-    if (box.isEmpty() || !isFinite(box.min.x) || !isFinite(box.max.x)) return null;
+    let t = now();
+    const build = () => buildItem(model, it);
+    let loading = pictureMaterialLoads(build);
+    // A library material it uses still loading means the build fell back to
+    // the material's old preset: wait for the bitmaps (briefly) and build
+    // again, rather than bake a picture that is stale as soon as they land.
+    for (let i = 0; loading && i < 2; i++) {
+      p.syncMs += now() - t;
+      await Promise.race([loading, wait(LOAD_WAIT_MS)]);
+      t = now();
+      clearGroup(model);
+      loading = pictureMaterialLoads(build);
+    }
+    p.prov = !!loading || texturesPending();
+    if (!model.children.length) return release(p);
+    model.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(model);
+    // the plan needs the piece's height too (hung above the cut or not):
+    // this build is the one baseVSpan() would make, so hand it over
+    rememberVSpan(it, box);
+    p.vk = vSpanKeyOf(it);
+    p.vs = spanOfBox(box, it);
+    if (box.isEmpty() || !isFinite(box.min.x) || !isFinite(box.max.x)) return release(p);
     const rect = spriteRect(box, it.w || 0, it.d || 0);
     const rw = rect.x1 - rect.x0,
       rd = rect.z1 - rect.z0,
       L = Math.max(rw, rd);
-    const W = Math.max(8, Math.round((bucket * rw) / L)),
-      H = Math.max(8, Math.round((bucket * rd) / L));
-    const cx = (rect.x0 + rect.x1) / 2,
-      cz = (rect.z0 + rect.z1) / 2,
-      cam = g.cam;
-    cam.left = -rw / 2;
-    cam.right = rw / 2;
-    cam.top = rd / 2;
-    cam.bottom = -rd / 2;
-    cam.near = 1;
-    cam.far = box.max.y - Math.min(0, box.min.y) + 1000;
-    cam.position.set(cx, box.max.y + 500, cz);
-    cam.up.set(0, 0, -1);
-    cam.lookAt(cx, 0, cz);
-    cam.updateProjectionMatrix();
-    cam.updateMatrixWorld();
-    // the shadow camera must cover the whole piece, however big
-    const key = g.rigs.sprite.children.find(function (c) { return c.isDirectionalLight && c.castShadow; });
-    if (key) {
-      const r = L * 0.75 + 60,
-        sc = key.shadow.camera;
-      key.position.set(cx - 160, box.max.y + 520, cz - 200);
-      key.target.position.set(cx, 0, cz);
-      key.target.updateMatrixWorld();
-      sc.left = -r; sc.right = r; sc.top = r; sc.bottom = -r;
-      sc.updateProjectionMatrix();
-    }
-    useRig(g, "sprite");
-    g.r.setSize(W, H, false);
-    g.r.render(g.scene, cam);
-    const c = document.createElement("canvas");
-    c.width = W;
-    c.height = H;
-    const cx2 = c.getContext("2d");
-    cx2.drawImage(g.r.domElement, 0, 0, W, H, 0, 0, W, H);
-    inkOutline(c, cx2, Math.max(1, Math.round(bucket / 160)));
-    out = { img: c, rect: rect, w: it.w || 0, d: it.d || 0, px: W * H };
+    Object.assign(p, { box: box, rect: rect, L: L,
+      W: Math.max(8, Math.round((bucket * rw) / L)), H: Math.max(8, Math.round((bucket * rd) / L)) });
+    p.syncMs += now() - t;
+    await shrinkAll(model, px, false);
+    return p;
   } catch (e) {
-    out = null;
-  } finally {
-    clearGroup(g.root); // one-shot model: free its GPU buffers now
+    return release(p);
   }
-  return out;
+}
+function release(p) {
+  if (!p) return null;
+  clearGroup(p.model); // one-shot model: free its GPU buffers now
+  p.proxies.forEach(function (x) { x.dispose(); }); // and its small textures' GPU copies
+  p.proxies = [];
+  return null;
+}
+// One piece's draw and readback, in one short synchronous step.
+function drawPrepared(g, p) {
+  setUp(g, p.box, p.rect, p.L, p.W, p.H);
+  g.root.add(p.model);
+  const t = now();
+  try {
+    g.r.render(g.scene, g.cam);
+    const c = document.createElement("canvas");
+    c.width = p.W;
+    c.height = p.H;
+    const cx2 = c.getContext("2d");
+    cx2.drawImage(g.r.domElement, 0, 0, p.W, p.H, 0, 0, p.W, p.H);
+    inkOutline(c, cx2, Math.max(1, Math.round(p.bucket / 160)));
+    return { img: c, rect: p.rect, w: p.it.w || 0, d: p.it.d || 0, px: p.W * p.H, prov: p.prov, vk: p.vk, vs: p.vs };
+  } finally {
+    g.root.remove(p.model);
+    const drawMs = now() - t;
+    noteBakeMs(p.syncMs + drawMs);
+    // the longest background step of this slice: pump() sizes the next batch by it
+    if (!urgentWork()) sliceLongMs = Math.max(sliceLongMs, drawMs, p.syncMs);
+    g.r.setViewport(0, 0, CANVAS_PX, CANVAS_PX); // the next user of the canvas gets all of it
+  }
+}
+async function bakeBatch(reqs) {
+  const preps = [];
+  for (let i = 0; i < reqs.length; i++) {
+    if (i) await yieldTask(); // each build a task of its own
+    preps.push(await prepare(reqs[i].it, reqs[i].bucket));
+  }
+  const live = preps.filter(Boolean);
+  const out = preps.map(function () { return null; });
+  if (!live.length) return out;
+  try {
+    let g = offscreenGL();
+    if (!g) return out;
+    if (fitCanvas(g)) {
+      await idleTick(); // a resize is a task of its own
+      g = offscreenGL();
+      if (!g) return out;
+    }
+    const holder = new THREE.Group();
+    live.forEach(function (p) {
+      p.proxies = useSmallTextures(p.model, p.px);
+      holder.add(p.model);
+    });
+    setUp(g, live[0].box, live[0].rect, live[0].L, live[0].W, live[0].H);
+    try {
+      await g.r.compileAsync(holder, g.cam, g.scene);
+    } finally {
+      live.forEach(function (p) { holder.remove(p.model); });
+    }
+    await offscreenIdle(g);
+    for (let i = 0; i < preps.length; i++) {
+      const p = preps[i];
+      if (!p) continue;
+      if (reqs[i].ahead) await idleTick();
+      else await yieldTask(); // this batch already received a quiet slot
+      g = offscreenGL();
+      if (!g) break;
+      try { out[i] = drawPrepared(g, p); } catch (e) { out[i] = null; }
+    }
+    return out;
+  } catch (e) {
+    return out;
+  } finally {
+    preps.forEach(release);
+  }
 }
 
 /* A thin dark contour round the piece, drawn UNDER it: the silhouette in ink,
@@ -255,6 +575,11 @@ function inkOutline(c, ctx, px) {
    `timeoutMs`), for exports that must not contain a glyph stand-in. */
 export function spritesSettled(items, SC, dpr, timeoutMs) {
   const until = now() + (timeoutMs || 4000);
+  // the plan draws a piece whose height is not yet measured as its glyph:
+  // measure them all now (synchronously is fine for an export)
+  (items || []).forEach(function (it) {
+    try { itemVSpan(it); } catch (e) { /* drawn as floor-standing */ }
+  });
   return new Promise(function (resolve) {
     (function poll() {
       let missing = 0;
@@ -277,7 +602,7 @@ export function spritesSettled(items, SC, dpr, timeoutMs) {
    load; decoding the same pictures from disk costs a fraction of that and no
    GPU at all. Pieces with a custom texture stay memory-only — the texture may
    not have loaded when the picture was taken. */
-const DB_NAME = "home3d_plan_sprites", STORE = "sprites", MAX_PERSIST = 600;
+const DB_NAME = "home3d_plan_sprites", STORE = "sprites";
 const persisted = new Map(); // key -> {blob, rect, w, d}
 const decoding = new Set();
 function openDB() {
@@ -289,14 +614,48 @@ function openDB() {
     req.onerror = function () { reject(req.error); };
   });
 }
-function persistable(it) {
-  return !it.tex && !it.texParts;
+/* A textured piece's texture is part of its key (tex / texParts are shape
+   fields, js/plan_sprite_key.js), and a picture baked while any texture was
+   still loading is provisional and never reaches here, so a textured
+   picture that is not provisional is as stable as any other. */
+function persistable(it, sp) {
+  return !!it && !(sp && sp.prov);
 }
+/* toBlob reads the picture back from the GPU, and while anything else is
+   compiling or uploading there (the 3D view right after a plan is
+   generated, the next bakes) that read waits behind it: 50-80 ms of blocked
+   main thread per picture, against 2-5 ms on a quiet GPU. So pictures go to
+   disk only once baking has stopped, one per genuinely idle moment. */
+const toPersist = new Map(); // key -> sprite waiting to be written
+let persisting = false;
 function persist(key, sp) {
   if (!sp.img || typeof sp.img.toBlob !== "function") return;
+  toPersist.set(key, sp);
+  flushPersist();
+}
+function quietMoment(fn) {
+  if (typeof requestIdleCallback !== "function") return void setTimeout(fn, 200);
+  requestIdleCallback(function (deadline) {
+    if (deadline.timeRemaining() < 8) quietMoment(fn);
+    else fn();
+  });
+}
+function flushPersist() {
+  if (persisting || baking || queue.size || !toPersist.size) return;
+  persisting = true;
+  quietMoment(function () {
+    persisting = false;
+    if (baking || queue.size) return; // pump() asks again when it is done
+    const key = toPersist.keys().next().value;
+    encode(key, toPersist.get(key));
+    toPersist.delete(key);
+    flushPersist();
+  });
+}
+function encode(key, sp) {
   sp.img.toBlob(function (blob) {
     if (!blob) return;
-    const rec = { key: key, v: SPRITE_VERSION, blob: blob, rect: sp.rect, w: sp.w, d: sp.d, t: Date.now() };
+    const rec = { key: key, v: SPRITE_VERSION, blob: blob, rect: sp.rect, w: sp.w, d: sp.d, t: Date.now(), vk: sp.vk, vs: sp.vs };
     persisted.set(key, rec);
     openDB().then(function (db) {
       const tx = db.transaction(STORE, "readwrite");
@@ -310,9 +669,10 @@ function fromDisk(key) {
   const rec = persisted.get(key);
   if (!rec || decoding.has(key) || typeof createImageBitmap !== "function") return;
   decoding.add(key);
+  seedVSpan(rec.vk, rec.vs);
   createImageBitmap(rec.blob).then(function (bmp) {
-    store(key, { img: bmp, rect: rec.rect, w: rec.w, d: rec.d, px: bmp.width * bmp.height });
-    if (typeof window !== "undefined") window.dispatchEvent(new Event("planSpritesReady"));
+    store(key, { img: bmp, rect: rec.rect, w: rec.w, d: rec.d, px: bmp.width * bmp.height, vk: rec.vk, vs: rec.vs });
+    announceSoon();
   }).catch(function () {
     persisted.delete(key); // unreadable: bake it again next time it is asked for
   }).finally(function () {
@@ -322,42 +682,83 @@ function fromDisk(key) {
 /* Load the index of kept pictures; drop ones from an older SPRITE_VERSION and
    the oldest beyond the cap. */
 function hydrate() {
+  readingIndex = true;
+  function indexReady() {
+    clearTimeout(deadline);
+    readingIndex = false;
+    schedule();
+  }
+  // A blocked database must not hold the first cold picture indefinitely.
+  const deadline = setTimeout(indexReady, 100);
   openDB().then(function (db) {
     const tx = db.transaction(STORE, "readwrite"), st = tx.objectStore(STORE), req = st.getAll();
     req.onsuccess = function () {
       const rows = (req.result || []).sort(function (a, b) { return b.t - a.t; });
+      const MAX_PERSIST = deviceBudget().spritePersistCap;
       rows.forEach(function (r, i) {
         if (r.v !== SPRITE_VERSION || i >= MAX_PERSIST) st.delete(r.key);
-        else if (!persisted.has(r.key)) persisted.set(r.key, r);
+        else if (!persisted.has(r.key)) {
+          persisted.set(r.key, r);
+          seedVSpan(r.vk, r.vs); // the plan knows each kept piece's height without building it
+          const waiting = queue.get(r.key);
+          if (waiting) {
+            queue.delete(r.key);
+            if (!waiting.ahead) fromDisk(r.key);
+          }
+        }
       });
     };
     tx.oncomplete = function () {
       db.close();
+      indexReady();
+      generation++;
       if (persisted.size && typeof window !== "undefined") window.dispatchEvent(new Event("planSpritesReady"));
     };
-    tx.onerror = function () { db.close(); };
-  }).catch(function () {});
+    tx.onerror = function () { db.close(); indexReady(); };
+  }).catch(indexReady);
 }
 
-/* A custom texture finished loading: pictures of textured pieces may be
-   stale. Pictures of everything else are still right. */
+/* A texture finished loading: pictures baked while one was pending may be
+   stale, so they leave the cache (they stay the pieces' stand-ins in
+   lastById until the new picture lands). Every other picture is still right. */
 export function invalidateTexturedSprites() {
-  texRev++;
+  texGen++;
+  generation++;
+  cache.forEach(function (sp, key) {
+    if (!sp.prov) return;
+    cache.delete(key);
+    pixels -= sp.px;
+  });
   failed.clear();
   if (typeof window !== "undefined") window.dispatchEvent(new Event("planSpritesReady"));
 }
 /* The catalogue changed (a model added or edited in the modeler): custom
    definitions are re-hashed, so an edited model's pictures simply miss. */
 export function invalidateSprites() {
+  generation++;
   defSigs.clear();
+  spriteDefaults.clear();
   failed.clear();
   if (typeof window !== "undefined") window.dispatchEvent(new Event("planSpritesReady"));
 }
 
-if (typeof window !== "undefined") {
+if (typeof window !== "undefined" && typeof document !== "undefined") {
   window.addEventListener("catalogUpdated", invalidateSprites);
   window.addEventListener("customTextureLoaded", invalidateTexturedSprites);
   // the renderer came up: work queued while it was pending can run now
-  window.addEventListener("thumbsReady", schedule);
+  window.addEventListener("thumbsReady", function () {
+    generation++;
+    schedule();
+  });
+  // leaving the page (tab hidden, closed): start writing what was made this
+  // session now, rather than one picture per quiet moment that may never
+  // come. Best effort only: toBlob and the IndexedDB writes are asynchronous
+  // and a page that is frozen or unloaded first loses the rest (those pieces
+  // are simply baked again next session).
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState !== "hidden") return;
+    toPersist.forEach(function (sp, key) { encode(key, sp); });
+    toPersist.clear();
+  });
   hydrate();
 }

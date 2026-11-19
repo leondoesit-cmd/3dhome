@@ -3,6 +3,7 @@
 
 import { clamp, fin } from "./state.js";
 import { getLang } from "./i18n.js";
+import { displayUnit, toDisp, fromDisp } from "./display_units.js";
 
 export const api = {};
 
@@ -10,15 +11,19 @@ export const api = {};
 export var TXT = {
   manufacturingReview: ["נדרשת בדיקת ייצור לשינויי CAD · אומדן חלקי בלבד", "CAD edits need manufacturing review · partial estimate only"],
   editScope: ["תחולת העריכה", "Apply layout edits to"],
+  editScopeShort: ["החל על:", "Apply to:"],
   scopeInstance: ["הארון הזה בלבד", "This cabinet only"],
   scopeLinked: ["כל הארונות המקושרים", "All linked cabinets"],
   scopeNote: ["מידות לארון זה · חלוקה משותפת לעותקים מקושרים", "Size: this cabinet · Layout: linked cabinets"],
   title: ["מעצב ארונות", "Cabinet designer"],
   foldRail: ["לשוניות כלים", "Tool tabs"],
   statusNoConvention: ["ללא מוסכמת ייצור", "No production convention"],
+  statusUnits: ["יחידות: {u}", "Units: {u}"],
   statusStock: ["לוח {t}", "{t} stock"],
+  statusSheet: ["{n} לוח", "{n} sheet"],
   statusSheets: ["{n} לוחות", "{n} sheets"],
   statusYield: ["ניצול {p}%", "{p}% yield"],
+  statusPart: ["{n} חלק", "{n} part"],
   statusParts: ["{n} חלקים", "{n} parts"],
   thumb3d: ["תלת מימד", "3D"],
   thumbElev: ["חזית", "Front elevation"],
@@ -78,7 +83,7 @@ export var TXT = {
   opPreset: ["פריסט", "Preset"],
   opFamily: ["סוג ארון", "Cabinet type"],
   opDraw: ["שרטוט מחיצה", "Draw partition"],
-  opErase: ["מחיקת מחיצה", "Erase partition"],
+  opErase: ["מחיקת מחיצה", "Remove partition"],
   opDrag: ["גרירת מחיצה", "Drag divider"],
   opLook: ["גימור", "Finish"],
   opHw: ["פרזול", "Hardware"],
@@ -128,6 +133,30 @@ export var TXT = {
   splitCol: ["פצל עמודה", "Split column"],
   delCol: ["מחק עמודה", "Delete column"],
   dupCol: ["שכפל עמודה", "Duplicate column"],
+  moveColL: ["הזז עמודה שמאלה", "Move column left"],
+  moveColR: ["הזז עמודה ימינה", "Move column right"],
+  moveSecUp: ["הזז תא למעלה", "Move compartment up"],
+  moveSecDown: ["הזז תא למטה", "Move compartment down"],
+  evenCols: ["השווה רוחבים", "Even widths"],
+  evenColsTip: ["כל העמודות הרגילות באותו רוחב · מילויים נשארים כפי שהם", "Give every ordinary column the same width · fillers keep theirs"],
+  evenColsDone: ["העמודות כבר באותו רוחב", "The columns are already the same width"],
+  mirror: ["היפוך מראה", "Mirror"],
+  mirrorTip: ["סדר העמודות הפוך וצירי הדלתות בצד השני — לקצה השני של החדר", "Columns in reverse order and every hinge on the other side — for the other end of the room"],
+  sizeEditTip: ["Enter לאישור · Esc לביטול · אפשר לכתוב יחידות (60cm, 600mm)", "Enter to apply · Esc to cancel · units allowed (60cm, 600mm)"],
+  keysTitle: ["קיצורי מקלדת", "Keyboard shortcuts"],
+  keysTip: ["קיצורי מקלדת (?)", "Keyboard shortcuts (?)"],
+  keysSel: ["בחירה בין עמודות ותאים", "Select across columns and compartments"],
+  keysMove: ["הזזת העמודה או התא הנבחרים", "Move the selected column or compartment"],
+  keysDel: ["מחיקת התא או העמודה הנבחרים", "Delete the selected compartment or column"],
+  keysCopy: ["העתקה והדבקה של תא או עמודה", "Copy and paste a compartment or column"],
+  keysUndo: ["ביטול / ביצוע שוב", "Undo / redo"],
+  keysTools: ["מחיצה אנכית / אופקית / מחיקת מחיצה", "Vertical / horizontal partition / remove partition"],
+  keysShift: ["Shift בזמן ציור מחיצה אופקית — בכל העמודות", "Shift while drawing a horizontal partition — across every column"],
+  keysView: ["חזית דו־ממד / תלת־ממד", "2D elevation / 3D"],
+  keysSearch: ["חיפוש סוג, פריסט או תא", "Search a type, preset or compartment"],
+  keysExit: ["יציאה מכלי · ביטול השינויים וסגירה", "Leave a tool · discard changes and close"],
+  keysDbl: ["לחיצה כפולה על תא או עמודה — מידה מדויקת", "Double-click a compartment or column — exact size"],
+  keysHelp: ["הצגת החלון הזה", "Show this panel"],
   splitSec: ["פצל תא", "Split compartment"],
   delSec: ["מחק תא", "Delete compartment"],
   fillCol: ["חלוקה מומלצת", "Suggested layout"],
@@ -159,9 +188,11 @@ export var TXT = {
   carcassMode: ["סוג גוף", "Carcass type"],
   bandTotal: ["קנטים", "Edge banding"],
   hint: [
-    "לחצו על תא לעריכה · גררו מחיצה · V/H/X לכלי מחיצה · לחיצה כפולה = מידה מדויקת",
-    "Click a compartment to edit · drag a divider · V/H/X for partition tools · double-click for an exact size",
+    "לחצו על תא לעריכה · גררו מחיצה · V/H/X לכלי מחיצה · לחיצה כפולה = מידה מדויקת · ? לכל הקיצורים",
+    "Click a compartment to edit · drag a divider · V/H/X for partition tools · double-click for an exact size · ? for all shortcuts",
   ],
+  // the half-width drawing of the split view: the same hint, one line long
+  hintSplit: ["לחצו על תא · גררו מחיצה · ? לקיצורים", "Click a compartment · drag a divider · ? for shortcuts"],
   nothing: ["בחרו תא או עמודה בחזית", "Select a compartment or a column"],
   blank: ["ארון ריק — התחלה מאפס", "Blank — start from scratch"],
   blankNote: [
@@ -358,16 +389,19 @@ export function row(label, node) {
   r.appendChild(node);
   return r;
 }
-export function numInput(val, cb, min, max) {
+// Counts opt out of length conversion with a null domain.
+export function numInput(val, cb, min, max, domain = "cabinet") {
   var i = el("input");
   i.type = "number";
   i.inputMode = "decimal";
-  i.step = "0.1";
-  if (min != null) i.min = min;
-  if (max != null) i.max = max;
-  i.value = formatCmInput(val);
+  i.step = domain ? "any" : "1";
+  if (domain) i.title = displayUnit(domain);
+  if (min != null) i.min = formatCmInput(domain ? toDisp(min, domain) : min);
+  if (max != null) i.max = formatCmInput(domain ? toDisp(max, domain) : max);
+  i.value = formatCmInput(domain ? toDisp(val, domain) : val);
   function commit() {
-    var v = +i.value;
+    if (!i.value.trim()) return;
+    var v = domain ? fromDisp(+i.value, domain) : +i.value;
     if (!fin(v)) return;
     cb(clamp(v, min == null ? 0 : min, max == null ? 1e5 : max));
   }

@@ -101,7 +101,7 @@ export function parseSkippedPatternInstances(value) {
   const skipped=new Set();
   const add=(number)=>{const instance=Math.round(Number(number));if(Number.isFinite(instance)&&instance>0)skipped.add(instance);};
   if(Array.isArray(value)){value.forEach(add);return skipped;}
-  String(value || "").split(/[\s,;]+/).filter(Boolean).forEach((token)=>{
+  String(value || "").replace(/(\d)\s*-\s*(?=\d)/g,'$1-').split(/[\s,;]+/).filter(Boolean).forEach((token)=>{
     const range=token.match(/^(\d+)\s*-\s*(\d+)$/);
     if(!range){add(token);return;}
     const start=Math.min(Number(range[1]),Number(range[2])),end=Math.max(Number(range[1]),Number(range[2]));
@@ -243,6 +243,17 @@ export function invertRigidTransform(transform) {
   const matrix = [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]];   // a rotation's inverse is its transpose
   const back = applyRigidMatrix(matrix, (transform && transform.translation) || {});
   return { matrix, translation:{ x:-back.x, y:-back.y, z:-back.z } };
+}
+
+// Saved bodies may carry both the current rotation list and an older single turn.
+export function partPatternRotations(part) {
+  const rotations = Array.isArray(part?.patternRotations) ? [...part.patternRotations] : [];
+  if (part?.patternRotation) rotations.push(part.patternRotation);
+  return rotations.filter(r => r && ["x","y","z"].includes(r.axis) && Number.isFinite(Number(r.angle)))
+    .map(({axis, angle, pivot}) => ({
+      axis, angle: Number(angle),
+      pivot: pivot ? {x:Number(pivot.x)||0, y:Number(pivot.y)||0, z:Number(pivot.z)||0} : undefined,
+    }));
 }
 
 /* The editor's list of axis turns as ONE rigid transform.

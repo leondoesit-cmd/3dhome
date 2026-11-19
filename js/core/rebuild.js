@@ -93,15 +93,14 @@ export function sketchDiagnostics(definition, parameters) {
   try {
     const equations = resolveEquations(document);
     equations.errors.forEach((error) => {
-      const sketch=(document.sketches || []).find(s=>(s.constraints || []).some(c=>c.name===error.name || c.id===error.name));
-      issues.push({severity:"error",code:"sketch-equation",sketchId:sketch?.id,reference:error.name,message:error.message});
+      issues.push({severity:"error",code:"sketch-equation",sketchId:error.sketchId,reference:error.name,message:error.message});
     });
   } catch (error) {
     issues.push({ severity: "error", code: "sketch-equation", message: String(error.message || error) });
   }
   (document.sketches || []).forEach((sketch) => {
+    if(sketch.suppressed)return;
     if(isHoleWizardSketch(sketch)){
-      if(sketch.suppressed)return;
       try{
         const result=solveHoleWizardSketch(sketch,document);
         if(result.status==='inconsistent')issues.push({severity:'error',code:'sketch-solve-failed',sketchId:sketch.id,message:result.error || sketch.name+' is inconsistent'});
@@ -393,6 +392,7 @@ export function rebuildDefinition(definition, overrides = {}, options = {}) {
   }
   if (!hardFailure()) {
     (definition.sketches || []).forEach((sketch) => {
+      if (sketch.suppressed) return;
       const support = sketch.support && sketch.support.type === "topology-reference" ? sketch.support : null;
       if (!support) return;
       const resolution = resolveTopologyReference(support, topology);

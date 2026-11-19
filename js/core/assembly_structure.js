@@ -70,6 +70,13 @@ export function descriptorToParent(descriptor, child) {
     out[key] = worldFrame({ origin: descriptor[key] }, child, "component").origin;
   }
   if(Array.isArray(descriptor.endpoints)) out.endpoints=descriptor.endpoints.map(point=>worldFrame({origin:point},child,'component').origin);
+  if(descriptor.bounds?.min && descriptor.bounds?.max) {
+    const corners=[];
+    for(const x of [descriptor.bounds.min.x,descriptor.bounds.max.x])for(const y of [descriptor.bounds.min.y,descriptor.bounds.max.y])for(const z of [descriptor.bounds.min.z,descriptor.bounds.max.z])
+      corners.push(worldFrame({origin:{x,y,z}},child,'component').origin);
+    out.bounds={min:{},max:{}};
+    for(const axis of ['x','y','z']){out.bounds.min[axis]=Math.min(...corners.map(p=>p[axis]));out.bounds.max[axis]=Math.max(...corners.map(p=>p[axis]));}
+  }
   for (const key of DIRECTION_KEYS) {
     if (!descriptor[key]) continue;
     out[key] = worldFrame({ normal: descriptor[key] }, child, "component").normal;
@@ -152,7 +159,8 @@ export function resolveComponentPath(component, persistentId) {
    choice parts already make with `def`. Its internal mates are solved by the
    caller before it is placed. */
 export function subassemblyComponent(record, fields = {}) {
-  const asm = structuredClone({ key: record.key, name: record.name, components: record.components || [], mates: record.mates || [], topologyMates: record.topologyMates || [] });
+  const asm = structuredClone({ key: record.key, name: record.name, components: record.components || [], mates: record.mates || [], topologyMates: record.topologyMates || [],
+    ...(record.componentPatterns?{componentPatterns:record.componentPatterns}:{}),...(record.customProperties?{customProperties:record.customProperties}:{}) });
   return {
     id: fields.id, kind: "assembly", assemblyKey: record.key, name: record.name || record.key,
     description: record.description || "", asm, visible: true, grounded: !!fields.grounded,

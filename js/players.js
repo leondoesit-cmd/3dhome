@@ -89,14 +89,20 @@ function animateGait(p, moving, t) {
   const amp = moving ? 0.55 : 0;
   const w = t * 0.012 + p.phase;
   const target = Math.sin(w) * amp;
+  let settling = false;
   if (u.leftLeg && u.rightLeg) {
+    const left = u.leftLeg.rotation.x, right = u.rightLeg.rotation.x;
     u.leftLeg.rotation.x += (target - u.leftLeg.rotation.x) * 0.4;
     u.rightLeg.rotation.x += (-target - u.rightLeg.rotation.x) * 0.4;
+    settling = left !== u.leftLeg.rotation.x || right !== u.rightLeg.rotation.x;
   }
   if (u.leftArm && u.rightArm) {
+    const left = u.leftArm.rotation.x, right = u.rightArm.rotation.x;
     u.leftArm.rotation.x += (-target * 0.7 - u.leftArm.rotation.x) * 0.4;
     u.rightArm.rotation.x += (target * 0.7 - u.rightArm.rotation.x) * 0.4;
+    settling ||= left !== u.leftArm.rotation.x || right !== u.rightArm.rotation.x;
   }
+  return settling;
 }
 
 let rafOn = false;
@@ -105,8 +111,7 @@ function tick(t) {
     live = false;
   for (const code in players) {
     const p = players[code];
-    any = true;
-    if (!p.target) continue;
+    if (!p.target || p.settled) continue;
     const dx = p.target.x - p.cur.x,
       dz = p.target.z - p.cur.z;
     let dyaw = p.target.yaw - p.cur.yaw;
@@ -122,7 +127,9 @@ function tick(t) {
     if (moving) p.lastMove = t;
     p.group.position.set(p.cur.x, 0, p.cur.z);
     p.group.rotation.y = p.cur.yaw;
-    animateGait(p, t - p.lastMove < 200, t);
+    const settling = animateGait(p, t - p.lastMove < 200, t);
+    p.settled = !moving && Math.abs(dyaw) <= 0.01 && t - p.lastMove >= 400 && !settling;
+    if (!p.settled) any = true;
     if (t - p.lastMove < 400) live = true;
   }
   if (live) requestRender();
@@ -151,6 +158,7 @@ export function initPlayers() {
       p.cur = { x: pose.x, z: pose.z, yaw: pose.yaw };
       p.group.visible = true;
     }
+    p.settled = false;
     p.target = { x: pose.x, z: pose.z, yaw: pose.yaw };
     // a backgrounded tab gets no rAF ticks, so the smoothing loop is frozen —
     // apply the pose hard here so the world is correct when the tab returns

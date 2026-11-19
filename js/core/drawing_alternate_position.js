@@ -1,3 +1,4 @@
+import { sameDrawingSource } from './drawing_view_source.js';
 import {projectSolid,projectionBounds} from './hidden_line.js';
 
 export function canAlternatePosition(view) {
@@ -15,6 +16,7 @@ function vector(value,label) {
 // or replacement solid geometry. Rotation is world X, then Y, then Z.
 export function alternatePositionBodies(bodies,view) {
   const m=view.alternatePosition;
+  if (!sameDrawingSource(m?.source, view.source)) throw new Error('Alternate Position source changed; reapply the overlay');
   if(!canAlternatePosition(view)||m?.version!==1 || typeof m.label!=='string'||!m.label.trim()||m.label.length>120
     ||m.sourceConfigurationId!==(view.configurationId||null)||!Array.isArray(m.bodyIds)||!m.bodyIds.length||m.bodyIds.length>512
     ||!['all','selected'].includes(m.scope)||m.bodyIds.some(id=>typeof id!=='string'||!id)||new Set(m.bodyIds).size!==m.bodyIds.length)throw new Error('Invalid Alternate Position or source configuration; reapply the overlay');

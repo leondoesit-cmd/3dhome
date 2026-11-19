@@ -46,6 +46,39 @@ const SWEPT_DOC = {
 
 test.after(async () => { if (page) await page.close(); });
 
+for (const type of ["sweep", "loft"]) {
+  test(`committing an additive ${type} creates a body linked to its feature`, opts, async () => {
+    const editor = await openPage({ width: 1440, height: 900 });
+    try {
+      await editor.waitForBoot();
+      const result = await editor.eval(async (type) => {
+        const { createPartDocument, recordSketchInHistory } = await import("/js/core/parametric_document.js");
+        const { E, openModeler } = await import("/js/modeler.js");
+        const doc = createPartDocument({ name: type, metadata: { authoringSystem: "parametric-v1" } });
+        const circle = { id: "profile", plane: "front", points: [{ id: 1, x: 0, y: 0 }],
+          entities: [{ id: 2, type: "circle", c: 1, r: 2 }], constraints: [] };
+        const second = type === "loft" ? { ...circle, id: "section", offset: 10 } :
+          { id: "path", plane: "top", points: [{ id: 1, x: 0, y: 0 }, { id: 2, x: 0, y: 10 }],
+            entities: [{ id: 3, type: "line", a: 1, b: 2 }], constraints: [] };
+        for (const sketch of [circle, second]) recordSketchInHistory(doc, sketch);
+        doc.activeSketch = second.id;
+        openModeler(null, doc, null);
+        E.authoring.sketchSelection = [circle.id, second.id];
+        document.querySelector('#modeler [data-command="' + type + 'feature"]').click();
+        document.getElementById("mdAcceptCommand").click();
+        return {
+          features: E.def.features.filter(f => f.type === type).map(f => ({ id: f.id, sketches: f.references.sketches })),
+          parts: E.def.parts.map(p => ({ featureId: p.featureId, kind: p.kind, recipe: p.kernel?.type })),
+        };
+      }, type);
+      assert.equal(result.features.length, 1);
+      const [feature] = result.features;
+      assert.deepEqual(feature.sketches, ["profile", type === "loft" ? "section" : "path"]);
+      assert.deepEqual(result.parts, [{ featureId: feature.id, kind: "kernel", recipe: type }]);
+    } finally { await editor.close(); }
+  });
+}
+
 test("a body with a recipe and no mesh is rebuilt by the kernel and drawn", opts, async () => {
   page = await openPage({ width: 1280, height: 800, lang: "en", mobile: false, touch: false });
   await page.eval(async (doc) => {

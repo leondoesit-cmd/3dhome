@@ -74,6 +74,9 @@ test("external bridge snap calls dispatch the same normalized ghost proposal", o
       config.setAgentBridgeToken("");
       if (previousSettings == null) localStorage.removeItem("modelforge_agent_settings_v1");
       else localStorage.setItem("modelforge_agent_settings_v1", previousSettings);
+      // Receiving a proposal precedes the first lazy panel render.
+      for (let i = 0; i < 500 && !document.querySelector('.agent-proposal'); i++)
+        await new Promise(resolve => setTimeout(resolve, 10));
       return {
         expectedId: id,
         proposal: proposal && { ok: proposal.ok, commandId: proposal.commandId, itemId: proposal.plan && proposal.plan.params.itemId },

@@ -165,6 +165,11 @@ export function cabinetDefinitionFromItem(item, previous) {
     revision: (previous?.revision || 0) + 1,
   });
   if (advancedEdits?.history) definition.history = cloneDomain(advancedEdits.history);
+  // Cabinet studio speaks millimetres, so the Model editor opens a cabinet in
+  // mm unless its document already carries a unit (the user's "Document
+  // units"). Display only: every stored length stays in centimetres.
+  const previousUnits = previous?.context?.units || {};
+  definition.context = { ...cloneDomain(previous?.context), units: { ...cloneDomain(previousUnits), length: previousUnits.length || "mm" } };
   definition.w = item.w; definition.d = item.d; definition.h = item.h;
   definition.price = definition.metadata.price;
   definition.metadata.generatedParameters = Object.fromEntries(Object.entries(definition.parameters).map(([key, parameter]) => [key, parameter.value]));

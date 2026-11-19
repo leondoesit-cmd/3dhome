@@ -27,6 +27,9 @@ export function sampleBezier(p,tolerance=.005){
   visit(p,0,1,0);return result;
 }
 export function addCubicSpline(sketch,controls){
+  if(!sketch||typeof sketch!=="object")throw new Error("Sketch is required");
+  sketch.points ||= [];
+  sketch.entities ||= [];
   if(controls.length!==4||!controls.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)))throw new Error('Spline requires four finite control points');
   if(Math.hypot(controls[1].x-controls[0].x,controls[1].y-controls[0].y)<1e-8||Math.hypot(controls[3].x-controls[2].x,controls[3].y-controls[2].y)<1e-8)throw new Error('Spline endpoint handles must have length');
   const points=controls.map(p=>({id:uid(),x:p.x,y:p.y}));
@@ -61,6 +64,7 @@ export function bezierCircleHits(p,center,radius){
   return polynomialRoots(c).map(t=>({...bezierPoint(p,t),t}));
 }
 export function trimSplineAtLines(sketch,entity,pick){
+  if(!sketch?.points||!sketch?.entities||!pick||!Number.isFinite(pick.x)||!Number.isFinite(pick.y))return false;
   const points=new Map(sketch.points.map(p=>[p.id,p])),p=splineControls(entity,points);if(!p)return false;
   const hits=sketch.entities.filter(e=>e!==entity&&!e.construction).flatMap(e=>{
     const a=points.get(e.a),b=points.get(e.b);

@@ -1,7 +1,9 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 import {createDrawingController} from '../js/modeler_drawing.js';
 import {createSheetDoc,ensureSheetDoc} from '../js/cad_sheet.js';
 import {tessellateParts} from '../js/core/part_tessellate.js';
@@ -79,17 +81,55 @@ test('actual mobile context row shows native Finish/Cancel and point count rathe
  r.c.setTool('sheetpolyline');pick(r.c,3,80,250);context.ctxActions()[1].run();assert.equal(r.c.draftActions(),null);
 });
 
-test('ordinary same-document normalization preserves draft and contact ownership; only document-switch hooks reset them',()=>{
+test('ordinary same-document normalization preserves draft and contact ownership',()=>{
  const r=rig(),c=r.c;c.setTool('sheetpolyline');pick(c,1,80,200);
  r.replace(structuredClone(r.owner));pick(c,2,140,200);
  assert.equal(c.draftActions().pointCount,2);assert.equal(c.draftActions().canFinish,true);
  c.beginPinch();r.replace(structuredClone(r.owner));c.scene();assert.equal(c.state.pinching,true);
  c.endPinch();c.setTool('sheetpolyline');pick(c,3,80,200);assert.equal(c.draftActions().pointCount,1);
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
- assert.match(source,/E\.def = newDef\(\);\s+E\.sheet\?\.resetSession\(\);/);
- assert.match(source,/E\.def = def \? ensureParametricDocument\(def\) : f \? ensureParametricDocument\(f\) : newDef\(\);\s+E\.sheet\?\.resetSession\(\);/);
  c.resetSession();assert.equal(c.draftActions(),null);assert.equal(c.state.pinching,false);
  assert.equal(r.calls.push,0);assert.equal(r.owner.drawing.primitives.length,0);
+});
+
+test('New and library Open reset the drawing session only after discard is accepted',async()=>{
+ const source=modelerSource();
+ for(const operation of ['newModel','openModeler'])for(const gesture of ['draft','pinch']){
+  const r=rig(),c=r.c;c.setTool('sheetpolyline');
+  if(gesture==='draft')pick(c,1,80,200);
+  else c.pointerDown(touch(1),80,200);
+  c.pointerDown(touch(2),140,200);
+  const previous=r.owner,previousJSON=JSON.stringify(previous);
+  const E={open:true,docType:'part',lang:'en',sheet:c};
+  Object.defineProperty(E,'def',{get:()=>r.owner,set:value=>r.replace(value)});
+  let accepted=false;
+  const reachedLibrary=Error('drawing session reset; stop before building the model viewport');
+  const H={clear(){return H;},seed(){return H;}};
+  const root={style:{},classList:{remove(){}},querySelectorAll:()=>[]};
+  const bindings={E,H,root,partHistoryMarker:{savedEdit:0},libraryOpenBaseline:null,
+   confirmDiscardDocument:async()=>accepted,hasResidentEdits:()=>true,
+   newDef:()=>({parts:[],drawing:createSheetDoc({views:[]})}),ensureParametricDocument:structuredClone,cloneData:structuredClone,
+   motionPlaybackCancel:null,inspectorDirty:{},modelerReturnFocus:null,document:{activeElement:null,body:{}},
+   getLang:()=> 'en',setTimeout(){},FURN:{},S:{idc:1},nextDocumentNumericId:()=>1,
+   loadLib:()=>{throw reachedLibrary;},
+  };
+  for(const name of ['closeEvalCard','markDocumentClean','reconcileModelerDraft','syncHead','refreshAll','setTab',
+   'cancelExactModelRebuild','dismissModelerDecision','syncModelerChrome','releaseExactRun'])bindings[name]=()=>{};
+  const run=vm.runInNewContext(withSetters(`(${sourceFunctionText(source,operation)})`),bindings);
+  const args=operation==='openModeler'?[null,{name:'Library drawing',parts:[],drawing:createSheetDoc({views:[]})},null]:[];
+  await run(...args);
+  assert.equal(r.owner,previous,operation+' rejected replacement keeps the document');
+  if(gesture==='draft')assert.equal(c.draftActions().pointCount,2);
+  else assert.equal(c.draftActions(),null,'pinching cancels the in-progress draft');
+  assert.equal(c.state.pinching,gesture==='pinch');
+  accepted=true;
+  if(operation==='openModeler')await assert.rejects(Promise.resolve().then(()=>run(...args)),error=>error===reachedLibrary);
+  else await run(...args);
+  assert.notEqual(r.owner,previous,operation+' replaces the document');
+  assert.equal(c.draftActions(),null);assert.equal(c.state.pinching,false);assert.equal(c.state.drag,null);
+  c.setTool('sheetpolyline');pick(c,1,100,250);pick(c,2,140,250);
+  assert.equal(c.finishDraft(),true,'touch ids from the old document can be reused');
+  assert.equal(r.owner.drawing.primitives.length,1);assert.equal(JSON.stringify(previous),previousJSON);
+ }
 });
 
 test('Drawing clears retained Part context and returning to model restores profile operations',()=>{

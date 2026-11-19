@@ -1,3 +1,5 @@
+import {createReferenceResolver,trackLibraryOccurrence} from '../js/core/library_occurrence.js';
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,7 +7,7 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 import {compactDocumentTopologySnapshots,compactAssemblyTopologySnapshots} from '../js/core/project_topology_budget.js';
 import {subassemblyComponent} from '../js/core/assembly_structure.js';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 
 test('assembly workflow checks library presence without traversing saved geometry',()=>{
   const unused={key:'saved'};
@@ -38,10 +40,11 @@ for(const assembly of [false,true])test(`${assembly?'subassembly':'part'} insert
   const unused={key:'other'};
   Object.defineProperty(unused,'parts',{get(){throw new Error('unselected saved geometry must not be traversed');},enumerable:true});
   const E={assembly:{key:'parent',components:[]}},S={idc:11};let refreshes=0;
-  const insert=new Function('E','S','modelLibraryCache','assemblyLibraryCache','loadLib','loadAssemblies','nextDocumentNumericId','pushUndo','uid','cloneData','compactDocumentTopologySnapshots','compactAssemblyTopologySnapshots','subassemblyComponent','solveTopologyMates','invalidateInterference','refreshAll','fitPreview','t','containsAssembly',sourceFunctionText(source,'insertAssemblyComponent')+';return insertAssemblyComponent;')(
-    E,S,[unused,selected],[unused,selected],()=>{throw new Error('whole library copy');},()=>{throw new Error('whole assembly library copy');},()=>11,()=>{},()=>12,structuredClone,compactDocumentTopologySnapshots,compactAssemblyTopologySnapshots,subassemblyComponent,()=>{},()=>{},()=>refreshes++,()=>{},key=>key,()=>false);
+  const insert=new Function('E','S','modelLibraryCache','assemblyLibraryCache','loadLib','loadAssemblies','nextDocumentNumericId','pushUndo','uid','cloneData','compactDocumentTopologySnapshots','compactAssemblyTopologySnapshots','subassemblyComponent','solveTopologyMates','invalidateInterference','refreshAll','fitPreview','t','containsAssembly','resolvedLibraryAssembly','trackLibraryOccurrence',sourceFunctionText(source,'insertAssemblyComponent')+';return insertAssemblyComponent;')(
+    E,S,[unused,selected],[unused,selected],()=>{throw new Error('whole library copy');},()=>{throw new Error('whole assembly library copy');},()=>11,()=>{},()=>12,structuredClone,compactDocumentTopologySnapshots,compactAssemblyTopologySnapshots,subassemblyComponent,()=>{},()=>{},()=>refreshes++,()=>{},key=>key,()=>false,record=>createReferenceResolver((_kind,key)=>[unused,selected].find(item=>item.key===key)).resolve(record).document,trackLibraryOccurrence);
   insert(assembly?'asm:selected':'selected');
   const component=E.assembly.components[0];
+  assert.equal(component.libraryLink.kind,assembly?"assembly":"part");
   assert.equal(component.grounded,true);assert.equal(component.id,12);assert.equal(refreshes,1);
   if(assembly){component.asm.components[0].def.parts[0].id='edited';assert.equal(selected.components[0].def.parts[0].id,'body');}
   else{component.def.parts[0].density=2.7;assert.equal(selected.parts[0].density,8);}

@@ -1,52 +1,74 @@
-import { S } from "./state.js";
-import { contentBounds } from "./geometry.js";
+﻿import { S } from "./state.js";
+import { detectRooms, wallGeom, wallPointAt } from "./geometry.js";
+import { normalizeWallKind } from "./wall_curves.js";
+import { canonicalPlacementItem, canonicalPlacementWall } from "./placement_resolver.js";
+import { itemVSpan } from "./furniture_api.js";
+import { suggestRoomLayout, checkRoomFit, fixedLayoutItem, inside, layoutWalkableRooms } from "./layout_analysis.js";
+import { doorSwingBand, doorSwingPolys, swingPolysForItem } from "./swing_clearance.js";
+import { openingCorners } from "./slab_openings.js";
 
-const cloneItems = () => S.items.map((it) => ({ id: it.id, x: it.x, z: it.z, rot: it.rot || 0 }));
-
-function footprint(it, placed) {
-  const rot = ((placed.rot || 0) * Math.PI) / 180;
-  const c = Math.abs(Math.cos(rot)), s = Math.abs(Math.sin(rot));
-  return { w: it.w * c + it.d * s, d: it.w * s + it.d * c };
+function workspaceSnapshot() {
+  const rooms = detectRooms().map(room => ({...room, wallIds:room.key.split(',')}));
+  const walls = S.walls.map(wall => {
+    const record = canonicalPlacementWall(wall,{wallGeom,wallPointAt,normalizeWallKind});
+    if(!record)return null;
+    return {...record,...record.material};
+  }).filter(Boolean);
+  const fixedIds=S.items.filter(i=>i.facesId!=null||i.groupId!=null||i.pinned||i.fixed||i.mep).map(i=>i.id);
+  const doorSwings=S.openings.flatMap(op=>{
+    const band=doorSwingBand(op);
+    return doorSwingPolys(op).map(points=>({points,id:op.id,elev:band.lo,h:band.hi-band.lo}));
+  });
+  const itemSwings=Object.fromEntries(S.items.map(item=>[item.id,swingPolysForItem(item)
+    .map(swing=>({points:swing.poly,elev:swing.band.lo,h:swing.band.hi-swing.band.lo}))]));
+  const doors=S.openings.filter(o=>o.type!=="window"&&!(o.sill>0)).map(o=>{
+    const wall=S.walls.find(w=>w.id===o.wall);
+    return wall?{...o,center:wallPointAt(wall,o.s)}:null;
+  }).filter(Boolean);
+  const access={doors,width:60,voids:(S.slabOpenings||[]).map(openingCorners)};
+  return {scene:{rooms,walls,items:S.items.map(item=>canonicalPlacementItem(item,{itemVSpan}))},access,fixedIds,doorSwings,itemSwings};
 }
 
-function score(items) {
-  let collisions = 0;
-  for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
-    const a = S.items.find((it) => it.id === items[i].id), b = S.items.find((it) => it.id === items[j].id);
-    if (!a || !b) continue;
-    const fa = footprint(a, items[i]), fb = footprint(b, items[j]);
-    if (Math.abs(items[i].x - items[j].x) < (fa.w + fb.w) / 2 && Math.abs(items[i].z - items[j].z) < (fa.d + fb.d) / 2) collisions++;
-  }
-  return Math.max(0, 100 - collisions * 12);
-}
+const pose = it => ({id:it.id,x:it.x,z:it.z,rot:it.rot||0});
+const signature = snapshot => JSON.stringify([snapshot,S.items.map(i=>[i.id,i.groupId,i.facesId])]);
 
 export function generateLayouts() {
-  const box = contentBounds(), movable = S.items.filter((it) => !it.locked);
-  const original = cloneItems();
-  const rotated = cloneItems().map((p) => {
-    const it = S.items.find((x) => x.id === p.id);
-    return !it || it.locked ? p : { ...p, x: box.cx - (p.z - box.cz), z: box.cz + (p.x - box.cx), rot: (p.rot + 90) % 360 };
-  });
-  const columns = Math.max(1, Math.ceil(Math.sqrt(movable.length)));
-  let slot = 0;
-  const grid = cloneItems().map((p) => {
-    const it = S.items.find((x) => x.id === p.id);
-    if (!it || it.locked) return p;
-    const col = slot % columns, row = Math.floor(slot++ / columns);
-    return { ...p, x: box.minx + 70 + col * 120, z: box.minz + 70 + row * 120, rot: 0 };
-  });
-  return [
-    { id: "original", name: "Current layout", items: original, score: score(original) },
-    { id: "rotate", name: "Quarter-turn alternative", items: rotated, score: score(rotated) },
-    { id: "grid", name: "Clear circulation grid", items: grid, score: score(grid) },
-  ].sort((a, b) => b.score - a.score);
+  const snapshot=workspaceSnapshot(), original=snapshot.scene.items.map(pose);
+  const revision=signature(snapshot), roomOptions=[];
+  let issues=0;
+  for(const room of snapshot.scene.rooms){
+    const local={...snapshot,roomKey:room.key};
+    issues+=checkRoomFit(local).length;
+    const result=suggestRoomLayout(local,'rearrange');
+    if(result.ok)roomOptions.push(result.options);
+  }
+  const candidates=[{id:'original',name:'Current layout',items:original,score:Math.max(0,100-issues*12),revision}];
+  const seen=new Set([JSON.stringify(original)]);
+  for(let i=0;i<3&&candidates.length<3;i++){
+    const alternatives=new Map(roomOptions.flatMap(options=>options[i%options.length].moves.map(it=>[it.id,pose(it)])));
+    const items=original.map(it=>alternatives.get(it.id)||it),key=JSON.stringify(items);
+    if(seen.has(key))continue;
+    seen.add(key);
+    const updated=snapshot.scene.items.map((it,index)=>({...it,...items[index]}));
+    const before=layoutWalkableRooms(snapshot),after=before?.length?layoutWalkableRooms(snapshot,updated):null;
+    if(before?.some(key=>!after?.includes(key)))continue;
+    const count=snapshot.scene.rooms.reduce((n,room)=>n+checkRoomFit({...snapshot,roomKey:room.key},updated).length,0);
+    candidates.push({id:'alternative-'+(i+1),name:'Room layout '+(i+1),items,score:Math.max(0,100-count*12),revision});
+  }
+  return candidates.sort((a,b)=>b.score-a.score);
 }
 
 export function applyLayout(candidate) {
-  const byId = new Map(candidate.items.map((p) => [p.id, p]));
-  S.items.forEach((it) => {
-    const p = byId.get(it.id);
-    if (p && !it.locked) Object.assign(it, { x: p.x, z: p.z, rot: p.rot });
-  });
-  S.dirty3D = true;
+  if(!candidate)return false;
+  const snapshot=workspaceSnapshot();
+  if(candidate.revision!==signature(snapshot))return false;
+  const byId=new Map(candidate.items.map(p=>[p.id,p]));
+  for(const it of S.items){
+    const p=byId.get(it.id);
+    if(p&&!fixedLayoutItem(it,snapshot)&&snapshot.scene.rooms.some(room=>inside(it,room.pts))){
+      Object.assign(it,{x:p.x,z:p.z,rot:p.rot});
+    }
+  }
+  S.dirty3D=true;
+  return true;
 }

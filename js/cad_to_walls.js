@@ -3,6 +3,8 @@
    need to supply centimetre line/arc/opening records, keeping the conversion
    deterministic and testable (and equally usable by blueprint recognition). */
 
+import { projectToWall, wallCurveGeom } from "./wall_curves.js";
+
 const EPS = 1e-6;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const finitePoint = (p) => p && Number.isFinite(+p.x) && Number.isFinite(+p.z);
@@ -34,6 +36,7 @@ function parallelPair(a, b, options) {
     a: { x: ga.a.x + ga.ux * lo + nx * signed / 2, z: ga.a.z + ga.uz * lo + nz * signed / 2 },
     b: { x: ga.a.x + ga.ux * hi + nx * signed / 2, z: ga.a.z + ga.uz * hi + nz * signed / 2 },
     thickness: width,
+    height: [a.height,b.height].map(Number).filter(h=>Number.isFinite(h)&&h>0).reduce((height,h)=>Math.max(height,h),0) || null,
     flip: side < 0,
     score: hi - lo,
   };
@@ -47,31 +50,32 @@ function projectSegment(p, a, b) {
 }
 
 function splitAtJunctions(segments, tol = 1.5) {
-  let changed = true, passes = 0;
-  while (changed && passes++ < 20) {
-    changed = false;
-    for (let i = 0; i < segments.length; i++) {
-      const s = segments[i];
-      for (let j = 0; j < segments.length; j++) {
-        if (i === j) continue;
-        const other = segments[j];
-        const pts = [other.a, other.b];
-        for (const pt of pts) {
-          const proj = projectSegment(pt, s.a, s.b);
-          if (proj.d <= tol && proj.t > 0.01 && proj.t < 0.99) {
-            const splitPt = { x: proj.x, z: proj.z };
-            const s1 = { ...s, b: splitPt };
-            const s2 = { ...s, a: splitPt };
-            segments.splice(i, 1, s1, s2);
-            changed = true;
-            break;
-          }
-        }
-        if (changed) break;
+  const split = [];
+  for (const segment of segments) {
+    const g = lineGeom(segment), stations = [0, g.L];
+    for (const other of segments) {
+      if (other === segment) continue;
+      for (const p of [other.a, other.b]) {
+        const hit = projectSegment(p, segment.a, segment.b);
+        if (hit.d <= tol && hit.s > tol && hit.s < g.L-tol) stations.push(hit.s);
       }
-      if (changed) break;
+      const dx=other.b.x-other.a.x,dz=other.b.z-other.a.z;
+      const cross=g.dx*dz-g.dz*dx;
+      if (Math.abs(cross)>EPS) {
+        const x=other.a.x-g.a.x,z=other.a.z-g.a.z;
+        const t=(x*dz-z*dx)/cross,u=(x*g.dz-z*g.dx)/cross;
+        if(t>0&&t<1&&u>0&&u<1&&t*g.L>tol&&(1-t)*g.L>tol) stations.push(t*g.L);
+      }
     }
+    const unique=[0];
+    for(const station of stations.sort((a,b)=>a-b))
+      if(station>tol&&station<g.L-tol&&station-unique.at(-1)>tol) unique.push(station);
+    unique.push(g.L);
+    for(let i=1;i<unique.length;i++) split.push({...segment,
+      a:{x:g.a.x+g.ux*unique[i-1],z:g.a.z+g.uz*unique[i-1]},
+      b:{x:g.a.x+g.ux*unique[i],z:g.a.z+g.uz*unique[i]}});
   }
+  segments.splice(0,segments.length,...split);
   return segments;
 }
 
@@ -131,29 +135,6 @@ export function convertCadToWalls(source = {}, options = {}) {
     });
   });
 
-  const openingRecords = [
-    ...(source.doors || []).map((o) => ({ ...o, type: o.type || "door" })),
-    ...(source.windows || []).map((o) => ({ ...o, type: o.type || "window" })),
-  ];
-  openingRecords.forEach((o) => {
-    const p = o.center || { x: o.x, z: o.z };
-    if (!finitePoint(p)) return;
-    let best = null;
-    walls.forEach((w) => {
-      const hit = projectSegment(p, nodes[w.a], nodes[w.b]);
-      if (!best || hit.d < best.hit.d) best = { w, hit };
-    });
-    if (!best || best.hit.d > (options.openingTolerance || Math.max(30, best.w.thickness))) return;
-    const width = +(o.width || (o.type === "window" ? 120 : 90));
-    if(!Number.isFinite(width)||width<=0||width>dist(nodes[best.w.a],nodes[best.w.b])){rejectedOpenings.push({id:o.id,type:o.type,reason:"opening-wider-than-wall",wall:best.w.id});return;}
-    openings.push({
-      id: id++, type: o.type, wall: best.w.id,
-      s: Math.max(width / 2, Math.min(best.hit.s, dist(nodes[best.w.a], nodes[best.w.b]) - width / 2)),
-      width, height: +(o.height || (o.type === "window" ? 120 : 205)),
-      sill: +(o.sill != null ? o.sill : o.type === "window" ? 90 : 0),
-    });
-  });
-
   // CAD arcs are already centre lines. They retain the normal planner endpoints
   // and add analytic geometry for the curved wall renderer.
   (source.arcs || []).forEach((arc) => {
@@ -170,5 +151,29 @@ export function convertCadToWalls(source = {}, options = {}) {
       sourceLayer: arc.layer || "walls",
     });
   });
+
+  const openingRecords = [
+    ...(source.doors || []).map((o) => ({ ...o, type: o.type || "door" })),
+    ...(source.windows || []).map((o) => ({ ...o, type: o.type || "window" })),
+  ];
+  openingRecords.forEach((o) => {
+    const p = o.center || { x: o.x, z: o.z };
+    if (!finitePoint(p)) return;
+    let best = null;
+    walls.forEach((w) => {
+      const hit = projectToWall(w, +p.x, +p.z, nodes);
+      if (!best || hit.d < best.hit.d) best = { w, hit };
+    });
+    if (!best || best.hit.d > (options.openingTolerance || Math.max(30, best.w.thickness))) return;
+    const width = +(o.width || (o.type === "window" ? 120 : 90));
+    if(!Number.isFinite(width)||width<=0||width>wallCurveGeom(best.w,nodes).length){rejectedOpenings.push({id:o.id,type:o.type,reason:"opening-wider-than-wall",wall:best.w.id});return;}
+    openings.push({
+      id: id++, type: o.type, wall: best.w.id,
+      s: Math.max(width / 2, Math.min(best.hit.s, wallCurveGeom(best.w,nodes).length - width / 2)),
+      width, height: +(o.height || (o.type === "window" ? 120 : 205)),
+      sill: +(o.sill != null ? o.sill : o.type === "window" ? 90 : 0),
+    });
+  });
+
   return { nodes, walls, openings, nextId: id, diagnostics: { rejectedOpenings, pairedLines: consumed.size, unpairedLines: lines.length - consumed.size } };
 }

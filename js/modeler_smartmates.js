@@ -1,4 +1,4 @@
-import { mateFrameSupports } from "./cad_mate_model.js";
+import { mateFrameSupports, planarDirection } from "./cad_mate_model.js";
 // Assembly SmartMates: infer a mate from two topology references the way
 // SolidWorks does when you Alt-drag a component onto another.
 
@@ -16,7 +16,12 @@ export function inferSmartMate(a, b) {
       }
       return { type: "concentric", a: a, b: b };
     }
-    return { type: "coincident", a: a, b: b, aligned: false };
+    var as = surfaceOf(a), bs = surfaceOf(b);
+    if ((as === "cylinder" && bs === "plane") || (as === "plane" && bs === "cylinder")) return { type: "tangent", a: a, b: b };
+    if ((as === "plane" || planarDirection(a.frame || a.descriptor)) && (bs === "plane" || planarDirection(b.frame || b.descriptor))) {
+      return { type: "coincident", a: a, b: b, aligned: false };
+    }
+    return null;
   }
   if (!mateFrameSupports("axis", a.frame || a.descriptor) || !mateFrameSupports("axis", b.frame || b.descriptor)) return null;
   if ((ak === "edge" || ak === "axis") && (bk === "edge" || bk === "axis")) {

@@ -1,4 +1,5 @@
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { S } from "../js/state.js";
@@ -143,11 +144,15 @@ test("an inside corner of face-located walls closes on the node itself", () => {
   const shared = o1.filter((p) =>
     o2.some((q) => Math.abs(p.x - q.x) < 0.02 && Math.abs(p.z - q.z) < 0.02),
   ).length;
-  assert.equal(shared, 2, "the joint still hands over both corner points");
+  // 10 cm and 20 cm are different assemblies: the thicker wall owns the
+  // corner and the thinner one butts square against it (no mitre)
+  assert.equal(shared, 1, "the butted end shares the owner's corner");
   assert.ok(o1.some((p) => Math.abs(p.x - 300) < 0.02 && Math.abs(p.z) < 0.02),
     "the inside corner sits exactly on the node");
-  assert.ok(o1.some((p) => Math.abs(p.x - 320) < 0.02 && Math.abs(p.z + 10) < 0.02),
-    "the outside faces mitre to their own intersection");
+  assert.ok(o1.some((p) => Math.abs(p.x - 300) < 0.02 && Math.abs(p.z + 10) < 0.02),
+    "the thin wall ends square on the owner's face");
+  assert.ok(o2.some((p) => Math.abs(p.x - 320) < 0.02 && Math.abs(p.z + 10) < 0.02),
+    "the owner runs to the thin wall's outer face line");
   assert.equal(wallClearLength(S.walls[0]), 300, "so the stated length is node to node");
   assert.equal(wallClearLength(S.walls[1]), 200);
 });
@@ -228,10 +233,10 @@ test("a centreline dimension and a curved wall cannot be hung on a face", () => 
 });
 
 test("the location line survives a save and a wall split", async () => {
-  const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+  const ui = moduleSource("js/ui.js");
   assert.match(ui, /loc: w\.loc === "face" \|\| w\.loc === "center" \? w\.loc : undefined/,
     "applyData's wall whitelist carries it");
-  const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+  const interaction = moduleSource("js/interaction.js");
   assert.match(interaction, /"dimSide", "loc"\]/,
     "and so does the field list splitWallAt copies to the new half");
 });

@@ -3,11 +3,11 @@
    way it is meant to be seen — the presentation plan, the dollhouse cutaway
    and warm afternoon light. Services are left out: a showroom plan is about
    the rooms, and MEP runs would draw over them. */
-import { S } from "./state.js";
+import { S, DEFAULT_HOUR } from "./state.js";
 import { generateApartment } from "./generator.js";
 import { normalizeCutaway } from "./wall_cut.js";
 import { openingHasSwingConflict } from "./swing_clearance.js";
-import { mkItem } from "./furniture.js";
+import { mkItem, defaultScene } from "./furniture.js";
 
 const SWINGS = ["R_IN", "L_IN", "R_OUT", "L_OUT"];
 /* A door the generator hung into its own fixtures (a bathroom door onto the
@@ -24,7 +24,18 @@ export function clearDoorSwings(state) {
   return fixed;
 }
 
-export const SHOWCASE_VIEW = Object.freeze({ planStyle: "presentation", cutaway: { on: true, height: 150, cap: "white" }, hour: 15 });
+/* The plan every session opens on (boot, Reset, the start screen's demo): the
+   furnished two-bedroom "large" layout from js/generation_layout.js, without
+   services. Falls back to the old single-room scene if generation is refused. */
+export function defaultApartment() {
+  const result = generateApartment("large", true, { infrastructure: false });
+  if (result && result.ok === false) { defaultScene(); S.roomMeta = {}; return result; }
+  clearDoorSwings(S);
+  S.sel = null;
+  return result;
+}
+
+export const SHOWCASE_VIEW = Object.freeze({ planStyle: "presentation", cutaway: { on: true, height: 150, cap: "white" }, hour: DEFAULT_HOUR });
 
 export function showcaseHouse() {
   const result = generateApartment("showcase", true, { infrastructure: false });

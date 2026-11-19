@@ -165,7 +165,7 @@ function openingRecord(surface, scale, type) {
     center: { x: frame.center.x * scale, z: frame.center.z * scale },
     width: Math.max(20, (d.width || (type === "window" ? 120 : 90) / scale) * scale),
     height: Math.max(20, (d.height || (type === "window" ? 120 : 205) / scale) * scale),
-    sill: type === "window" ? number(surface.sillHeight != null ? surface.sillHeight : surface.sill, measuredSill || 90 / scale) * scale : 0,
+    sill: type === "window" ? number(surface.sillHeight != null ? surface.sillHeight : surface.sill, d.height > 0 ? measuredSill : 90 / scale) * scale : 0,
   };
 }
 
@@ -408,7 +408,7 @@ export function parseRoomScan(input) {
   }
   const room = roomPayload(data);
   if (!room) throw new RoomScanError("bad-json", "The scan file has no room data");
-  const scale = unitScale(room.unit ? room : data);
+  const scale = unitScale(room.unit || room.units || room.measurementUnit ? room : data);
   const rawWalls = Array.isArray(room.walls) ? room.walls : [];
   const lines = dropDegenerateLines(
     rawWalls.map((wall) => directLine(wall, scale) || surfaceLine(wall, scale)).filter(Boolean));

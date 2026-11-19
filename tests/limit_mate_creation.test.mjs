@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,7 @@ import {defaultTopologyMateAlignment} from '../js/cad_mate_reference_choices.js'
 import {solveTopologyMates,topologyReference} from '../js/cad_mates.js';
 import {featureControlValue} from '../js/modeler_feature_form.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(){
   const components=[{id:'A',grounded:true,transform:{x:0,y:0,z:0}},{id:'B',transform:{x:0,y:9,z:0}}];
   const frame={surface:'plane',origin:{x:0,y:0,z:0},normal:{x:0,y:1,z:0}};

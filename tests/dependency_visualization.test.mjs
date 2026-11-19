@@ -1,3 +1,5 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {assemblyDependencyGraph,partDependencyGraph,dependencyVisualization,occurrenceDependencyId as occurrence,mateDependencyId as mate} from '../js/core/dependency_visualization.js';
 import {dependencyTreeIndex,dependencyTreeAnchor,renderDependencyPresentation} from '../js/modeler_dependency_ui.js';
@@ -42,7 +44,7 @@ test('production mouse and keyboard hover send mate identity separately from rig
  events.mouseleave[0]();assert.equal(calls.at(-1)[0],null);events.focusin.forEach(fn=>fn());assert.equal(calls.at(-1)[1],node);events.focusout[0]({relatedTarget:null});assert.equal(calls.at(-1)[0],null);
 });
 test('actual assembly handler consumes occurrence/mate dependency identity rather than rigid selection target',()=>{
- const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),calls=[];
+ const source=modelerSource(),calls=[];
  const handlers=new Function('setDependencyHighlight',sourceFunctionText(source,'assemblyTreeHandlers')+';return assemblyTreeHandlers;')(id=>calls.push(id))({});
  handlers.onHover('left',{dependencyId:mate([],'topology',3)});assert.equal(calls.at(-1),mate([],'topology',3));
  handlers.onHover('left',{dependencyId:occurrence(['left',7])});assert.equal(calls.at(-1),occurrence(['left',7]));handlers.onHover(null);assert.equal(calls.at(-1),null);
@@ -67,7 +69,7 @@ test('real presentation creates independent controls, named collapsed references
   const text=n=>[n.textContent,...n.children.map(text)].join(' ');assert.match(text(root),/Base sketch → Boss1/);assert.match(text(root),/inside Boss1/);
   const calls=root.querySelector('.md-dependency-callouts');assert.equal(calls.parent,root,'reference content is outside tree/control host flow');assert.equal(host.querySelector('.md-dependency-callouts'),null);assert.equal(calls.style.left,'208px');
   const panel=host.querySelector('.md-dependency-panel');assert.equal(panel.children.length,1,'only persistent controls consume tree layout space');
-  const css=fs.readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');const calloutStyle=css.match(/\.md-dependency-callouts \{([^}]+)\}/)[1];assert.match(calloutStyle,/position:\s*fixed/);assert.match(calloutStyle,/pointer-events:\s*none/);
+  const css=stylesSource();const calloutStyle=css.match(/\.md-dependency-callouts \{([^}]+)\}/)[1];assert.match(calloutStyle,/position:\s*fixed/);assert.match(calloutStyle,/pointer-events:\s*none/);
   let svg=mount.querySelector('.md-dependency-arrows');assert.equal(svg.children.length,1);const first=svg.children[0].attributes.d;
   pattern.rect={...pattern.rect,top:100,bottom:120};root.events.scroll();svg=mount.querySelector('.md-dependency-arrows');assert.notEqual(svg.children[0].attributes.d,first);
   const parentInput=host.querySelectorAll('input').find(n=>n.dataset.dependencyOption==='parents');parentInput.checked=false;parentInput.events.change();assert.equal(state.upstream.size,0);assert.equal(mount.querySelector('.md-dependency-arrows').children.length,0);

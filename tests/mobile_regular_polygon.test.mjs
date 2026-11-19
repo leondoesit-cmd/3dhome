@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {modelerPrecisionTrialAllowed,modelerTouchPrecisionKind} from '../js/touch_precision.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fn(name){const start=source.indexOf(`function ${name}(`);assert.ok(start>=0);return source.slice(start,source.indexOf('\n}',start)+2);}
 function harness(){
  const E={tool:'spoly',polySides:6,ssel:[]},sketch={points:[],entities:[],constraints:[]};let id=0,steps=0,changes;

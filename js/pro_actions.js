@@ -13,6 +13,9 @@ import { detectRooms, wallGeom } from "./geometry.js";
 import { activeFloorArea } from "./area_snapshot.js";
 import { currentRoomFit } from "./ui_layout_tools.js";
 import { floorAbove } from "./floors.js";
+import { applyStairConfig, autoStair } from "./stair_layout.js";
+import { DEFAULT_STAIR_RISE, DEFAULT_STAIR_WIDTH, activeStairCode, riseToFloorAbove } from "./stair_floors.js";
+import { stairText } from "./stair_strings.js";
 import { pushHistory } from "./history.js";
 import { render2D } from "./plan2d.js";
 import { roofFromWalls } from "./roof.js";
@@ -22,7 +25,7 @@ import { mkItem } from "./furniture_api.js";
 import { makeSpec, defaultPreset, cabRun, STD } from "./cabinet.js";
 import { SHEETS, PROFILES } from "./stock.js";
 import { refreshTree, updateCost } from "./ui_tree.js";
-import { select } from "./ui_props.js";
+import { fillProps, select } from "./ui_props.js";
 import { itemPlaceCommand, executeCommand } from "./commands/index.js";
 import { togglePartCodes } from "./part_code_labels.js";
 
@@ -261,46 +264,60 @@ function openRoof() {
   dialog.appendChild(form); dialog.addEventListener("close", () => dialog.remove(), { once: true }); document.body.appendChild(dialog); dialog.showModal();
 }
 
+/* Stairs: a shape, which way it turns, landing or winders, and a width. The
+   design itself is fitted to the jurisdiction's limits for the rise to the
+   floor above (js/stair_layout.js autoStair) and stays editable in the item
+   inspector. With no storey above it still places (300 cm rise) and says the
+   stairwell is cut once a floor is added above. */
 function openStairs() {
   const above = floorAbove();
-  if (!above) { reportDialog("Stairs", ["Add an upper floor before placing stairs so the tool can cut its slab."]); return; }
   document.getElementById("proStairs")?.remove();
   const dialog = document.createElement("dialog");
   dialog.id = "proStairs";
   dialog.className = "pro-dialog";
   const form = document.createElement("form"); form.method = "dialog";
-  const title = document.createElement("h2"); title.textContent = "Parametric stairs"; form.appendChild(title);
+  const title = document.createElement("h2"); title.textContent = stairText("dialogTitle"); form.appendChild(title);
   const inputs = {};
-  for (const [key, label, type, value, min] of [
-    ["shape", "Plan", "select", "straight", ""], ["width", "Width (cm)", "number", "100", "60"],
-    ["depth", "Depth (cm)", "number", "250", "120"], ["steps", "Steps", "number", "14", "2"],
-  ]) {
+  const choices = {
+    shape: [["straight", stairText("straight")], ["L", stairText("L")], ["U", stairText("U")]],
+    turn: [["R", stairText("right")], ["L", stairText("left")]],
+    turnType: [["landing", stairText("landing")], ["winder", stairText("winder")]],
+  };
+  for (const [key, label] of [["shape", stairText("shape")], ["turn", stairText("turn")], ["turnType", stairText("turnsAs")], ["width", stairText("width") + " (cm)"]]) {
     const row = document.createElement("label"); row.style.cssText = "display:grid;gap:.25rem;margin:.6rem 0";
     row.append(label);
-    const input = document.createElement(type); input.name = key;
-    if (type === "select") for (const shape of ["straight", "L", "U"]) { const option = document.createElement("option"); option.value = shape; option.textContent = shape; input.appendChild(option); }
-    else { input.min = min; input.step = "1"; input.required = true; }
-    input.value = value; row.appendChild(input); form.appendChild(row); inputs[key] = input;
+    let input;
+    if (choices[key]) {
+      input = document.createElement("select");
+      for (const [value, text] of choices[key]) { const option = document.createElement("option"); option.value = value; option.textContent = text; input.appendChild(option); }
+    } else {
+      input = document.createElement("input"); input.type = "number"; input.min = "60"; input.max = "400"; input.step = "1"; input.required = true; input.value = String(DEFAULT_STAIR_WIDTH);
+    }
+    input.name = key; row.appendChild(input); form.appendChild(row); inputs[key] = input;
   }
-  const hint = document.createElement("p"); hint.textContent = `The flight rises to ${above.name} and cuts its slab automatically. Choose a location on the plan after pressing Place.`; form.appendChild(hint);
-  const place = document.createElement("button"); place.type = "submit"; place.textContent = "Place"; form.appendChild(place);
+  const hint = document.createElement("p"); hint.dir = "auto";
+  hint.textContent = above ? stairText("risesTo", { floor: above.name }) : stairText("noFloorAbove");
+  form.appendChild(hint);
+  const place = document.createElement("button"); place.type = "submit"; place.textContent = stairText("place"); form.appendChild(place);
   const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = t("cancel"); cancel.onclick = () => dialog.close(); form.appendChild(cancel);
   form.onsubmit = async event => {
     event.preventDefault();
-    const width = Number(inputs.width.value), depth = Number(inputs.depth.value), steps = Number(inputs.steps.value);
-    if (!(width >= 60 && depth >= 120 && steps >= 2 && steps <= 100)) return;
+    const width = Number(inputs.width.value);
+    if (!(width >= 60 && width <= 400)) return;
     dialog.close();
-    const active = S.workspace.floors.find(f => f.id === S.workspace.activeFloor);
-    const rise = Math.max(1, (Number(above.elevation) || 270) - (Number(active?.elevation) || 0));
+    const rise = riseToFloorAbove() || DEFAULT_STAIR_RISE;
     const onPlaced = event => {
       const it = event.detail?.item;
       if (it?.type !== "stairs") return;
       window.removeEventListener("planner-item-created", onPlaced);
       pushHistory();
-      it.w = width; it.d = depth; it.h = rise;
-      it.configuration = { ...(it.configuration || {}), shape: inputs.shape.value, stepCount: steps };
+      applyStairConfig(it, autoStair({
+        rise, rules: activeStairCode().rules, preset: inputs.shape.value, width,
+        turn: inputs.turn.value, turnType: inputs.turnType.value, autoRise: !!above,
+      }), rise);
       S.dirty3D = true; render2D();
-      window.__runAction?.("slabFromStairs");
+      fillProps();
+      if (floorAbove()) window.__runAction?.("slabFromStairs");
     };
     window.addEventListener("planner-item-created", onPlaced);
     const ui = await import("./ui.js");
@@ -357,6 +374,20 @@ function layoutCheck() {
   reportDialog("Layout check", lines.length ? lines : ["No enclosed rooms to analyze."]);
 }
 
+/* Import DXF. The file picker opens here, inside the click (a browser only
+   shows a file dialog for a user gesture); the importer and the plan
+   recognizer it runs load once a file is chosen. */
+function openDxfImport() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".dxf,application/dxf,image/vnd.dxf,image/x-dxf";
+  input.addEventListener("change", () => {
+    const file = input.files && input.files[0];
+    if (file) import("./ui_dxf_import.js").then((m) => m.importDxfFile(file));
+  }, { once: true });
+  input.click();
+}
+
 export const PRO_ACTIONS = {
   dimension: () => openAnnotation("dimension"),
   note: () => openAnnotation("note"),
@@ -365,12 +396,16 @@ export const PRO_ACTIONS = {
   stack: openStack,
   roof: openRoof,
   stairs: openStairs,
+  dxfImport: openDxfImport,
   cabRun: openCabRun,
   cabWorktop: openCabWorktop,
   cabSend: openCabSend,
   refdim: () => window.__runAction?.("conRefDim"),
   areaSummary,
   layoutCheck,
+  codeCheck: () => import("./ui_code_check.js").then((m) => m.openCodeCheck()),
+  // the construction sheet to the project's regional drafting standard, previewed
+  proDrawing: () => import("./ui_pro_drawing.js").then((m) => m.openProDrawing()),
   sheetSvg: () => downloadText("home3d-construction-plan.svg", toConstructionSVG(), "image/svg+xml"),
   sheetPrint: () => printSheetSVG(toConstructionSVG(), t("sheet_floor_plan")),
   planSvg: () => downloadText("home3d-plan.svg", toSVG(), "image/svg+xml"),

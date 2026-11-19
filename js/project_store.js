@@ -44,36 +44,59 @@ export async function getProject(id) {
   return tx("readonly", (store) => store.get(id));
 }
 
+/* Read, version and write in ONE readwrite transaction: IndexedDB runs
+   overlapping readwrite transactions on a store one after another, so two
+   saves (two tabs, a double click) each see the other's version instead of
+   both reading the same record and the second write dropping the first's. */
 export async function saveProject(id, name, json, note) {
-  const now = Date.now();
-  const old = await getProject(id).catch(() => null);
-  const versions = (old && old.versions) || [];
-  const last = versions[versions.length - 1];
-  // Skip a full duplicate snapshot when the user hits Save twice with no edits
-  // (or only changes the version note). Large scenes with textures make each
-  // version expensive in IndexedDB.
-  if (last && last.json === json) {
-    if (note) last.note = String(note).slice(0, 120);
-    last.at = now;
-  } else {
-    versions.push({
-      id: "v-" + now.toString(36),
-      at: now,
-      note: String(note || "").slice(0, 120),
-      json,
+  const database = await db();
+  try {
+    return await new Promise((resolve, reject) => {
+      const transaction = database.transaction(STORE, "readwrite");
+      const store = transaction.objectStore(STORE);
+      let record = null;
+      const read = store.get(id);
+      read.onsuccess = () => {
+        const now = Date.now();
+        const old = read.result || null;
+        const versions = (old && old.versions) || [];
+        const last = versions[versions.length - 1];
+        // Skip a full duplicate snapshot when the user hits Save twice with no edits
+        // (or only changes the version note). Large scenes with textures make each
+        // version expensive in IndexedDB.
+        if (last && last.json === json) {
+          if (note) last.note = String(note).slice(0, 120);
+          last.at = now;
+        } else {
+          versions.push({
+            // the time alone repeated for two saves in one millisecond
+            id: "v-" + now.toString(36) + "-" + Math.random().toString(36).slice(2, 7),
+            at: now,
+            note: String(note || "").slice(0, 120),
+            json,
+          });
+          if (versions.length > MAX_VERSIONS) versions.splice(0, versions.length - MAX_VERSIONS);
+        }
+        record = {
+          id,
+          name: String(name || "Home project").slice(0, 80),
+          createdAt: old ? old.createdAt : now,
+          updatedAt: now,
+          json,
+          versions,
+        };
+        store.put(record);
+      };
+      read.onerror = () => reject(read.error);
+      transaction.oncomplete = () => resolve(record);
+      transaction.onerror = () => reject(transaction.error || new Error("IndexedDB transaction failed"));
+      transaction.onabort = () => reject(transaction.error || new Error("IndexedDB transaction aborted"));
     });
-    if (versions.length > MAX_VERSIONS) versions.splice(0, versions.length - MAX_VERSIONS);
+  } finally {
+    try {
+      database.close();
+    } catch (_) {}
   }
-  const record = {
-    id,
-    name: String(name || "Home project").slice(0, 80),
-    createdAt: old ? old.createdAt : now,
-    updatedAt: now,
-    json,
-    versions,
-  };
-  await tx("readwrite", (store) => store.put(record));
-  return record;
 }
 
 export async function deleteProject(id) {

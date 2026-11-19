@@ -402,9 +402,9 @@ test("model editor @ 375px: mobile tutorial card docks above bottom chrome and l
     assert.equal(res.missing, undefined, "elements missing");
     assert.equal(res.isVisible, true, "tour card is visible");
     assert.equal(res.overlapsNav, false, "tour card does not overlap bottom navigation");
-    assert.deepEqual(res.primary, ["mobile", "sketch"], "phone hub leads with touch + sketch");
+    assert.deepEqual(res.primary, ["mobile", "first"], "phone hub leads with touch + first part");
     assert.equal(res.hasMore, true, "desktop projects sit behind More projects");
-    assert.ok(res.moreTracks.includes("solidworks"), "CAD cube is in More projects");
+    assert.ok(res.moreTracks.includes("plate"), "the plate track is in More projects");
   }
 });
 
@@ -511,7 +511,13 @@ test("mobile Add sheet launches an interactive editor without inerting unknown i
     assert.match(add.label, /Model editor|עורך מודלים/);
 
     await page.eval(() => document.getElementById("openModelerBtn").click());
-    await page.eval(() => new Promise((r) => setTimeout(r, 650)));
+    /* js/modeler.js loads on first open, so a fixed sleep lost the race on a
+       busy machine. Wait for the editor and its nav, then for the open to settle. */
+    await page.waitUntil(() => {
+      const editor = document.getElementById("modeler"), nav = document.getElementById("md-nav");
+      return !!(editor && getComputedStyle(editor).display !== "none" && nav && nav.getBoundingClientRect().width > 0);
+    }, { ms: 20000, what: "the model editor to open from Add" }).catch(() => {});
+    await page.eval(() => new Promise((r) => setTimeout(r, 300)));
     const opened = await page.eval(() => {
       const editor = document.getElementById("modeler");
       const nav = document.getElementById("md-nav");
@@ -593,57 +599,71 @@ test("model editor @ 375px: Commands tabs meet the 44px floor", opts, async () =
   }
 });
 
-test("model editor @ 375px: auto Extrude opens the feature form in Tree", opts, async () => {
+/* Walk a tutorial track: in Demo mode Next first performs the step, then moves
+   on, and waits for the CAD kernel in between — so wait for Next, not a timer. */
+async function tourNextUntil(page, done, limit = 30) {
+  for (let i = 0; i < limit; i++) {
+    if (await page.eval(done)) return true;
+    await page.waitUntil(() => !document.getElementById("mdTourNext").disabled, { ms: 60000, what: "the tutorial's Next button" });
+    if (await page.eval(done)) return true;
+    await page.eval(() => document.getElementById("mdTourNext").click());
+  }
+  return page.eval(done);
+}
+
+test("model editor @ 375px: Touch CAD Extrude step opens the feature form in a sheet", opts, async () => {
   const page = await ctx({ width: 375, height: 812 });
   {
     await page.eval(() => document.getElementById("mdGuide").click());
-    await page.eval(() => new Promise((r) => setTimeout(r, 300)));
     await page.eval(() => document.querySelector('[data-tour-track="mobile"]').click());
-    await page.eval(() => new Promise((r) => setTimeout(r, 200)));
-    await page.eval(() => document.querySelector('[data-tour-mode="auto"]').click());
-    await page.eval(() => new Promise((r) => setTimeout(r, 400)));
-    for (let i = 0; i < 3; i++) {
-      await page.eval(() => document.getElementById("mdTourNext").click());
-      await page.eval(() => new Promise((r) => setTimeout(r, 350)));
-    }
+    await page.eval(() => document.querySelector('[data-tour-mode="interactive"]').click());
+    // Show me draws the sketch; the Extrude step then rings the action row
+    const reached = await tourNextUntil(page, () => {
+      const title = document.getElementById("mdTourTitle")?.textContent || "";
+      if (/Extrude|שליפה/.test(title)) return true;
+      const showMe = document.getElementById("mdTourSkip");
+      if (showMe && !showMe.hidden && !showMe.disabled) showMe.click();
+      return false;
+    });
+    assert.equal(reached, true, "the track never reached its Extrude step");
+    await page.waitUntil(() => !!document.querySelector(".md-tour-target"), { what: "the ringed Extrude control" });
+    await page.eval(() => document.querySelector(".md-tour-target").click());
+    await page.waitUntil(() => { const h = document.querySelector("#mdQuickSettings"); return !!h && !h.hidden; }, { what: "the extrude form" });
     const form = await page.eval(() => {
       const host = document.querySelector("#mdQuickSettings");
       const sheet = document.getElementById("md-sheet");
-      const r = host && !host.hidden ? host.getBoundingClientRect() : null;
+      const r = host.getBoundingClientRect();
       return {
-        title: document.getElementById("mdTourTitle")?.textContent || "",
         sheetOn: sheet?.classList.contains("on") || false,
-        inTree: !!(host && sheet && sheet.contains(host)),
-        formH: r ? Math.round(r.height) : 0,
-        formDisplay: host ? getComputedStyle(host).display : "none",
+        inSheet: !!(sheet && sheet.contains(host)),
+        formH: Math.round(r.height),
+        formDisplay: getComputedStyle(host).display,
       };
     });
-    assert.match(form.title, /Extrude|אקסטרוד/);
-    assert.equal(form.sheetOn, true, "Tree sheet should be open around the form");
-    assert.equal(form.inTree, true, "feature form is not inside the sheet");
+    assert.equal(form.sheetOn, true, "a sheet should be open around the form");
+    assert.equal(form.inSheet, true, "feature form is not inside the sheet");
     assert.ok(form.formH > 40 && form.formDisplay !== "none", "feature form is not visible");
   }
 });
 
-test("model editor @ 375px: Touch CAD automatic tutorial completes every card", opts, async () => {
+test("model editor @ 375px: Touch CAD demo completes every card", opts, async () => {
   const page = await ctx({ width: 375, height: 812 });
   {
     await page.eval(() => document.getElementById("mdGuide").click());
     await page.eval(() => document.querySelector('[data-tour-track="mobile"]').click());
     await page.eval(() => document.querySelector('[data-tour-mode="auto"]').click());
-    for (let i = 0; i < 6; i++) {
-      await page.eval(() => document.getElementById("mdTourNext").click());
-      await page.eval(() => new Promise((r) => setTimeout(r, 220)));
-    }
+    await tourNextUntil(page, () => /7\s*(?:\/|of|מתוך)\s*7/.test(document.getElementById("mdTourCount")?.textContent || ""));
     const last = await page.eval(() => ({
       count: document.getElementById("mdTourCount")?.textContent || "",
       title: document.getElementById("mdTourTitle")?.textContent || "",
       enabled: !document.getElementById("mdTourNext")?.disabled,
+      failed: document.getElementById("mdTourStatus")?.classList.contains("failed"),
       editorVisible: getComputedStyle(document.getElementById("modeler")).display !== "none",
     }));
-    assert.match(last.count, /7\s*(?:\/|of|מתוך)\s*7|Done|הושלם/);
+    assert.match(last.count, /7\s*(?:\/|of|מתוך)\s*7/);
     assert.match(last.title, /Ready for touch CAD|מוכנים לעבודה במובייל/);
     assert.equal(last.enabled, true, "final Continue editing action is disabled");
+    assert.equal(last.failed, false, "a demonstration step failed");
     assert.equal(last.editorVisible, true, "tutorial completion closed the editor");
   }
 });

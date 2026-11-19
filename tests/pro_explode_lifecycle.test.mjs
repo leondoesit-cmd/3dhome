@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -14,7 +15,7 @@ function fixture(){
   const doc={createElement:()=>node(),querySelector:selector=>selector.includes('data-command="explode"')?command:null,
     querySelectorAll:()=>buttons};
   const context={document:doc,window:{MutationObserver:Observer},MutationObserver:Observer,
-    requestAnimationFrame:callback=>{frame=callback;},L:label=>label,M:key=>key,runProBinding:()=>{},railBindActive:()=>false};
+    requestAnimationFrame:callback=>{frame=callback;},L:label=>label,M:key=>key,runProBinding:()=>{},railBindActive:()=>false,syncFolds:()=>{}};
   const api=new Function(...Object.keys(context),'var ribbon=null;'+['syncModelDocumentRibbon','syncExplodeBinding','toolButton','watchEditorCommandState','syncActive'].map(name=>sourceFunctionText(source,name)).join('\n')+';return {toolButton,watchEditorCommandState,syncActive};')(...Object.values(context));
   return{api,command,document:doc,set buttons(value){buttons=value;},get observer(){return observer;},get options(){return observeOptions;},runFrame(){const callback=frame;frame=null;callback();},node};
 }
@@ -34,7 +35,7 @@ test('ordinary modeler command refresh publishes explode state before the Pro As
   const E={docType:'assembly',assembly:{components:[{id:'base'},{id:'bolt'}]}};
   const bindings={E,assemblyHasExplodedOffsets,t:key=>key,syncRelationCommands:()=>{},commandCatalog:()=>[{id:'explode',label:'Exploded view'}],
     isCanonicalAuthoring:()=>false,FEATURE_COMMAND:{},COMMAND_TOOLTIP:{},root:{ownerDocument:f.document,querySelector:()=>null,querySelectorAll:()=>[f.command]}};
-  const modeler=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const modeler=modelerSource();
   const refresh=new Function(...Object.keys(bindings),sourceFunctionText(modeler,'syncExplodeCommandState')+sourceFunctionText(modeler,'syncCommandManager')+';return syncCommandManager;')(...Object.values(bindings));
   refresh();assert.equal(f.command.getAttribute('aria-label'),'explodeAssembly');assert.equal(first.span.textContent,'explodeAssembly');
   let recreated=f.api.toolButton(tool);assert.equal(recreated.span.textContent,'explodeAssembly');assert.equal(recreated.getAttribute('aria-pressed'),'false');

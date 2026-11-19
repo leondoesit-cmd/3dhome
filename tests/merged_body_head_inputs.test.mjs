@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -10,7 +11,7 @@ import { bodiesFromResults, leavesInputStanding } from '../js/core/rebuild.js';
    tree shows an extra solid body — HOUSING's Draft1 did exactly that. Every
    creator that acts on the body as a whole takes the body's head instead. */
 
-const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const src = modelerSource();
 const fn = (name) => {
   const start = src.indexOf('function ' + name + '(');
   assert.ok(start >= 0, name + ' exists');

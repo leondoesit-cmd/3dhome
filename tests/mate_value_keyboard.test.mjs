@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -7,9 +8,9 @@ import {defaultTopologyMateAlignment} from '../js/cad_mate_reference_choices.js'
 import {solveTopologyMates} from '../js/cad_mates.js';
 import {assemblyMobilityReport} from '../js/core/assembly_mobility_status.js';
 import {bindMateNumericCommit} from '../js/modeler_mate_numeric_commit.js';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 test('mate removal exposes its type and occurrence detail to accessibility and keeps callback intact',()=>{
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('function mateRow('),end=source.indexOf('\n}',start)+2;
   const el=tag=>({tag,children:[],attributes:{},appendChild(child){this.children.push(child);},setAttribute(key,value){this.attributes[key]=value;}});
   const row=vm.runInNewContext(`(${source.slice(start,end)})`,{el,bindMateNumericCommit,btn:(text,action)=>Object.assign(el('button'),{text,action}),t:key=>key==='del'?'Delete':key});
@@ -23,7 +24,7 @@ test('mate removal exposes its type and occurrence detail to accessibility and k
 });
 
 function numericInspector(mate){
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),nodes=[],undos=[],messages=[];
+  const source=modelerSource(),nodes=[],undos=[],messages=[];
   const start=source.indexOf('      var extraField = function'),screwEnd=source.indexOf('      if (mate.type === "gear")',start);
   const limitStart=source.indexOf('      if (mate.type === "limit")',screwEnd),limitEnd=source.indexOf('\n    });',limitStart);
   const el=tag=>{const node={tag,children:[],attributes:{},listeners:{},appendChild(child){this.children.push(child);},setAttribute(key,value){this.attributes[key]=value;},addEventListener(name,callback){this.listeners[name]=callback;}};nodes.push(node);return node;};
@@ -42,7 +43,7 @@ function numericInspector(mate){
       if(!coupled)return{ok:false};
       beforeCommit();mate.coupledMotion=coupled;return{ok:true};
     }};
-  vm.runInNewContext(source.slice(start,screwEnd)+source.slice(limitStart,limitEnd),context);
+  vm.runInNewContext(withSetters(source.slice(start,screwEnd)+source.slice(limitStart,limitEnd)),context);
   return {mate,E:context.E,nodes,undos,messages,get solveFresh(){return context.assemblySolveFresh;},get solves(){return solves;},get refreshes(){return refreshes;},
     input:label=>nodes.find(node=>node.tag==='input'&&node.attributes['aria-label']===label)};
 }
@@ -99,8 +100,8 @@ test('native Screw creation captures the actual guided vice home instead of matc
     mateTypeFits:()=>({ok:true}),assemblyPickedRefs:()=>({a:old.a,b:old.b}),mateReferenceFromPick:pick=>structuredClone(pick),
     mateHolderById:id=>assembly.components.find(component=>component.id===id),pushUndo:()=>undos++,t:key=>key,flash:()=>{},
     uid:()=> 'new-native-screw',solveAssembly:()=>{solved=solveTopologyMates(assembly);},refreshAll:()=>{}};
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
-  vm.runInNewContext(sourceFunctionText(source,'addTopologyMate')+';addTopologyMate("screw");',environment);
+  const source=modelerSource();
+  vm.runInNewContext(withSetters(sourceFunctionText(source,'addTopologyMate'))+';addTopologyMate("screw");',environment);
   assert.equal(undos,1);assert.equal(solved.ok,true,JSON.stringify(solved));
   const created=assembly.topologyMates.at(-1);assert.equal(created.coupledMotion,true);
   assert.ok(Math.abs(created.coupledAxial0)<1e-5);
@@ -109,7 +110,7 @@ test('native Screw creation captures the actual guided vice home instead of matc
   });
 });
 test('Enter commits a listed mate value without relying on browser blur dispatch',()=>{
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('function mateRow('),end=source.indexOf('\n}',start)+2;
   const nodes=[];
   const el=(tag)=>{const node={tag,children:[],listeners:{},appendChild(child){this.children.push(child);},setAttribute(){},addEventListener(name,fn){this.listeners[name]=fn;}};nodes.push(node);return node;};

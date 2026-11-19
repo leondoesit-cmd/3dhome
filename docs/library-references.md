@@ -1,0 +1,13 @@
+# Library references in assemblies and drawings
+
+Insert a saved part or assembly from the component picker to create a tracked occurrence. Existing occurrences can start tracking when you select **Update from library**, accept replacement of their embedded document, and save their owner. For an existing vanity with an existing door, establish tracking on the panel in the door first, save the door, then establish tracking on the door in the vanity and save the vanity. Review any local edits before accepting replacement.
+
+**When updates appear.** Opening a saved assembly, saving its owner, or rendering a drawing keyed to a saved assembly resolves tracked sources recursively. A clean, idle assembly also accepts eligible changes announced by another tab. During editing, select the occurrence and use **Apply tracked update** to take a pending safe change, or save the parent. Each occurrence keeps its own ID, placement and presentation. The ordinary assembly solver still runs on open and Save.
+
+**What persists.** Saving the child writes the child. Drawing and assembly reads compute the current view from the library. Saving the parent writes its resolved embedded copies and fingerprints under the usual optimistic conflict check. Until that save, an exported raw library snapshot or an owner whose source was removed can still contain the earlier embedded geometry. Include the referenced library records when transferring a library. A drawing attached to the active owner uses that owner's live state, including any deferred updates.
+
+**When the embedded copy wins.** Fingerprints cover the entire projected JSON document, including meshes. If both the source and embedded geometry changed, the resolver keeps the local copy as a unit. Independent configuration selections, parameter overrides, in-context components, flexible springs and pattern-driven occurrences use their existing geometry. A missing source or a circular reference also keeps the embedded copy. The component inspector explains these cases. Check nested references in their owning assembly.
+
+Untracked legacy branches stay intact until explicitly refreshed. Matching names or similar geometry do not establish ownership. An import that changes a tracked source key also requires explicit relinking. Cache normalization can conservatively trigger the same protection as an authored edit.
+
+Resolution reuses saved geometry. It does not regenerate alternate configurations, repair dangling topology mates, re-solve closed subassemblies, or merge concurrent edits within one embedded document. Published combined room models remain publication snapshots.

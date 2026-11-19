@@ -1,3 +1,5 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -16,7 +18,7 @@ test('hidden shelves do not leave stale reserve, and wrapped instructions grow t
   assert.deepEqual(mobileFeedbackSpace(pane,110,[]),{footer:0,gutter:126});
 });
 test('measured hint positioning and paired theme contrast apply to Model and Sketch as well as Drawing', () => {
-  const css = readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');
+  const css = stylesSource();
   assert.match(css,/body\.compact-nav #modeler \.md-mid > #mdHint\s*\{[^}]*bottom:\s*calc\(var\(--md-mobile-feedback-footer, 0px\) \+ 4px\);[^}]*background:\s*var\(--bg-panel\); color:\s*var\(--text-main\)/);
   const src = readFileSync(new URL('../js/modeler_mobile.js',import.meta.url),'utf8');
   assert.match(src,/function sync\(force\)\s*\{[^}]*adoptHint\(\)/);
@@ -26,6 +28,6 @@ test('measured hint positioning and paired theme contrast apply to Model and Ske
   assert.match(css,/#mdHint\s*\{ inset-inline-start:\s*64px; max-width:\s*calc\(100% - 76px\)/);
   const compact = readFileSync(new URL('../js/pro_compact.js',import.meta.url),'utf8');
   assert.match(compact,/hint\.dataset\.activeInstruction !== "true" && !hint\.classList\.contains\("selection"\)/);
-  const modeler = readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const modeler = modelerSource();
   assert.match(modeler,/var instructionTool = E\.mode === "drawing" \? drawingSheet\(\)\.state\.tool : E\.tool;[\s\S]*?hint\.dataset\.activeInstruction = instructionTool/);
 });

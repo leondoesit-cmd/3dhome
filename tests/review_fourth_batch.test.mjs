@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import { sourceFunctionText } from './helpers/source_function.mjs';
@@ -64,9 +65,10 @@ test('hole wizard cuts exact blind, through, stepped and countersunk holes witho
  for(const params of [
   {holeType:'simple',diameter:1,depth:2,endCondition:'blind'},
   {holeType:'simple',diameter:1,depth:.1,endCondition:'through-all'},
-  // Offset is measured along the pull direction: -10 places the reverse
-  // cutter at the upper Y10 face before it drills back into the stock.
-  {holeType:'simple',diameter:1,depth:2,endCondition:'blind',direction:'reverse',offset:-10},
+  // Offset is signed along the sketch normal whatever the cut direction
+  // (see hole_start_offset): +10 places the reverse cutter at the upper Y10
+  // face before it drills back into the stock.
+  {holeType:'simple',diameter:1,depth:2,endCondition:'blind',direction:'reverse',offset:10},
   {holeType:'counterbore',diameter:1,depth:2,endCondition:'blind',cboreDiameter:2,cboreDepth:1},
   {holeType:'countersink',diameter:1,depth:2,endCondition:'blind',csinkDiameter:2,csinkAngle:90},
  ]){
@@ -81,7 +83,7 @@ test('hole wizard cuts exact blind, through, stepped and countersunk holes witho
 });
 
 test('dimension text stays on its exterior side in local text coordinates and SVG',async()=>{
- const source=readFileSync(new URL('../js/cad_sheet.js',import.meta.url),'utf8'),fn=sourceFunctionText(source,'dimensionItems');
+ const source=moduleSource('js/cad_sheet.js'),fn=sourceFunctionText(source,'dimensionItems');
  const text=(x,y,text,opts)=>({type:'text',x,y,text,...opts}),line=(x1,y1,x2,y2,style)=>({type:'line',x1,y1,x2,y2,style});
  const dimension=Function('num','dimensionText','measureDim','TEXT_SIZES','LINE_STYLES','text','line','arrowHead','ARROW_LENGTH','return ('+fn+')')((v,d)=>v??d,()=>'20',()=>20,{dim:2.5},{dim:{color:'#000'}},text,line,()=>({type:'arrow'}),3.2);
  const {sceneToSvg}=await import('../js/cad_sheet.js');
@@ -93,7 +95,7 @@ test('dimension text stays on its exterior side in local text coordinates and SV
  }
 });
 test('section arrows agree with projection sight after the sheet Y inversion',()=>{
- const source=readFileSync(new URL('../js/cad_sheet.js',import.meta.url),'utf8'),fn=sourceFunctionText(source,'sectionMarker');
+ const source=moduleSource('js/cad_sheet.js'),fn=sourceFunctionText(source,'sectionMarker');
  const marker=Function('num','line','arrowHead','text','TEXT_SIZES','return ('+fn+')')((v,d)=>v??d,()=>({type:'line'}),(x,y,dx,dy)=>({type:'arrow',dx,dy}),()=>({type:'text'}),{view:3});
  for(const flip of [false,true])for(const axis of ['horizontal','vertical']){
   const arrows=marker({parent:'p',section:{axis,flip,at:0}},[{id:'p',box:{x:0,y:0,w:20,h:20},centre:{u:0,v:0},toSheet:p=>({x:p.u,y:-p.v})}],{}).filter(i=>i.type==='arrow');

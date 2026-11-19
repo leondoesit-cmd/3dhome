@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -18,7 +19,7 @@ function table(){
  return {def,controller,host,history,fields:()=>fields,answer:next=>answer=next};
 }
 test('actual sheet form passes multiline Note text through a textarea without input newline sanitation',async()=>{
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');let spec;
+ const source=modelerSource();let spec;
  const text='FRONT\nTOP\nLEFT & RIGHT',root={classList:{add(){},remove(){}}};
  const form=new Function('root','openQuickForm','t',sourceFunctionText(source,'sheetForm')+';return sheetForm;')(root,next=>{spec=next;return {};},k=>k);
  const promise=form('Note',[{key:'text',label:'Note text',type:'textarea',value:text}]);

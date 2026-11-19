@@ -1,5 +1,8 @@
 // Pure domain command for placing one catalog item. Browser integrations inject
 // the runtime factory/orientation services; Node callers only need dimensions.
+import { tabletopPlacement } from "../placement_resolver.js";
+import { S } from "../state.js";
+import { itemVSpan } from "../furniture_api.js";
 
 export const ITEM_PLACE_CODES = Object.freeze([
   "INVALID_ITEM_TYPE",
@@ -7,6 +10,7 @@ export const ITEM_PLACE_CODES = Object.freeze([
   "INVALID_ITEM_POSITION",
   "INVALID_ITEM_DIMENSIONS",
   "ITEM_CREATE_FAILED",
+  "PLACEMENT_GEOMETRY_CHANGED",
 ]);
 
 function finite(value) {
@@ -44,6 +48,11 @@ function snap2(value) {
   return Math.round(value / 2) * 2;
 }
 
+function surfaceTop(host, state) {
+  // A probe must not create a parametric definition during command preview.
+  return state === S ? itemVSpan({ ...host, id: undefined }).hi : (host.elev || 0) + host.h;
+}
+
 export function prepareItemPlace(params, env) {
   params = params || {};
   var type = typeof params.type === "string" ? params.type.trim() : "";
@@ -59,6 +68,9 @@ export function prepareItemPlace(params, env) {
     return fail("INVALID_ITEM_DIMENSIONS");
   var rot = params.rot == null ? 0 : Number(params.rot);
   if (!finite(rot)) return fail("INVALID_ITEM_POSITION");
+  const pose = { type, x: snap2(x), z: snap2(z), rot, w, d };
+  const surface = tabletopPlacement(pose, env.state?.items || [], params.rot != null);
+  if (surface && !surface.fits) return fail("INVALID_ITEM_POSITION");
 
   return {
     ok: true,
@@ -69,7 +81,9 @@ export function prepareItemPlace(params, env) {
         type: type,
         x: snap2(x),
         z: snap2(z),
-        rot: rot,
+        rot: surface ? surface.rot : rot,
+        ...(surface && { on: surface.host.id, elev: surfaceTop(surface.host, env.state) }),
+        rotationSpecified: params.rot != null,
         w: w,
         d: d,
         h: h,
@@ -89,6 +103,7 @@ export function previewItemPlace(plan) {
     depth: params.d,
     height: params.h,
     rotation: params.rot,
+    ...(params.on != null && { on: params.on, elev: params.elev }),
     style: "ghost-valid",
   };
 }
@@ -98,10 +113,15 @@ export function applyItemPlace(plan, env) {
     params = plan && plan.params,
     services = env && env.services || {};
   if (!state || !Array.isArray(state.items) || !params) return fail("ITEM_CREATE_FAILED");
+  // A batch may have moved the support or put another lamp on it since preview.
+  const surface = tabletopPlacement(params, state.items, true);
+  if (surface?.host.id !== params.on || (surface && !surface.fits)) return fail("PLACEMENT_GEOMETRY_CHANGED");
 
   var item;
   if (typeof services.createItem === "function") {
-    item = services.createItem(params.type, params.x, params.z, params.rot);
+    item = surface
+      ? services.createItem(params.type, params.x, params.z, params.rot, surface.host)
+      : services.createItem(params.type, params.x, params.z, params.rot);
   } else {
     if (!finite(Number(state.idc))) return fail("ITEM_CREATE_FAILED");
     item = {
@@ -118,7 +138,12 @@ export function applyItemPlace(plan, env) {
   if (!item || item.id == null || !finite(Number(item.x)) || !finite(Number(item.z)))
     return fail("ITEM_CREATE_FAILED");
 
-  if (typeof services.applyAutoFace === "function")
+  if (params.rotationSpecified) { item.rot=params.rot; item.rotUser=true; }
+  if (surface && item.on == null) {
+    item.on = surface.host.id;
+    item.elev = surfaceTop(surface.host, state);
+  }
+  if (!surface && typeof services.applyAutoFace === "function" && !params.rotationSpecified)
     services.applyAutoFace(item, params.x, params.z, {});
   state.items.push(item);
   return {

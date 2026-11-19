@@ -3,6 +3,7 @@ import { S } from './state.js';
 import { t, onLangChange } from './i18n.js';
 import { setTool, disarmRoomStamp } from './interaction.js';
 import { fitView, render2D, onAfterRender } from './plan2d.js';
+import { frameView } from './view3d.js';
 import { unitLabel, fmtLen, parseLen } from './display_units.js';
 import { openingDrawDefaults, setOpeningDrawDefault } from './opening_draw_defaults.js';
 import { ROOM_PRESETS } from './room_presets.js';
@@ -59,7 +60,8 @@ export function initPlannerWorkflow() {
   }
   button('workflowUnits', 'ruler', () => window.dispatchEvent(new CustomEvent('unit-open-settings')));
   button('workflowFit', 'arrows-out', () => {
-    window.__setViewMode?.('plan');
+    // in the 3D view, frame the model there instead of leaving 3D for the plan
+    if (document.getElementById('center-canvas')?.classList.contains('max-view-3d')) { frameView(); return; }
     requestAnimationFrame(() => {
       fitView();
       // Leave room for the tool ribbon and dimensions around the footprint.
@@ -104,15 +106,17 @@ export function initPlannerWorkflow() {
     window.dispatchEvent(new CustomEvent('planner-place'));
     render2D(); update();
   });
-  function label(id, value) {
+  function label(id, value, title = value) {
     const c = controls[id];
     if (c.label.textContent !== value) c.label.textContent = value;
+    // the desktop column shows icons only: the name rides on the tooltip
+    if (c.b.title !== title) c.b.title = title;
   }
   function update() {
     bar.setAttribute('aria-label', t('workflow_title'));
-    label('workflowUnits', t('workflow_units') + ': ' + unitLabel('plan'));
-    controls.workflowUnits.b.title = ['rooms', 'openings', 'furniture'].map(d => t('workflow_' + d) + ': ' + unitLabel(d)).join(' · ');
-    label('workflowFit', t('workflow_fit'));
+    label('workflowUnits', t('workflow_units') + ': ' + unitLabel('plan'),
+      ['rooms', 'openings', 'furniture'].map(d => t('workflow_' + d) + ': ' + unitLabel(d)).join(' · '));
+    label('workflowFit', t(document.getElementById('center-canvas')?.classList.contains('max-view-3d') ? 'frame' : 'workflow_fit'));
     const layersHidden = document.body.classList.contains('workflow-hide-layers');
     label('workflowLayers', t(layersHidden ? 'workflow_show_layers' : 'workflow_hide_layers'));
     controls.workflowLayers.b.setAttribute('aria-expanded', String(!layersHidden));

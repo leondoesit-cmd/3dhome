@@ -49,6 +49,21 @@
 
 const DEFAULT_CAP = 60;
 
+function copyHistorySession(session, portable) {
+  if (portable) return structuredClone(session);
+  // settle() replaces snap, idx and targets together. Edits and labels also
+  // change by replacement. Only the node record and kids are edited in place.
+  const nodes = new Map(), known = new Map();
+  for (const [id, node] of session.nodes) {
+    // Boxed operation labels follow the same clone semantics as a portable
+    // restore (in particular, transient coalescing tags are dropped).
+    const op = typeof node.op === 'object' ? structuredClone(node.op) : node.op;
+    nodes.set(id, { ...node, op, kids: node.kids.slice() });
+  }
+  for (const [id, object] of session.known) known.set(id, { ...object });
+  return { ...session, nodes, known };
+}
+
 export function createHistory(opts) {
   opts = opts || {};
   var get = opts.get,
@@ -64,6 +79,9 @@ export function createHistory(opts) {
      `idx` is the scan of `snap` as id -> content hash; `targets` is that index
      diffed against the parent's, i.e. what this step did. */
   var nodes = new Map(),
+    generation = 0,
+    editSequence = 0,
+    rootEdits = {},
     seq = 0,
     root = null,
     pos = null,
@@ -160,7 +178,7 @@ export function createHistory(opts) {
   }
 
   /* ---- the tree ---------------------------------------------------------- */
-  function add(parentId, snapStr, label) {
+  function add(parentId, snapStr, label, scope) {
     var n = {
       id: seq,
       parent: parentId,
@@ -175,6 +193,10 @@ export function createHistory(opts) {
     };
     nodes.set(n.id, n);
     var p = N(parentId);
+    if (opts.editScope) {
+      n.edits = p ? { ...p.edits, [scope]: ++editSequence } : rootEdits;
+      n.editScope = scope;
+    }
     if (p) {
       p.kids.push(n.id);
       p.pick = n.id;
@@ -182,6 +204,8 @@ export function createHistory(opts) {
     return n;
   }
   function startAt(snapStr) {
+    rootEdits = cur()?.edits || rootEdits;
+    generation++;
     nodes.clear();
     known.clear();
     seq = 0;
@@ -192,17 +216,17 @@ export function createHistory(opts) {
     settle(n, snapStr);
   }
   // the live model IS node `pos`; keep that node honest before moving away
-  function sync() {
-    if (pos != null) settle(cur(), get());
+  function sync(liveSnapshot) {
+    if (pos != null) settle(cur(), liveSnapshot === undefined ? get() : liveSnapshot);
   }
   /* Add a step for an operation about to happen (push) or already done
      (observe). The node it hangs off keeps whatever the model looked like when
      the step began — that is what makes undo land on the right state — and
      siblings created earlier are left alone: this is where the tree forks. */
-  function step(label, stateBefore, stateAfter) {
+  function step(label, stateBefore, stateAfter, scope = opts.editScope?.()) {
     if (pos == null) startAt(stateBefore);
     else settle(cur(), stateBefore);
-    var n = add(pos, stateAfter, label);
+    var n = add(pos, stateAfter, label, scope);
     pos = n.id;
     if (stateAfter === stateBefore) {
       // a push() records the state the edit STARTS from; nothing has happened
@@ -368,18 +392,20 @@ export function createHistory(opts) {
        `tag` coalesces: consecutive pushes carrying the same tag fold into the
        step already open, so dragging a slider or holding an arrow key is one
        step instead of sixty. Pass a fresh tag (or none) when the gesture ends. */
-    push: function (label, tag) {
+    push: function (label, tag, scope = opts.editScope?.()) {
       if (provisional) provisional = false; // a dangling begin() counts as done
       var now = get();
       var n = cur();
-      if (tag && n && n.parent != null && n.op && n.op.tag === tag) {
+      if (tag && n && n.parent != null && n.op && n.op.tag === tag &&
+          (!opts.editScope || n.editScope === scope)) {
         // same gesture: the step's starting point is already right, only its
         // result moves on
         settle(n, now);
+        if (opts.editScope) n.edits = {...n.edits,[scope]:++editSequence};
         fire();
         return this;
       }
-      step(tagged(label, tag), now, now);
+      step(tagged(label, tag), now, now, scope);
       fire();
       return this;
     },
@@ -398,6 +424,7 @@ export function createHistory(opts) {
       provisional = false;
       var n = cur();
       if (label && n) n.op = label;
+      if (opts.editScope && n) n.edits = {...n.edits,[n.editScope]:++editSequence};
       settle(n, get());
       fire();
       return true;
@@ -602,12 +629,24 @@ export function createHistory(opts) {
       return keyOf ? keyOf(live) === keyOf(n.snap) : live === n.snap;
     },
 
-    saveSession: function () {
-      sync();
-      return structuredClone({nodes,known,seq,root,pos,provisional,lastKey,lastFull});
+    // Opaque immutable strings only; include the observe() checkpoint too.
+    retainedSnapshots: function () {
+      return [...nodes.values()].map(function (node) { return node.snap; }).concat(lastFull);
     },
-    loadSession: function (saved) {
-      const copy = structuredClone(saved);
+    // A shared undo tree can restore several documents at once. Only the
+    // document owning an edit gets a new revision on that branch.
+    editRevision: function (scope) {
+      return (cur()?.edits || rootEdits)[scope] || 0;
+    },
+    saveSession: function (portable = true, liveSnapshot) {
+      sync(liveSnapshot);
+      return copyHistorySession({nodes,known,seq,root,pos,provisional,lastKey,lastFull,editSequence,rootEdits}, portable);
+    },
+    loadSession: function (saved, portable = true) {
+      const copy = copyHistorySession(saved, portable);
+      generation++;
+      editSequence=Math.max(editSequence,copy.editSequence || 0);
+      rootEdits=copy.rootEdits || {};
       nodes=copy.nodes; known=copy.known; seq=copy.seq; root=copy.root; pos=copy.pos;
       provisional=copy.provisional; lastKey=copy.lastKey; lastFull=copy.lastFull;
       fire();
@@ -616,6 +655,8 @@ export function createHistory(opts) {
     /* Start a new editing session — a different model was loaded, so the old
        tree does not describe it. */
     clear: function () {
+      rootEdits = cur()?.edits || rootEdits;
+      generation++;
       nodes.clear();
       known.clear();
       root = pos = null;
@@ -636,6 +677,9 @@ export function createHistory(opts) {
     isRestoring: function () {
       return restoring;
     },
+    // Node numbers are local to one tree. Undo/Redo keep the generation
+    // while clearing, seeding or loading a tree invalidates old node numbers.
+    get generation() { return generation; },
   };
 
   return H;

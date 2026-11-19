@@ -1,3 +1,5 @@
+import {registerQuickForm} from '../js/modeler_quick_form.js';
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,7 +7,7 @@ import {parse} from '../vendor/acorn/acorn.mjs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {cylinderUVDomain,surfacePoint} from '../js/core/surface_uv.js';
 import {solveSketch,translateSketchGeometry} from '../js/sketch_solver.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const descriptor={surface:'cylinder',radius:.29,origin:{x:1.8,y:0,z:0},referenceOrigin:{x:-2.2,y:0,z:0},axis:{x:-1,y:0,z:0},axisRange:[-4.4,-3.6]};
 
 test('journal UV guide translates native reference range into surface origin coordinates',()=>{
@@ -48,7 +50,7 @@ test('editing a fixed point replaces its fixed target but preserves and reports 
 test('quick form preserves a persistent accessible refusal message after Apply rejects',async()=>{
  const children=[];const element=()=>({appendChild(x){children.push(x);},setAttribute(k,v){this[k]=v;},addEventListener(){},focus(){},classList:{contains:()=>false}});
  const host=element(),E={authoring:{}};let apply,refresh=0,accept=false;
- const bindings={E,motionPlaybackCancel:null,root:{querySelector:()=>host},el:element,t:x=>x,featureField:()=>({value:'0'}),featureControlValue:()=>0,modelLengthUnit:()=> 'mm',namedButton:x=>x,btn:(label,callback,style)=>{if(style==='md-quick-apply')apply=callback;return element();},validateFeatureInputs:()=>true,syncCommandManager:()=>{},document:{body:element()},requestAnimationFrame:fn=>fn(),closeFeaturePanel:()=>{},refreshAll:()=>refresh++};
+ const bindings={registerQuickForm,E,motionPlaybackCancel:null,root:{querySelector:()=>host},el:element,t:x=>x,featureField:()=>({value:'0'}),featureControlValue:()=>0,modelLengthUnit:()=> 'mm',namedButton:x=>x,btn:(label,callback,style)=>{if(style==='md-quick-apply')apply=callback;return element();},validateFeatureInputs:()=>true,syncCommandManager:()=>{},document:{body:element()},requestAnimationFrame:fn=>fn(),closeFeaturePanel:()=>{},refreshAll:()=>refresh++};
  const open=new Function(...Object.keys(bindings),sourceFunctionText(source,'openQuickForm')+';return openQuickForm;')(...Object.values(bindings));
  open({action:'pointcoordinates',title:'Coordinates',fields:[{key:'y',type:'number'}],onApply:()=>accept,failureMessage:()=> 'Conflicts with Horizontal'});
  await apply();const alert=children.find(x=>x.role==='alert');assert.equal(alert.hidden,false);assert.equal(alert.textContent,'Conflicts with Horizontal');assert.equal(E.quickAction,'pointcoordinates');assert.equal(refresh,0);

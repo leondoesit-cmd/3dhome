@@ -3,22 +3,39 @@ import { anchorPos, conSatisfied } from './wall_constraints.js';
 import { wallPointAt } from './geometry.js';
 import { pushHistory } from './history.js';
 import { makeArcFromThreePoints, pointAtWall } from './wall_curves.js';
-import { offsetGhost } from './wall_draw.js';
+import { offsetGhost, resolveWallDrawDefaults } from './wall_draw.js';
+import { ghostLabels, ghostSpecs } from './build3d_ghost.js';
+import { hideBuildGhost, syncBuildGhost } from './view3d/build_ghost.js';
+import { build3dPrefs } from './build3d_prefs.js';
+import { placementPose } from './build3d_pose.js';
+import { groundSampleOk, isCabinetItem, planBounds, touchCommitsOnRelease, aimCounts, dragPlanPoint, dragSamplePlan, itemDragGrabY, viewScale } from './build3d_input.js';
+import { dragProbe3D } from './view3d/drag_probe.js';
+import { initBuild3DUI, openDesigner, updateBuild3DUI } from './build3d_ui.js';
+import { openingDrawDefaults } from './opening_draw_defaults.js';
+import { fitCabDraftView } from './interaction/fit_cabinet_tool.js';
+import { ensureMEP, layerNodeY, layerRunY, nodeKindDef, snapMEPPoint } from './mep.js';
 import { footprint } from './layout_analysis.js';
-import { FURN } from './furniture.js';
+import { FURN, knownVSpan } from './furniture.js';
 import { S, SNAP_GRID } from './state.js';
 import { THREE } from './three_lazy.js';
-import { getMainCamera, has3D, plannerPointer3D, plannerPlanePoint3D, requestRender, toggleWalk, isWalk, toggleWalkView, setPlannerRenderHook } from './view3d.js';
+import { getMainCamera, has3D, plannerPointer3D, plannerPlanePoint3D, requestRender, toggleWalk, isWalk, toggleWalkView, walkViewMode, setPlannerRenderHook, setLegacyTouchEdit } from './view3d.js';
 import { previewSurveyVertex, surveyVertexPlane, snapSurveyVertex } from './survey_vertex.js';
 import { st } from './survey_strings.js';
 import { dispatchPlannerInput, cancelPlannerGesture, setPlannerInputView } from './planner_input.js';
+import { touchClaims3D, isTouchTap } from './planner_touch.js';
 import { onAfterRender, render2D } from './plan2d.js';
 import { movePlanToolsTo } from './plan_tools_dock.js';
 import { wallGeom, detectRooms } from './geometry.js';
 import { t, onLangChange } from './i18n.js';
+import { wallsButton } from './ui_wall_view.js';
 import { fmtLen } from './display_units.js';
 
 let pane, canvas, hud, modeButton, lookButton, personButton, dragId=null, lastInput=null, look=false, constraintHits=[];
+/* Touch in the 3D pane: see planner_touch.js for who owns a finger. A second
+   finger always navigates. */
+const touchIds=new Set();
+let touchTap=null;
+const TAP_SLOP=10, TAP_MS=450;
 let roofButton;
 let vertexHits=[],vertexDrag=null;
 let planLayersWereHidden=null;
@@ -91,8 +108,42 @@ function activate() {
   S.edit3D=true;
   setPlannerInputView({id:'3d',scale:lastInput?.scale||1,width:pane?.clientWidth||1,height:pane?.clientHeight||1});
 }
+/* A finger on a tool whose press would commit previews while it is down and
+   commits where it is lifted (build3d_input.js touchCommitsOnRelease): the
+   moves go out with no buttons held, as a hover. */
+let holdCommit=false,touchDown=null,lastTouchTap=null;
+const hover=e=>({clientX:e.clientX,clientY:e.clientY,pointerId:e.pointerId,pointerType:e.pointerType,buttons:0});
+/* A double-click / double-tap on a cabinet opens the cabinet designer. */
+function cabinetAt(e){
+  if((S.tool&&S.tool!=='select')||S.placeType||S.workspace?.role==='viewer')return null;
+  const hit=plannerPointer3D(e.clientX,e.clientY)?.hit;
+  return hit?.kind==='item'&&isCabinetItem(hit.ref)&&!hit.ref.locked?hit.ref:null;
+}
+/* A piece drag samples the ray against the horizontal plane through the
+   grabbed point (dragGrab = its height, set by a press that started a
+   one-piece drag) and carries the ray and the aimed wall face as `drag`; the
+   fit-cabinet tool gets `drag` with its usual point (build3d_input.js). */
+let dragGrab=null;
+function dragInput(e,plan){
+  const base=plan.plane?null:plannerPointer3D(e.clientX,e.clientY);
+  const roots=S.sel?.kind==='items'?S.sel.refs:S.sel?.ref?[S.sel.ref]:[];
+  const probe=dragProbe3D(e.clientX,e.clientY,plan.plane?roots:[]);
+  if(!probe)return base;
+  const {ray,wall}=probe,flat=plannerPlanePoint3D(e.clientX,e.clientY,{x:0,y:plan.grabY,z:0},{x:0,y:1,z:0});
+  const aim=wall&&aimCounts(flat,ray.o,wall)?{wallId:wall.id,nx:wall.nx,nz:wall.nz,x:wall.point.x,y:wall.point.y,z:wall.point.z}:null;
+  const drag={ray,aim,grabY:plan.grabY};
+  if(!plan.plane)return base?{...base,drag}:null;
+  const point=dragPlanPoint(flat,aim,planBounds(S));
+  if(!point)return null;
+  const r=canvas.getBoundingClientRect(),y=aim?aim.y:plan.grabY;
+  const scale=viewScale(r.height,getMainCamera()?.fov,Math.hypot(point.x-ray.o.x,y-ray.o.y,point.z-ray.o.z));
+  return {point,hit:null,scale,width:r.width,height:r.height,drag};
+}
 function sample(e) {
-  const input=plannerPointer3D(e.clientX,e.clientY);
+  const plan=dragSamplePlan(S,dragGrab);
+  const input=plan?dragInput(e,plan):plannerPointer3D(e.clientX,e.clientY);
+  // a ray near the horizon meets the ground far past the plan: keep the last good sample
+  if(input&&!input.hit&&!groundSampleOk(input.point,planBounds(S)))return null;
   const r=pane.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
   const constraint=constraintHits.find(h=>Math.abs(h.x-x)<=h.w/2&&Math.abs(h.y-y)<=14)?.con||null;
   return input ? {...input,event:e,constraint} : null;
@@ -100,22 +151,36 @@ function sample(e) {
 function send(phase,e) {
   if(vertexInput(phase,e))return true;
   const input=sample(e) || ((phase==='up'||phase==='cancel') && lastInput ? {...lastInput,event:e} : null);
-  if(!input)return false;
+  if(!input){if(phase!=='move')dragGrab=null;return false;}
   lastInput=input;
   const sent=dispatchPlannerInput(phase,input);
+  dragGrab=phase==='down'?itemDragGrabY(S,input.hit):phase==='move'?dragGrab:null;
   requestRender(); paintPlanner3D(); return sent;
 }
+/* Each button is a toggle with a fixed name and an on-state. The names used to
+   flip to the other mode ("Walk" became "Orbit", "Look" became "Build / edit"),
+   so a pressed button named the mode you were NOT in. The tooltip says what a
+   click does next instead. */
+function navButton(icon) {
+  const b=document.createElement('button');b.type='button';
+  const i=document.createElement('i');i.className='ph '+icon;i.setAttribute('aria-hidden','true');
+  b.append(i,document.createElement('span'));return b;
+}
+function setNav(b,label,title,on) {
+  const s=b.querySelector('span');if(s.textContent!==label)s.textContent=label;
+  b.title=title;b.setAttribute('aria-pressed',String(on));
+}
 function labels() {
-  if(roofButton){roofButton.textContent=t('invisible_roof');roofButton.title=t('invisible_roof_hint');roofButton.setAttribute('aria-pressed',String(!!S.invisibleRoof));}
-  modeButton.textContent=t(isWalk()?'planner_orbit':'planner_walk');
-  if(personButton)personButton.textContent=t('planner_person');
-  modeButton.setAttribute('aria-pressed',String(isWalk()));
-  lookButton.textContent=t(look?'planner_build':'planner_look');
-  lookButton.setAttribute('aria-pressed',String(look));
+  if(roofButton)setNav(roofButton,t('invisible_roof'),t('invisible_roof_hint'),!!S.invisibleRoof);
+  const walking=isWalk();
+  setNav(modeButton,t('planner_walk'),t(walking?'planner_orbit':'planner_walk'),walking);
+  // first / third person only means something while walking
+  if(personButton){setNav(personButton,t('planner_third_person'),t('planner_person'),walking&&walkViewMode()==='tpv');personButton.hidden=!walking;}
+  setNav(lookButton,t('planner_look'),t(look?'planner_build':'planner_look'),look);
 }
 export function syncPlannerViewport(mode) {
   if(!pane)return;
-  cancelVertex();cancelPlannerGesture(); dragId=null;
+  cancelVertex();cancelPlannerGesture(); dragId=null; dragGrab=null;
   if(mode==='3d') activate();
   else { set3DChrome(false); movePlanToolsTo('view-2d'); setPlannerInputView(null); document.documentElement.dataset.plannerViewport='plan'; }
   labels(); requestRender();
@@ -131,13 +196,21 @@ export function initPlanner3D() {
   const old=document.getElementById('edit3dBtn');if(old)old.hidden=true;
   hud=document.createElement('canvas');hud.id='planner-3d-hud';hud.setAttribute('aria-hidden','true');pane.append(hud);
   const bar=document.createElement('div');bar.className='planner-navigation';bar.setAttribute('role','toolbar');
-  modeButton=document.createElement('button');modeButton.type='button';
+  modeButton=navButton('ph-person-simple-walk');modeButton.className='pn-walk';
   modeButton.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();toggleWalk();labels();requestRender();};
-  lookButton=document.createElement('button');lookButton.type='button';lookButton.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();look=!look;labels();};
-  const person=document.createElement('button');personButton=person;person.type='button';person.textContent=t('planner_person');person.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();if(!isWalk())toggleWalk(true);toggleWalkView();labels();};
-  roofButton=document.createElement('button');roofButton.type='button';roofButton.id='planner-invisible-roof';
+  lookButton=navButton('ph-hand-grabbing');lookButton.className='pn-look';lookButton.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();look=!look;labels();};
+  const person=navButton('ph-user-focus');personButton=person;person.className='pn-person';person.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();if(!isWalk())toggleWalk(true);toggleWalkView();labels();};
+  roofButton=navButton('ph-umbrella-simple');roofButton.className='pn-roof';roofButton.id='planner-invisible-roof';
   roofButton.onclick=()=>{S.invisibleRoof=!S.invisibleRoof;S.dirty3D=true;const cb=document.getElementById('cb_invisible_roof');if(cb)cb.checked=S.invisibleRoof;window.dispatchEvent(new Event('planner-navigation-restored'));labels();requestRender();};
-  bar.append(modeButton,lookButton,person,roofButton);pane.append(bar);labels();onLangChange(labels);window.addEventListener('planner-navigation-restored',labels);
+  // Walls: Up / Cutaway / Down and how a cut wall looks (js/ui_wall_view.js)
+  bar.append(modeButton,lookButton,person,roofButton,wallsButton());pane.append(bar);
+  // Preview (Transparent / Solid / Outline), the chain strip and the hint chip
+  initBuild3DUI(pane,bar);
+  window.addEventListener('build3d:prefs',()=>{requestRender();paintPlanner3D();});
+  // a pane too narrow for the names keeps the icons; the names stay on the tooltips
+  const fit=()=>{bar.classList.remove('pn-icons');if(bar.scrollWidth>bar.clientWidth+1)bar.classList.add('pn-icons');};
+  if(typeof ResizeObserver!=='undefined')new ResizeObserver(fit).observe(pane);
+  window.addEventListener('walls3d:changed',fit);onLangChange(fit);labels();onLangChange(labels);window.addEventListener('planner-navigation-restored',labels);
   document.getElementById('plan')?.addEventListener('pointerdown',()=>{
     cancelVertex();
     set3DChrome(false);
@@ -149,29 +222,103 @@ export function initPlanner3D() {
     document.body.classList.add('used-3d');
     if(!has3D()||gameActive()||e.button!==0||look)return;
     activate();
+    if(e.pointerType==='touch'){
+      touchIds.add(e.pointerId);
+      if(touchIds.size>1){
+        // second finger: abandon any edit so the pinch/pan below gets both
+        // (a held preview committed nothing yet, so there is nothing to cancel)
+        if(dragId!=null){if(!holdCommit)send('cancel',e);if(canvas.hasPointerCapture(dragId))canvas.releasePointerCapture(dragId);dragId=null;}
+        holdCommit=false;touchTap=null;touchDown=null;dragGrab=null;return;
+      }
+      touchDown={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()};
+      const twice=lastTouchTap&&isTouchTap(lastTouchTap,{x:e.clientX,y:e.clientY},touchDown.t,24,350);
+      const cab=twice&&cabinetAt(e);
+      if(cab){lastTouchTap=null;touchDown=null;openDesigner(cab);e.preventDefault();e.stopImmediatePropagation();return;}
+      const input=sample(e);
+      if(!touchClaims3D(S.tool,input&&input.hit,S.sel)){touchTap={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()};return;}
+      if(touchCommitsOnRelease(S)){
+        holdCommit=true;dragId=e.pointerId;canvas.setPointerCapture(e.pointerId);send('move',hover(e));
+        e.preventDefault();e.stopImmediatePropagation();return;
+      }
+    }
     if(send('down',e)){dragId=e.pointerId;canvas.setPointerCapture(e.pointerId);e.preventDefault();e.stopImmediatePropagation();}
   },true);
   canvas.addEventListener('pointermove',e=>{
     if(!has3D()||gameActive()||look)return;
-    if(dragId===e.pointerId||(!e.buttons&&document.documentElement.dataset.plannerViewport==='3d'))send('move',e);
+    if(touchTap&&touchTap.id===e.pointerId&&Math.hypot(e.clientX-touchTap.x,e.clientY-touchTap.y)>TAP_SLOP)touchTap=null;
+    if(dragId===e.pointerId&&holdCommit)send('move',hover(e));
+    else if(dragId===e.pointerId||(!e.buttons&&e.pointerType!=='touch'&&document.documentElement.dataset.plannerViewport==='3d'))send('move',e);
   });
   for(const type of ['pointerup','pointercancel'])canvas.addEventListener(type,e=>{
+    if(e.pointerType==='touch'){
+      touchIds.delete(e.pointerId);
+      const now=performance.now(),down=touchDown;touchDown=null;
+      // remembered for a double-tap (a cabinet opens in the designer)
+      lastTouchTap=type==='pointerup'&&down&&down.id===e.pointerId&&isTouchTap(down,{x:e.clientX,y:e.clientY},now,TAP_SLOP,TAP_MS)?{x:e.clientX,y:e.clientY,t:now}:null;
+      // a still, short touch that did not orbit is a tap: select what is under it
+      const tap=touchTap;touchTap=null;
+      if(type==='pointerup'&&tap&&tap.id===e.pointerId&&dragId==null&&!touchIds.size&&
+        isTouchTap(tap,{x:e.clientX,y:e.clientY},now,TAP_SLOP,TAP_MS)){
+        if(send('down',e))send('up',e);
+        return;
+      }
+    }
     if(dragId!==e.pointerId)return;
+    if(holdCommit){
+      // the held preview commits where the finger lifts; a cancelled touch commits nothing
+      holdCommit=false;dragId=null;
+      if(type==='pointerup'&&send('down',e))send('up',e);
+      if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
+      e.preventDefault();e.stopImmediatePropagation();return;
+    }
     send(type==='pointerup'?'up':'cancel',e);dragId=null;
     if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
     e.preventDefault();e.stopImmediatePropagation();
   },true);
-  // Suppress legacy mouse/touch edit listeners; navigation gestures continue
-  // to their existing handlers when Look or the right button is used.
+  // Suppress legacy mouse edit listeners; navigation continues to its own
+  // handlers when Look or the right button is used. Touch is suppressed only
+  // while this pane owns the gesture (an edit captured above) — otherwise the
+  // view's one-finger orbit and two-finger pinch/pan run as usual.
+  setLegacyTouchEdit(false);
   for(const type of ['mousedown','touchstart','touchmove','touchend'])canvas.addEventListener(type,e=>{
-    if(!gameActive()&&!look&&(type.startsWith('touch')||e.button===0)){e.preventDefault();e.stopImmediatePropagation();}
+    if(gameActive()||look)return;
+    if(type.startsWith('touch')?dragId!=null:e.button===0){e.preventDefault();e.stopImmediatePropagation();}
   },{capture:true,passive:false});
-  canvas.addEventListener('dblclick',e=>{if(!look&&!gameActive()){send('double',e);e.preventDefault();e.stopImmediatePropagation();}},true);
-  onAfterRender(()=>{paintPlanner3D();requestRender();});
+  canvas.addEventListener('dblclick',e=>{if(!look&&!gameActive()){
+    // a cabinet opens in the designer (the plan's double-click turns a piece instead)
+    const cab=cabinetAt(e);
+    if(cab)openDesigner(cab);else send('double',e);
+    e.preventDefault();e.stopImmediatePropagation();
+  }},true);
+  /* A 2D paint only has to redraw this pane's overlay canvas. Asking for a 3D
+     frame on each one kept the post-processed view from ever going idle: the
+     warning glow alone paints the HUD every 45 ms. Model edits reach the 3D
+     view through S.dirty3D / S.repaint3D on their own; what a 2D paint can
+     change unannounced is the selection (its outline and the cut it keeps), so
+     a new selection is the one thing that asks for a frame here. */
+  onAfterRender(()=>{paintPlanner3D();if(selectionChanged())requestRender();});
   setPlannerRenderHook(paintPlanner3D);
 }
+let seenSel=null,seenKind,seenRef,seenRefs,seenCount=0;
+function selectionChanged(){
+  const s=S.sel||null,refs=s?s.refs:undefined,count=refs?refs.length:0;
+  if(s===seenSel&&(!s||(s.kind===seenKind&&s.ref===seenRef&&refs===seenRefs&&count===seenCount)))return false;
+  seenSel=s;seenKind=s?s.kind:undefined;seenRef=s?s.ref:undefined;seenRefs=refs;seenCount=count;
+  return true;
+}
+/* What each 3D-pane ghost needs from modules Node tests cannot load cheaply
+   (js/build3d_ghost.js takes them as deps). The pointer's plan point only
+   counts while the 3D pane is the input surface; in Split, a draft drawn on
+   the plan is previewed from its own state. */
+function ghostDeps(){
+  const in3D=document.documentElement.dataset.plannerViewport==='3d'&&lastInput?.point;
+  return {wallDefaults:resolveWallDrawDefaults(),openingDefaults:openingDrawDefaults,catalog:FURN,placePose:placementPose,
+    fitCabDraft:fitCabDraftView,cursor:in3D?{x:lastInput.point.x,z:lastInput.point.z}:null,itemSpan:it=>knownVSpan(it),
+    mepRunY:r=>layerRunY(r.sys,r.layer),
+    mepNodeAt:(x,z)=>{const m=ensureMEP(),p=m.place&&snapMEPPoint(x,z),k=p&&nodeKindDef(m.place.sys,m.place.kind);return p?{x:p.x,z:p.z,y:layerNodeY({layer:m.layer,elev:k?k.elev:30})}:null;}};
+}
 export function paintPlanner3D() {
-  if(!hud||!has3D()||gameActive()||!pane.clientWidth||!pane.clientHeight)return;
+  if(!hud||!has3D()||gameActive()||!pane.clientWidth||!pane.clientHeight){hideBuildGhost();updateBuild3DUI(true);return;}
   const w=pane.clientWidth,h=pane.clientHeight,dpr=Math.min(devicePixelRatio||1,2);
   if(hud.width!==Math.round(w*dpr)||hud.height!==Math.round(h*dpr)){hud.width=Math.round(w*dpr);hud.height=Math.round(h*dpr);}
   const c=hud.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
@@ -180,26 +327,43 @@ export function paintPlanner3D() {
   const project=p=>{const v=new THREE.Vector3(p.x,p.y??2,p.z).project(camera);return v.z>=-1&&v.z<=1?{x:(v.x+1)*w/2,y:(1-v.y)*h/2}:null;};
   function path(points,color='#26b99a',closed=false){const ps=points.map(project);if(ps.some(p=>!p))return;c.strokeStyle=color;c.lineWidth=2;c.beginPath();ps.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));if(closed)c.closePath();c.stroke();}
   function label(p,text){const q=project(p);if(!q)return;c.font='12px system-ui';const tw=c.measureText(text).width;c.fillStyle='#10212ded';c.fillRect(q.x-tw/2-5,q.y-16,tw+10,22);c.fillStyle='#fff';c.textAlign='center';c.fillText(text,q.x,q.y);}
+  /* The volumes (js/view3d/build_ghost.js) show what each tool will build;
+     in Outline mode, and while walking, the thin lines below do it alone. */
+  const prefs=build3dPrefs(),deps=ghostDeps(),wire=prefs.mode==='outline'||isWalk();
+  syncBuildGhost(wire?[]:ghostSpecs(S,deps),prefs);
+  updateBuild3DUI(isWalk());
+  const wallH=deps.wallDefaults.height;
   const end=S.previewPt;
   if(end){const p=project(end);if(p){c.strokeStyle='#26b99a';c.beginPath();c.arc(p.x,p.y,5,0,Math.PI*2);c.stroke();}}
   const start=S.nodes[S.drawFrom];
-  if(start&&end&&S.drawing){path([start,end]);path([{...start,y:270},{...end,y:270}]);path([end,{...end,y:270}]);label({x:(start.x+end.x)/2,z:(start.z+end.z)/2},fmtLen(Math.hypot(end.x-start.x,end.z-start.z)));}
-  if(S.rectDraft&&end)path([S.rectDraft,{x:end.x,z:S.rectDraft.z},end,{x:S.rectDraft.x,z:end.z}],undefined,true);
-  if(S.roomGhost){const r=S.roomGhost.rect;path([{x:r.x0,z:r.z0},{x:r.x1,z:r.z0},{x:r.x1,z:r.z1},{x:r.x0,z:r.z1}],S.roomGhost.blocked?'#ed705a':'#26b99a',true);}
-  if(S.arcDraft&&end){const a=S.nodes[S.arcDraft.startNode]||S.arcDraft.startPoint,arc=a&&S.arcDraft.through?makeArcFromThreePoints(a,S.arcDraft.through,end):null;if(arc){const n=Math.max(12,Math.ceil(arc.L/20));path(Array.from({length:n+1},(_,i)=>pointAtWall(arc,arc.L*i/n)));}else if(a)path([a,end]);}
-  if(S.offsetDraft){const w=S.walls.find(w=>w.id===S.offsetDraft.hostId),g=w&&offsetGhost(w,S.offsetDraft.dist,S.offsetDraft.side||1);if(g){path([g.a,g.b],'#faac38');label(g.b,fmtLen(g.dist));}}
-  if(S.placeType&&end&&FURN[S.placeType])path(footprint({...FURN[S.placeType],...end,rot:0}),'#26b99a',true);
+  if(start&&end&&S.drawing){if(wire){path([start,end]);path([{...start,y:wallH},{...end,y:wallH}]);path([end,{...end,y:wallH}]);}label({x:(start.x+end.x)/2,z:(start.z+end.z)/2},fmtLen(Math.hypot(end.x-start.x,end.z-start.z)));}
+  if(wire&&S.rectDraft&&end)path([S.rectDraft,{x:end.x,z:S.rectDraft.z},end,{x:S.rectDraft.x,z:end.z}],undefined,true);
+  if(wire&&S.roomGhost){const r=S.roomGhost.rect;path([{x:r.x0,z:r.z0},{x:r.x1,z:r.z0},{x:r.x1,z:r.z1},{x:r.x0,z:r.z1}],S.roomGhost.blocked?'#ed705a':'#26b99a',true);}
+  if(wire&&S.arcDraft&&end){const a=S.nodes[S.arcDraft.startNode]||S.arcDraft.startPoint,arc=a&&S.arcDraft.through?makeArcFromThreePoints(a,S.arcDraft.through,end):null;if(arc){const n=Math.max(12,Math.ceil(arc.L/20));path(Array.from({length:n+1},(_,i)=>pointAtWall(arc,arc.L*i/n)));}else if(a)path([a,end]);}
+  if(S.offsetDraft){const w=S.walls.find(w=>w.id===S.offsetDraft.hostId),g=w&&offsetGhost(w,S.offsetDraft.dist,S.offsetDraft.side||1);if(g){if(wire)path([g.a,g.b],'#faac38');label(g.b,fmtLen(g.dist));}}
+  // the outline stands where the click would put the piece, turned the way it would face
+  if(wire&&S.placeType&&end&&FURN[S.placeType]){const at=deps.cursor||end,pose=placementPose(S.placeType,at.x,at.z);if(pose)path(footprint({...FURN[S.placeType],...pose}),'#26b99a',true);}
   if(S.markerPreview)label(S.markerPreview,'+');
-  if(S.mep?.route){const r=S.mep.route;path([...r.pts,...(r.preview?[r.preview]:[])],'#faac38');}
+  if(wire&&S.mep?.route){const r=S.mep.route;path([...r.pts,...(r.preview?[r.preview]:[])],'#faac38');}
+  // sizes the plan prints on the same drafts: a rectangle / room's width × depth, an opening's width and its distance to the nearer wall end
+  for(const l of ghostLabels(S,deps))label(l,l.lens.map(v=>fmtLen(v)).join(' × ')+(l.gap!=null?'  ↔ '+fmtLen(l.gap):''));
   if(S.sel?.kind==='wall'){const g=wallGeom(S.sel.ref);if(g){path([g.a,g.b],'#f8be49');label({x:(g.a.x+g.b.x)/2,z:(g.a.z+g.b.z)/2,y:30},fmtLen(g.L));}}
   if(S.sel?.kind==='room'){const r=detectRooms().find(r=>r.key===S.sel.ref);if(r)path(r.pts,'#f8be49',true);}
-  for(const con of Number.isFinite(layerRank('annotations'))?S.wallCons||[]:[]){
+  const cons=Number.isFinite(layerRank('annotations'))?S.wallCons||[]:[];
+  // one lookup per id instead of a scan of every wall per id per constraint
+  // (first match wins, as find() did; an opening's wall matches strictly)
+  const wallByKey=new Map(),wallById=new Map(),openingByKey=new Map();
+  if(cons.length){
+    for(const w of S.walls){const k=String(w.id);if(!wallByKey.has(k))wallByKey.set(k,w);if(!wallById.has(w.id))wallById.set(w.id,w);}
+    for(const o of S.openings){const k=String(o.id);if(!openingByKey.has(k))openingByKey.set(k,o);}
+  }
+  for(const con of cons){
     if(con.off&&S.sel?.ref?.id!==con.id)continue;
     const points=[];for(const key of ['a','b','point','joint']){const p=con[key]&&typeof con[key]==='object'?anchorPos(con[key]):null;if(p)points.push(p);}
-    for(const id of [con.wall,con.ref,con.w1,con.w2,...(con.walls||[])]){const w=S.walls.find(w=>String(w.id)===String(id));if(w){const g=wallGeom(w);if(g)points.push(wallPointAt(w,g.L/2));}}
-    for(const id of [con.opening,...(con.openings||[])]){const o=S.openings.find(o=>String(o.id)===String(id)),w=o&&S.walls.find(w=>w.id===o.wall);if(w)points.push(wallPointAt(w,o.s));}
+    for(const id of [con.wall,con.ref,con.w1,con.w2,...(con.walls||[])]){const w=wallByKey.get(String(id));if(w){const g=wallGeom(w);if(g)points.push(wallPointAt(w,g.L/2));}}
+    for(const id of [con.opening,...(con.openings||[])]){const o=openingByKey.get(String(id)),w=o&&wallById.get(o.wall);if(w)points.push(wallPointAt(w,o.s));}
     if(!points.length)continue;const at={x:points.reduce((v,p)=>v+p.x,0)/points.length,y:35,z:points.reduce((v,p)=>v+p.z,0)/points.length};
-    path(points,conSatisfied(con)?'#709fee':'#f17c6b');const text=con.value!=null?String(Math.round(con.value*100)/100):({parallel:'∥',perpendicular:'⊥',fixed:'●',coincident:'○',equalLength:'='})[con.type]||'↔';
+    path(points,conSatisfied(con)?'#709fee':'#f17c6b');const text=con.value!=null?(/angle/i.test(con.type)?Math.round(con.value*10)/10+'°':fmtLen(con.value,{domain:'plan',suffix:false})):({parallel:'∥',perpendicular:'⊥',fixed:'●',coincident:'○',equalLength:'='})[con.type]||'↔';
     const q=project(at);if(q){label(at,text);constraintHits.push({con,x:q.x,y:q.y-5,w:Math.max(28,c.measureText(text).width+14)});}
   }
   vertexHits=[];
@@ -213,5 +377,5 @@ export function paintPlanner3D() {
     }
     if(vertexDrag?.id===f.id){const p=f.points[vertexDrag.index];label(p,`${fmtLen(p.x, { suffix: false })}, ${fmtLen(p.y, { suffix: false })}, ${fmtLen(p.z)}`);}
   }
-  window.dispatchEvent(new CustomEvent('planner-overlay-3d',{detail:{context:c,project,path,label,width:w,height:h}}));
+  window.dispatchEvent(new CustomEvent('planner-overlay-3d',{detail:{context:c,project,path,label,width:w,height:h,wire}}));
 }

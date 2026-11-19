@@ -18,7 +18,7 @@ export function restoreCabinetSession(state, item, snapshot) {
   restore(item, snapshot);
   syncCabinetDefinition(state, item, {propagate:false});
   for (const saved of snapshot.linked || []) {
-    const other = (state.items || []).find((entry) => entry !== item && entry.id === saved.id && entry.definitionId === item.definitionId);
+    const other = (state.items || []).find((entry) => entry !== item && entry.id === saved.id);
     if (other) { restore(other, saved); rebuildItem(state, other); }
   }
 }

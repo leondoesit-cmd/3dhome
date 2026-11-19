@@ -5,14 +5,20 @@ import {normalizeWallKind} from './wall_curves.js';
 import {openingCorners} from './slab_openings.js';
 import {projectAreaReport} from './project_area.js';
 
+// Wall textures and room floors are data: URLs inside the plan (w.tex,
+// roomMeta floorTex), often megabytes; no area reads them, so neither the key
+// nor the per-wall copy carries them (as js/room_summary.js does).
+function withoutImages(key,value){
+ return typeof value==='string'&&value.startsWith('data:')?undefined:value;
+}
 let signature="", cached=null;
 export function activeFloorArea(){
- const key=JSON.stringify([S.nodes,S.walls,S.wallTypes,S.openings,S.slabOpenings,S.roomMeta]);
+ const key=JSON.stringify([S.nodes,S.walls,S.wallTypes,S.openings,S.slabOpenings,S.roomMeta],withoutImages);
  if(key===signature&&cached)return cached;
  const rooms=detectRooms(),wallSolids=[],apertures=[];let unresolved=false;
  const catalog=JSON.parse(JSON.stringify({wallTypes:S.wallTypes||[],walls:[]}));
  for(const original of S.walls){
-  const wall=JSON.parse(JSON.stringify(original));
+  const wall=JSON.parse(JSON.stringify(original,withoutImages));
   const bands=wallLayerBands(wall,catalog),geom=wallGeom(wall);
   if(!geom||geom.kind==='arc'||['roomDivider','railing','half'].includes(normalizeWallKind(wall))||['demolition','demolish'].includes(wall.phase)){unresolved=true;continue;}
   for(const band of bands){

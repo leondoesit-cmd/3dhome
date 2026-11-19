@@ -281,6 +281,12 @@ function isExportable(o, ctx, inHiddenLayer) {
   return true;
 }
 
+/* The planner's room-bounce light is its stand-in for global illumination;
+   Blender computes the real thing, so exporting it would count it twice. */
+function isBounceLight(src) {
+  return !!(src.isRoomBounceLight || (src.userData && src.userData.bounce));
+}
+
 function convertLight(src, ctx) {
   var k = ctx.k;
   var out = src.clone();
@@ -315,7 +321,7 @@ function cloneSubtree(src, ctx, kind) {
     ctx.stats.meshes++;
     ctx.stats.triangles += triangleCount(geo);
   } else if (src.isLight) {
-    if (!ctx.opts.lights) return null;
+    if (!ctx.opts.lights || isBounceLight(src)) return null;
     out = convertLight(src, ctx);
     // the light's own position was scaled inside convertLight
     out.quaternion.copy(src.quaternion);
@@ -390,7 +396,7 @@ export function buildBlenderScene(options) {
     if (ud.role === "ceilingHidden" && !opts.hidden) return; // built at opacity 0
     if ((ud.role === "ground" || ud.role === "site") && !opts.ground) return;
     if (src.isLight) {
-      if (!opts.lights) return;
+      if (!opts.lights || isBounceLight(src)) return;
       var l = convertLight(src, ctx);
       groups.lights.add(l);
       ctx.stats.objects++;

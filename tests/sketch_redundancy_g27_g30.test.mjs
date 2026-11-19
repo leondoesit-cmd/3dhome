@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 
@@ -79,7 +80,7 @@ test("a relation that collapses a line is caught, not reported as solved (G30)",
 test("the Line tool drops its inferred Vertical when the line joins two vertical centerlines' ends (G27)", async () => {
   const { readFileSync } = await import("node:fs");
   const { inferLineRelations, constraintAlreadyPresent } = await import("../js/modeler_inference.js");
-  const source = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+  const source = modelerSource();
   const start = source.indexOf("function makeWallSegment("), end = source.indexOf("\nfunction finishWallChain(", start);
   const s = threadSection();
   s.entities = s.entities.filter((e) => e.id !== "L8");

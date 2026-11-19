@@ -1,0 +1,4 @@
+{
+  "files": ["index.html", "manifest.json", "survey-assets.json", "survey-sw.js"],
+  "dirs": ["assets", "css", "js", "plans", "uikit", "vendor"]
+}

@@ -1,10 +1,12 @@
-// Blueprint-to-Draft service wrapper.
-// Takes an uploaded floor-plan image, sends it to a local VLM (Ollama-style API
-// on localhost:11434), and adapts the returned floorplan JSON into the layout
-// schema consumed by buildLayout() in generator.js.
-//
-// No cloud calls: the model (Gemma 4 12B q8 / Qwen 3.6 27B q4) runs on-device.
-// Ollama must be launched with OLLAMA_ORIGINS='*' so the browser may call it.
+// Blueprint-to-draft parsers. Automatic analysis combines browser geometry/OCR
+// with the local vision service; the walls-only parser runs in the browser.
+import { blueprintSymbols } from './core/blueprint_symbols.js';
+import { recognizeRaster, rasterWorkingImage, WALL_MATERIAL_WARNING } from './core/blueprint_raster.js';
+import { readBlueprintText } from './blueprint_ocr.js';
+import { refineBlueprintFurniture } from './core/blueprint_furniture.js';
+import { refineBlueprintOpenings } from './core/blueprint_openings.js';
+import { straightenCanvas, STRAIGHTENED_WARNING } from './blueprint_straighten.js';
+export { STRAIGHTENED_WARNING };
 
 export const BP_ENDPOINT = "http://localhost:11434";
 // blueprint_cv.py --serve (tools/): classic-CV parser, no model inference
@@ -17,11 +19,14 @@ export const BP_MODELS = [
   { id: "gemma4:e4b", label: "Gemma 4 E4B (light)" },
 ];
 
-// Engine choices for the import modal. "cv" runs tools/blueprint_cv.py
+// Engine choices for the import modal. "browser" needs no service.
+// "cv" runs tools/blueprint_cv.py
 // (geometry via OpenCV, heuristic room names); "cv+<model>" is the hybrid —
 // CV geometry plus the VLM reading only the printed room labels; a bare
 // model id is the original full-VLM parse.
 export const BP_ENGINES = [
+  { id: "auto", label: "Automatic · full image analysis" },
+  { id: "browser", label: "Walls only (offline)" },
   { id: "cv", label: "OpenCV (fast, no AI)" },
 ].concat(
   BP_MODELS.map(function (m) {
@@ -31,6 +36,107 @@ export const BP_ENGINES = [
     return { id: m.id, label: m.label + " (full VLM)" };
   })
 );
+
+async function decodeBlueprint(file) {
+  if (!file || file.size > 20 * 1024 * 1024) throw new Error('Choose a JPG, PNG or WebP smaller than 20 MB.');
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error('This image could not be decoded. Choose a JPG, PNG or WebP.'));
+      image.src = url;
+    });
+    const factor = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(image.naturalWidth * factor);
+    canvas.height = Math.round(image.naturalHeight * factor);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return straightenCanvas(canvas);
+  } finally { URL.revokeObjectURL(url); }
+}
+
+// Phone photos are straightened before any recognition (blueprint_straighten.js);
+// the straightened image is also the reference overlay, so walls stay registered.
+function noteStraightened(canvas, result) {
+  if (canvas.straightened) result.warnings = [STRAIGHTENED_WARNING, ...(result.warnings || [])];
+  return result;
+}
+
+export async function parseBlueprintLocal(file, opts = {}) {
+  const canvas=await decodeBlueprint(file);
+  opts.onProgress?.('vision');
+  let wallCandidates=null,wallMaterials=null,openingCandidates=[],geometryWarning=null;
+  // Prefer actual measured strokes to asking a small vision model to invent a
+  // coordinate grid. Complex/non-orthogonal images can use the full vision path.
+  try{
+    // Our own bilinear downsize, not drawImage: the browser's smoothing bleaches
+    // thin coloured wall pieces (see rasterWorkingImage).
+    const {image:small,factor}=rasterWorkingImage(canvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,canvas.width,canvas.height));
+    // Measured walls are worth keeping even when no room closes (a cropped
+    // sheet whose living room runs off the photo): the vision step adds the rest.
+    const raster=recognizeRaster(small,{widthCm:opts.widthCm||1000,requireRooms:false});
+    wallMaterials=raster.wallMaterials;
+    wallCandidates=raster.segments.map(s=>s.vertical?[s.c/factor,s.a/factor,s.c/factor,s.b/factor,s.thickness/factor]:[s.a/factor,s.c/factor,s.b/factor,s.c/factor,s.thickness/factor]);
+    const px=raster.layout.w/(raster.bounds.x1-raster.bounds.x0);
+    for(const type of ['door','window'])for(const o of raster.cad[type+'s']){
+      const x=(o.center.x/px+raster.bounds.x0)/factor,y=(o.center.z/px+raster.bounds.y0)/factor;
+      openingCandidates.push({type,x,y,width:o.width/px/factor});
+    }
+  }catch{geometryWarning='Measured wall extraction failed; image-estimated geometry needs manual review.';}
+  let ocr=null;
+  try{ocr=await readBlueprintText(canvas,wallCandidates||[],opts);}
+  catch(error){if(error.name==='AbortError')throw error;ocr={rooms:[],dimensions:[],warnings:['Local text recognition failed; labels and dimensions need extra review.']};}
+  if(geometryWarning)ocr.warnings=[...(ocr.warnings||[]),geometryWarning];
+  const pixels=canvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,canvas.width,canvas.height);
+  // Raster candidates already passed colour, continuity and junction tests.
+  // A semantic model must not erase a measured bathroom partition.
+  const protectedWalls=(wallCandidates||[]).map((_,i)=>i);
+  const symbols=blueprintSymbols(pixels,wallCandidates||[],ocr?.textBoxes||[]);
+  const symbolBatches=[];
+  function cropFor(s){
+    const size=512,padding=Math.max(12,Math.max(s.w,s.d)*.25);
+    const sx=Math.max(0,s.x-s.w/2-padding),sy=Math.max(0,s.y-s.d/2-padding);
+    const sw=Math.min(canvas.width-sx,s.w+padding*2),sh=Math.min(canvas.height-sy,s.d+padding*2),factor=Math.min((size-12)/sw,(size-12)/sh);
+    const crop=document.createElement('canvas');crop.width=crop.height=size;const mc=crop.getContext('2d');
+    mc.fillStyle='#fff';mc.fillRect(0,0,size,size);const x=(size-sw*factor)/2,y=(size-sh*factor)/2;
+    mc.drawImage(canvas,sx,sy,sw,sh,x,y,sw*factor,sh*factor);
+    const bx=x+(s.x-s.w/2-sx)*factor,by=y+(s.y-s.d/2-sy)*factor,bw=s.w*factor,bh=s.d*factor;
+    mc.fillStyle='rgba(255,255,255,.5)';mc.fillRect(0,0,size,by);mc.fillRect(0,by+bh,size,size-by-bh);
+    mc.fillRect(0,by,bx,bh);mc.fillRect(bx+bw,by,size-bx-bw,bh);
+    mc.strokeStyle='#e000b5';mc.lineWidth=2;mc.strokeRect(bx,by,bw,bh);
+    return crop.toDataURL('image/jpeg',.92);
+  }
+  for(let i=0;i<symbols.length;i+=6){const list=symbols.slice(i,i+6);symbolBatches.push({ids:list.map(s=>s.id),images:list.map(cropFor)});}
+  opts.onProgress?.('vision');
+  const sourceDataUrl=canvas.toDataURL('image/jpeg',.9);
+  const response=await fetch('/api/blueprint',{method:'POST',headers:{'Content-Type':'application/json'},signal:opts.signal,
+    body:JSON.stringify({image:sourceDataUrl,width:canvas.width,height:canvas.height,wallCandidates,wallMaterials,protectedWalls,symbols,symbolImage:symbolBatches[0]?.images[0]||canvas.toDataURL('image/jpeg',.9),symbolBatches,openingCandidates,ocr,widthCm:opts.widthCm||1000,usePrintedScale:opts.usePrintedScale!==false})});
+  let result;
+  try{result=await response.json();}catch{throw new Error('The app server does not support image analysis yet. Restart npm start, then retry.');}
+  if(!response.ok)throw new Error(result.error||'Image analysis failed.');
+  result.sourceDataUrl=sourceDataUrl;
+  if(result.recognition&&symbols.length)result.recognition.symbolGeometry='measured';
+  refineBlueprintOpenings(result,pixels);
+  if(wallMaterials?.some(Boolean)&&wallCandidates)result.warnings=[...(result.warnings||[]),WALL_MATERIAL_WARNING];
+  return noteStraightened(canvas,refineBlueprintFurniture(result,pixels));
+}
+
+export async function parseBlueprintRaster(file, opts = {}) {
+  const source=await decodeBlueprint(file);
+  // Recognize on our own bilinear downsize (see rasterWorkingImage); the
+  // browser-scaled canvas of the same size is only the reference overlay.
+  const {image:working}=rasterWorkingImage(source.getContext('2d',{willReadFrequently:true}).getImageData(0,0,source.width,source.height));
+  const canvas=document.createElement('canvas');canvas.width=working.width;canvas.height=working.height;
+  canvas.getContext('2d').drawImage(source,0,0,canvas.width,canvas.height);
+  opts.onProgress?.('cv');
+  await new Promise(resolve=>setTimeout(resolve,0));
+  const result=recognizeRaster(working,opts);
+  result.sourceDataUrl=canvas.toDataURL('image/jpeg',.88);
+  return noteStraightened(source,result);
+}
 
 // Hard-coded "light training" module: system prompt + few-shot example.
 // Injected verbatim into every request.

@@ -34,11 +34,13 @@ if (hasSpeechSupport()) {
 function findVoice(langCode) {
   if (!hasSpeechSupport()) return null;
   if (!cachedVoices.length) loadVoices();
+  // Hebrew voices still report the legacy code "iw" on some platforms
+  var legacy = { he: "iw", iw: "he" };
   var prefix = (langCode || "he").toLowerCase().slice(0, 2);
   for (var i = 0; i < cachedVoices.length; i++) {
     var v = cachedVoices[i];
     var vLang = (v.lang || "").toLowerCase().replace("_", "-");
-    if (vLang.startsWith(prefix)) return v;
+    if (vLang.startsWith(prefix) || (legacy[prefix] && vLang.startsWith(legacy[prefix]))) return v;
   }
   return null;
 }

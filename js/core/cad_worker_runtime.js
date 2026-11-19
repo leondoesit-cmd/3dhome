@@ -1,5 +1,6 @@
 import { regenerateFeatures, releaseRegeneration } from '../cad_feature_tree.js';
 import { compileKernelFeatureTree } from './kernel_feature_adapter.js';
+import { savedLoftSources } from './swept_sources.js';
 import { stableStringify } from './dependency_graph.js';
 import { createTopologyRegistry, resolveTopologyReference } from './topology.js';
 import { resolveFinishFace } from './finish_face_reference.js';
@@ -13,7 +14,7 @@ import {collectNativeSections} from './native_section_query.js';
 import {nativeOperationRevision} from './native_operation_revision.js';
 import {finishCacheParameters} from './finish_cache_parameters.js';
 import {
-  serializeBrep, deserializeBrep, extractBrepTopology, hydrateSerializedBrepTopology, disposeBrep, shapeToMeshData, shapeMassProperties, shapeSolidCount, exportStep,
+  serializeBrep, deserializeBrep, extractBrepTopology, hydrateSerializedBrepTopology, disposeBrep, shapeToMeshData, shapeMassProperties, shapeSolidCount, exportStep, setCadKernelModule,
   shellBrep, filletBrep, chamferBrep, domeBrep, draftBrep, makeBrepExtrusion, brepMaterialIntersection, brepFaceLineIntersections,
 } from '../cad_kernel.js';
 
@@ -71,6 +72,12 @@ export function cadWorkerGeometryKeys(document,features,options={}) {
     // rebuild. Hash the actual source sketches/frames instead of a stale live
     // display projection that cannot affect the requested solid.
     if(params.sketchSources){
+      if(feature.type==='loft' && params.sketchSources.kind==='loft'){
+        const sources=savedLoftSources(params.sketchSources,params.sectionSegments);
+        // The former unversioned key could hold either topology. Name both
+        // formats explicitly so neither can restore an ambiguous old union.
+        params.sketchSources={...sources,exactEllipseSections:sources.exactEllipseSections ?? false};
+      }
       const derived=feature.type==='loft'?['sections','sectionSegments']:feature.type==='sweep'?['profile','profileSegments','path','pathSegments']:[];
       derived.forEach(key=>delete params[key]);
     }
@@ -121,13 +128,17 @@ async function packBody(body,mesh=false,mass=false,meshOnly=false) {
 }
 async function restoreBody(payload,ownerFeatureId) {
   const body=Object.assign(await deserializeBrep(payload.bytes),payload.metadata);
-  try {hydrateSerializedBrepTopology(body,payload.topology || [],{ownerFeatureId});return body;}
+  try {
+    hydrateSerializedBrepTopology(body,payload.topology || [],{ownerFeatureId});
+    return body;
+  }
   catch(error){disposeBrep(body);throw error;}
 }
 
 // The worker retains exact serialized results, not mesh stand-ins. Restoring a
 // cached Shell gives every run its own handles, so releasing a run is safe.
-export function createCadWorkerExecutor({bodyStore=createNativeBodyStore()}={}) {
+export function createCadWorkerExecutor({bodyStore=createNativeBodyStore(),kernelModule}={}) {
+  if(kernelModule)setCadKernelModule(kernelModule);
   const cache=new Map();let cacheBytes=0;
   function remember(key,payload) {
     if(!key || !payload.bytes || payload.metadata.approximate || payload.metadata.invalid)return;
@@ -137,7 +148,10 @@ export function createCadWorkerExecutor({bodyStore=createNativeBodyStore()}={}) 
   }
   async function rebuild(document,options,progress) {
     const keys=cadWorkerGeometryKeys(document,document.features || [],options),cachedResults=new Map();
-    for(const feature of document.features || [])if(isWorkerCacheBody(feature.type)){
+    // Restore only what regeneration will run: the same rollback prefix as
+    // regenerateFeatures (a missing head rebuilds, so restores, everything).
+    const allFeatures=document.features || [],headIndex=options.rollbackId?allFeatures.findIndex(feature=>feature.id===options.rollbackId):-1;
+    for(const feature of headIndex<0?allFeatures:allFeatures.slice(0,headIndex+1))if(isWorkerCacheBody(feature.type)){
       const targets=Array.isArray(feature.references)?feature.references:feature.references?.topology;
       const key=keys.get(feature.id),previewKey=feature.type==='shell'?finishKey(keys.get(feature.inputs?.[0]),'shell',feature.params,targets):null;
       let payload=cache.get(key) || cache.get(previewKey);

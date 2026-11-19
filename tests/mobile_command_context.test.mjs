@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -20,7 +21,7 @@ test('actual mobile All tools opens Sketch repeatedly on a projected plane and F
  assert.ok(panels.every(p=>p==='.md-commandmanager'));
 });
 test('native modeler adapter exposes active projected sketch independently of 3D mode',()=>{
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  const field=source.match(/modelPlaneActive: !!E\.modelPlaneActive,/);assert.ok(field);
  const read=new Function('E','return ({'+field[0]+'});');
  assert.equal(read({mode:'3d',modelPlaneActive:true}).modelPlaneActive,true);

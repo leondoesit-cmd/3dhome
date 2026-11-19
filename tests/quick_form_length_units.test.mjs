@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -15,14 +16,14 @@ for(const [unit,shown,step] of [['mm','100',1],['cm','10',.1],['in','3.937007874
   input.value='60mm';assert.equal(featureControlValue({field,input}),6);
 });
 test('generic feature wrapper uses active document units rather than an inactive component part',()=>{
-  const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');let passed;
+  const source=modelerSource();let passed;
   const wrap=new Function('featureFieldCore','modelLengthUnit','E','el','featureReferenceOptions',sourceFunctionText(source,'featureField')+';return featureField;')
     ((_h,_f,_v,options)=>{passed=options;},()=> 'mm',{def:{context:{units:{length:'cm',angle:'deg'}}}},node,()=>[]);
   wrap(null,{key:'distance',unit:'length'},10);assert.equal(passed.units.length,'mm');
 });
 
 test('actual sketch pattern caption and mm pitch input agree while pattern geometry remains centimetres',()=>{
-  const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const strings=fs.readFileSync(new URL('../js/modeler_strings.js',import.meta.url),'utf8');
   const rows=Object.fromEntries(['segLen','shellT','offsetAsk','patternPitch','sheetMetalThickness','sheetMetalFlangeLen'].map(key=>{
     const line=strings.split(/\r?\n/).find(line=>line.trimStart().startsWith(key+':'));

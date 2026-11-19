@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function harness(part) {
   const base={id:'boss',type:'extrude',name:'Base extrude',params:{depth:8}};
   const hole={id:'holes',type:'hole',name:'Hole wizard 1',params:{diameter:4.5}};
@@ -15,7 +16,7 @@ function harness(part) {
     el:(tag,cls,text)=>({tag,cls,text,children:[],appendChild(node){this.children.push(node);}}),
     btn:(text,click)=>({text,click}),openFeatureEditor:feature=>{context.opened=feature;},
     refreshAll(){},cutTargetFeatureId:p=>p.head};
-  for(const name of ['topologySelectionFeature','inspectorHistoryFeature','fillShape','selectTreeNode']) {
+  for(const name of ['partBelongsToFeature','partsForFeature','topologySelectionFeature','inspectorHistoryFeature','fillShape','selectTreeNode']) {
     context[name]=Function(...Object.keys(context),'return ('+sourceFunctionText(source,name)+')')(...Object.values(context));
   }
   return {E,host,context,hole,base};

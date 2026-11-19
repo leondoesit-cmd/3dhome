@@ -1,9 +1,10 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
 
-const world = await readFile(new URL("../js/zombies_world.js", import.meta.url), "utf8");
+const world = moduleSource("js/zombies_world.js");
 
 test("cloth animation reacts to real travel, acceleration and turning", () => {
   assert.match(world, /function sampleClothMotion\(zd, dt\)/);

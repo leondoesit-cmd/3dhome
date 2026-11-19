@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,7 +6,7 @@ import {createSpringBinding,springMotionState,springPreviewMesh,springEndpoints,
 import {helixPoint} from '../js/cad_helix.js';
 import {ensureConfigurations,captureConfiguration,setActiveConfiguration} from '../js/cad_configurations.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const protectedDef={parts:[{id:'spring-body',meshData:{positions:[1,2,3]},featureId:'sweep'}],sketches:[],referenceGeometry:[{id:'curve',featureId:'helix'}],features:[{id:'helix',type:'helix',params:{radius:.6,height:2.5,turns:4,definition:'height-turns',axis:{x:0,y:1,z:0}}},{id:'sweep',type:'sweep',params:{sketchSources:{kind:'circular-helix-sweep',helixFeatureId:'helix',helixId:'curve',diameter:.2}}}]};
 ensureConfigurations(protectedDef)[0].name='Extended';const extended=protectedDef.activeConfiguration;protectedDef.features[0].params.height=1;captureConfiguration(protectedDef,{name:'Compressed'});setActiveConfiguration(protectedDef,extended);
 function fixture(){const spring={id:'spring',def:structuredClone(protectedDef),transform:{x:0,y:0,z:0}},rod={id:'rod',transform:{x:0,y:0,z:0}},assembly={components:[spring,rod]};spring.flexibleSpring=createSpringBinding(spring,rod);return {spring,rod,assembly};}

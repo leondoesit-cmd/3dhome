@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { solveSketch } from '../js/sketch_solver.js';
 
-const source = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const source = modelerSource();
 function fnSource(name) {
   const start = source.indexOf(`function ${name}(`);
   assert.ok(start >= 0, name);

@@ -94,6 +94,7 @@ export function synchronizeExtrusionProjections(document, compiled, run) {
       if (!feature || !run.results?.has(feature.id)) continue;
       const params=run.resolvedExtrusions?.get(feature.id) || alignExtrusionToSupport(feature.params,run.topologyBindings || []);
       const next={axis:params.axis,frame:params.frame};
+      if (record.sheetHinge && params.hingeGauge>0) next.hingeGauge=params.hingeGauge;
       if(run.resolvedExtrusions?.has(feature.id)){
         next.loop=params.points;
         next.segments=params.segments;

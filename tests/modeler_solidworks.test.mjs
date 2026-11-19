@@ -1,3 +1,4 @@
+import { modelerSource as readModelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -13,7 +14,7 @@ import { applyHandleDrag, dimensionValueFromDrag, distancePointToSegment2d, extr
 import { hiddenAfterIsolate, inferSmartMate, isolateVisibility } from "../js/modeler_smartmates.js";
 import { readFile } from "node:fs/promises";
 
-const modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modelerSource = readModelerSource();
 import { setHistoryRollback, historyEntryRolled } from "../js/core/parametric_document.js";
 
 const lineSketch = {

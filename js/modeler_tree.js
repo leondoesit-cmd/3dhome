@@ -62,7 +62,9 @@ function buildRow(node, depth, deps, handlers, state) {
   const label = deps.el("span", "nm");
   const name = deps.el("b", "md-tree-name");
   name.textContent = node.name;
-  if (node.technicalDetail) name.title = node.technicalDetail;
+  // the tooltip repeats the (possibly ellipsised) name; the internal id stays on the element
+  name.title = node.name;
+  if (node.technicalDetail) name.dataset.technical = node.technicalDetail;
   label.appendChild(name);
   if (node.detail) {
     const detail = deps.el("small", "");
@@ -99,7 +101,11 @@ function buildRow(node, depth, deps, handlers, state) {
   if (node.can.remove) actions.appendChild(action(deps,
     '<i class="ph ph-trash"></i>', deps.t("del"),
     (event) => { event.stopPropagation(); handlers.onRemove(node); }));
-  if (actions.childNodes.length) row.appendChild(actions);
+  if (actions.childNodes.length) {
+    row.appendChild(actions);
+    // the buttons float over the row's end: css reserves their room before the name
+    row.style.setProperty("--md-tree-acts", String(actions.childNodes.length));
+  }
 
   wireRow(row, node, deps, handlers, state);
   return row;

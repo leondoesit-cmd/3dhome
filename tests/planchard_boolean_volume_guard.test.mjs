@@ -1,3 +1,5 @@
+import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -38,10 +40,10 @@ test('kernel booleans and shells on valid solids pass the guard unflagged', asyn
 });
 
 test('the guards are wired into booleans, shells and the rebuild report', () => {
-  const kernel = readFileSync(new URL('../js/cad_kernel.js', import.meta.url), 'utf8');
-  const boolean = kernel.slice(kernel.indexOf('export async function booleanBrep'), kernel.indexOf('export function booleanVolumePlausible'));
+  const kernel = moduleSource("js/cad_kernel.js");
+  const boolean = sourceFunctionText(kernel, 'booleanBrep');
   assert.match(boolean, /booleanVolumePlausible\(operation, vl, vr, vs\)/);
-  const shell = kernel.slice(kernel.indexOf('export async function shellBrep'), kernel.indexOf('// OpenCascade\'s surface offset can fail'));
+  const shell = sourceFunctionText(kernel, 'shellBrep');
   assert.match(shell, /shapeIsValid\(oc, shelled\)/);
   assert.match(shell, /invalid: "Shell produced an invalid solid/);
   const tree = readFileSync(new URL('../js/cad_feature_tree.js', import.meta.url), 'utf8');

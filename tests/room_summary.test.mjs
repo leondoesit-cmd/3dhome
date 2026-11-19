@@ -17,6 +17,20 @@ test('room dimensions use opposite wall faces, preserve decimals and do not muta
  state.nodes[1].x=state.nodes[2].x=400.35;room.area=400.35*300;
  assert.equal(roomMeasurements(state,room).interior.width,370.35);
 });
+test('wall textures do not change room dimensions, are left in place and are not copied',()=>{
+ const {state,room}=fixture(),plain=roomMeasurements(state,room);
+ const image='data:image/png;base64,'+'A'.repeat(256*1024);
+ state.walls.forEach(w=>{w.tex=image;w.datum='exterior';});
+ const before=JSON.stringify(state);
+ const withPlainDatum=fixture();withPlainDatum.state.walls.forEach(w=>{w.datum='exterior';});
+ assert.deepEqual(roomMeasurements(state,room),roomMeasurements(withPlainDatum.state,withPlainDatum.room));
+ assert.equal(JSON.stringify(state),before,'the live walls keep their texture and are not normalized in place');
+ const stringify=JSON.stringify;let copied=0;
+ JSON.stringify=function(value,replacer,space){const out=stringify.call(JSON,value,replacer,space);if(typeof out==='string'&&out.includes(image))copied++;return out;};
+ try{roomMeasurements(state,room);}finally{JSON.stringify=stringify;}
+ assert.equal(copied,0,'no texture data URL is serialized to measure a room');
+ assert.ok(plain.interior);
+});
 test('nonrectangular and partial-height boundaries do not claim rectangular interior dimensions',()=>{
  const {state,room}=fixture();room.area=90000;
  assert.equal(roomMeasurements(state,room).interior,null);

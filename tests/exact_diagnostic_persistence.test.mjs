@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {applyCurrentExactDiagnostics,captureExactDiagnostics} from '../js/core/exact_diagnostics.js';
@@ -29,7 +30,7 @@ test('a successful exact run clears diagnostic ownership and retains no released
 });
 
 function displayFunction(context){
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),start=source.indexOf('async function exactDisplayBody('),end=source.indexOf('\nfunction queueExactMesh(',start);
+  const source=modelerSource(),start=source.indexOf('async function exactDisplayBody('),end=source.indexOf('\nfunction queueExactMesh(',start);
   runInNewContext(source.slice(start,end)+';this.display=exactDisplayBody;',context);return context.display;
 }
 test('background body failure retains feature diagnostics before releasing native run, and a complete retry clears it',async()=>{

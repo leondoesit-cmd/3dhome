@@ -4,16 +4,22 @@ import { t, onLangChange } from "./i18n.js";
 // furniture remain visible) but owns a small renderer and an orbit-only camera.
 import { THREE, threeLoaded } from "./three_lazy.js";
 import { S } from "./state.js";
-import { createRenderer, ready, render as renderGPU } from "./gpu.js";
-import { getDynGroup, getMainScene, getSelectionBox3D, getSelectionObjects3D, init3D } from "./view3d.js";
+import { createRenderer, forgetLightKeys, ready, render as renderGPU } from "./gpu.js";
+import { getDynGroup, getMainScene, getSelectionBox3D, getSelectionObjects3D, init3D, registerPlannerLights, stopShadowSetPrewarm, shadowRevision } from "./view3d.js";
 import { wallById, wallGeom, wallTangentAt } from "./geometry.js";
+import { createInspectorLights } from "./inspector_lights.js";
 
+var seenShadowRev = -1, // shadowRevision() the stand-in maps were last invalidated at
+  shadowRepaintT = 0;
 var host = null,
   canvas = null,
   stateEl = null,
   resetBtn = null,
   roofBtn = null,
   renderer = null,
+  plannerLights = false, // registerPlannerLights has run on this renderer
+  // stand-ins for the lights that can cast: their shadow nodes are this renderer's alone (js/inspector_lights.js)
+  ownLights = createInspectorLights(),
   camera = null,
   overlayScene = null,
   overlayRoot = null,
@@ -21,6 +27,8 @@ var host = null,
   resizeObserver = null,
   initialized = false,
   visible = false,
+  syncPending = false,
+  resetPending = false,
   renderQueued = false,
   selectionKey = "",
   // three is late-bound, so these two cannot be built at module scope any more.
@@ -32,7 +40,9 @@ var host = null,
   phi = Math.PI * 0.34,
   pointerId = null,
   pointerX = 0,
-  pointerY = 0;
+  pointerY = 0,
+  shadersWarm = false, // this renderer's first shaders were built asynchronously (see paint)
+  shadersWarming = null;
 
 var SUPPORTED = {
   item: true,
@@ -66,7 +76,7 @@ function ensureElements() {
   toggle.className = "inspector-preview-toggle";
   toggle.setAttribute("aria-expanded", "false");
   const label = () => { toggle.textContent = t(host.classList.contains("preview-expanded") ? "workflow_preview_hide" : "workflow_preview_show"); };
-  toggle.onclick = () => { const expanded = host.classList.toggle("preview-expanded"); toggle.setAttribute("aria-expanded", String(expanded)); label(); scheduleRender(); };
+  toggle.onclick = () => { const expanded = host.classList.toggle("preview-expanded"); toggle.setAttribute("aria-expanded", String(expanded)); label(); canvasResized(); };
   host.prepend(toggle); label(); onLangChange(label);
 
   function syncRoof() {
@@ -99,17 +109,36 @@ function ensureElements() {
     resetView();
   });
   if (typeof ResizeObserver === "function") {
-    resizeObserver = new ResizeObserver(function () { scheduleRender(); });
+    resizeObserver = new ResizeObserver(canvasResized);
     resizeObserver.observe(host);
+    resizeObserver.observe(canvas);
   }
   window.addEventListener("scene3d:rebuilt", function () {
+    ownLights.invalidate();
     if (!visible) return;
     overlayDirty = true;
     fitSelection(false);
     scheduleRender();
   });
   window.addEventListener("customTextureLoaded", scheduleRender);
+  // the main view marked shadows stale (a piece moved or resized in place):
+  // with shadows on, repaint once things settle so the stand-ins redraw
+  // (paint compares shadowRevision); trailing, so a drag is one repaint
+  window.addEventListener("scene3d:shadows", function () {
+    if (!visible || !S.invisibleRoof) return;
+    clearTimeout(shadowRepaintT);
+    shadowRepaintT = setTimeout(scheduleRender, 150);
+  });
   return true;
+}
+
+function canvasDisplayed() {
+  return visible && canvas.getClientRects().length > 0;
+}
+
+function canvasResized() {
+  if (syncPending && canvasDisplayed()) syncInspectorPreview();
+  else scheduleRender();
 }
 
 function ensureRenderer() {
@@ -119,7 +148,6 @@ function ensureRenderer() {
       canvas: canvas,
       antialias: true,
       alpha: false,
-      preferWebGL: true,
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.shadowMap.enabled = false;
@@ -149,7 +177,7 @@ function ensureRenderer() {
 
 function fitSelection(resetAngles) {
   // A scene rebuild can arrive before the first lazy preview initialization.
-  if (!selectionBox || !center) return false;
+  if (!selectionBox || !center || !canvasDisplayed()) return false;
   var box = getSelectionBox3D();
   if (!box || box.isEmpty()) return false;
   var sphere = box.getBoundingSphere(new THREE.Sphere());
@@ -218,7 +246,7 @@ function updateCamera(width, height) {
 }
 
 function scheduleRender() {
-  if (renderQueued || !visible) return;
+  if (renderQueued || !canvasDisplayed()) return;
   renderQueued = true;
   requestAnimationFrame(function () {
     renderQueued = false;
@@ -235,7 +263,18 @@ function paint() {
     width = Math.max(2, Math.round(rect.width)),
     height = Math.max(2, Math.round(rect.height));
   if (width <= 2 || height <= 2) return;
+  // the selection's own copy follows a rebuild even while the draw waits below
+  if (overlayDirty) rebuildSelectionOverlay();
+  // the main view's idle prewarm has another hour's lights casting: end it
+  // and draw once the hour's own are back (a frame or two)
+  if (stopShadowSetPrewarm()) { scheduleRender(); return; }
+  // the first build (below) is still reading the stand-in lights; it paints when done
+  if (shadersWarming) return;
   renderer.shadowMap.enabled = !!S.invisibleRoof;
+  // the planner's light classes (room bounce, and the masks that stop the
+  // sky and every light without a drawn shadow map at walls and ceilings);
+  // stock nodes here showed light through every wall
+  if (!plannerLights) plannerLights = registerPlannerLights(renderer);
   renderer.setSize(width, height, false);
   updateCamera(width, height);
   scene.updateMatrixWorld(true);
@@ -247,6 +286,17 @@ function paint() {
   // main 3D view never changes and the rest of the local context remains.
   var occluders = previewOccluders();
   occluders.forEach(function (object) { object.visible = false; });
+  // never the main view's lights that can cast: three shares their shadow nodes
+  // between renderers (see js/inspector_lights.js); a new set of them
+  // re-keys the lights, which three would otherwise look up by draw count
+  // a piece moved or resized in place is no rebuild, but the main view marks
+  // its shadows dirty (shadowRevision): the stand-ins' maps are stale too
+  var rev = shadowRevision();
+  if (rev !== seenShadowRev) {
+    seenShadowRev = rev;
+    ownLights.invalidate();
+  }
+  if (ownLights.swapIn(scene, camera)) forgetLightKeys(renderer);
 
   // The main PMREM environment texture belongs to the main renderer's GPU.
   // Direct lights and the full visible scene still provide the local context;
@@ -254,7 +304,30 @@ function paint() {
   // portable across WebGPU and WebGL2 backends.
   var environment = scene.environment;
   scene.environment = null;
-  if (overlayDirty) rebuildSelectionOverlay();
+  /* This renderer has a GPU device of its own, so its first paint built every
+     shader it draws in one task (~0.5 s with warm caches, 2+ s cold: the first
+     selection of a session froze the page). The first time, they are built
+     asynchronously from exactly this state (occluders out, no environment, the
+     overlay with its studio lights); compileAsync takes all of that before its
+     first await, so the state is put back at once and paints resume after. */
+  if (!shadersWarm) {
+    if (!shadersWarming && renderer.compileAsync) {
+      var builds;
+      try {
+        builds = [renderer.compileAsync(scene, camera), renderer.compileAsync(overlayScene, camera)];
+      } finally {
+        scene.environment = environment;
+        occluders.forEach(function (object) { object.visible = true; });
+        ownLights.swapOut();
+      }
+      shadersWarming = Promise.all(builds).catch(function () {}).then(function () {
+        shadersWarm = true;
+        shadersWarming = null;
+        scheduleRender();
+      });
+      return;
+    }
+  }
   try {
     renderGPU(renderer, scene, camera);
     // The selection overlay has studio lights; omit it when reviewing roof shadows.
@@ -262,6 +335,7 @@ function paint() {
   } finally {
     scene.environment = environment;
     occluders.forEach(function (object) { object.visible = true; });
+    ownLights.swapOut(renderer.shadowMap.enabled);
   }
 }
 
@@ -370,7 +444,7 @@ function resetView() {
 }
 
 function onPointerDown(event) {
-  if (!visible || event.button !== 0 || event.target.closest("button")) return;
+  if (!canvasDisplayed() || !threeLoaded() || event.button !== 0 || event.target.closest("button")) return;
   pointerId = event.pointerId;
   pointerX = event.clientX;
   pointerY = event.clientY;
@@ -422,23 +496,37 @@ function threeHere() {
   return true;
 }
 
+/** World bounds of the selection the preview last drew, or null (tests read
+    it to prove the overlay follows the scene it mirrors). */
+export function inspectorOverlayBounds() {
+  if (!overlayRoot || !overlayRoot.children.length) return null;
+  overlayRoot.updateMatrixWorld(true);
+  var box = new THREE.Box3().setFromObject(overlayRoot);
+  return box.isEmpty() ? null : { min: box.min.toArray(), max: box.max.toArray() };
+}
+
 export function syncInspectorPreview() {
   if (!ensureElements()) return;
   var nextVisible = !!(S.sel && SUPPORTED[S.sel.kind]);
   visible = nextVisible;
   host.hidden = !nextVisible;
   if (!nextVisible) {
+    syncPending = false;
     pointerId = null;
     host.classList.remove("dragging");
     return;
   }
-  // Nothing below this line runs without three, and everything above it does.
-  if (!threeHere()) return;
+  // A hidden canvas (collapsed phone preview) waits for canvasResized(); past
+  // the threeHere() check nothing runs without three, and everything before it does.
   var nextKey = keyForSelection(), changed = nextKey !== selectionKey;
   selectionKey = nextKey;
   if (changed) overlayDirty = true;
   if (changed && stateEl) stateEl.classList.remove("ready");
+  resetPending ||= changed;
+  syncPending = !canvasDisplayed();
+  if (syncPending || !threeHere()) return;
   ensureRenderer();
-  fitSelection(changed);
+  fitSelection(resetPending);
+  resetPending = false;
   scheduleRender();
 }

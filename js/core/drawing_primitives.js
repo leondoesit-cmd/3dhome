@@ -10,7 +10,7 @@ export function drawingEllipsePoints({cx,cy,rx,ry,rotation}) {
   return [{x:cx,y:cy},{x:cx+rx*c,y:cy+rx*s},{x:cx-ry*s,y:cy+ry*c}];
 }
 export function drawingEllipseGeometry(points,startAngle=0,endAngle=360) {
-  if(points.length!==3)throw new Error('An ellipse needs center, major axis and minor radius points');
+  if(!Array.isArray(points)||points.length!==3)throw new Error('An ellipse needs center, major axis and minor radius points');
   const [p,a,b]=points,dx=a.x-p.x,dy=a.y-p.y,rx=Math.hypot(dx,dy),rotation=Math.atan2(dy,dx);
   const ry=Math.abs((b.x-p.x)*Math.sin(rotation)-(b.y-p.y)*Math.cos(rotation));
   if(!Number.isFinite(rx)||!Number.isFinite(ry)||rx<1e-8||ry<1e-8)throw new Error('An ellipse needs two positive semi-axes');
@@ -19,7 +19,7 @@ export function drawingEllipseGeometry(points,startAngle=0,endAngle=360) {
   return {type:'ellipse',cx:p.x,cy:p.y,rx,ry,rotation,a0:startAngle*Math.PI/180,a1:endAngle*Math.PI/180,anticlockwise:endAngle<startAngle};
 }
 export function drawingArcGeometry(points) {
-  if(points.length!==3)throw new Error('An arc needs start, through and end points');
+  if(!Array.isArray(points)||points.length!==3)throw new Error('An arc needs start, through and end points');
   const [a,b,c]=points,bx=b.x-a.x,by=b.y-a.y,cx=c.x-a.x,cy=c.y-a.y;
   const cross=bx*cy-by*cx,scale=Math.max(bx*bx+by*by,cx*cx+cy*cy);
   if(!Number.isFinite(cross)||Math.abs(cross)<=1e-10*scale || Math.hypot(cx,cy)<1e-8)throw new Error('Choose three distinct noncollinear arc points');

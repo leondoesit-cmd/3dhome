@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,7 @@ import {assemblyToolboxDocument,hasSingleToolboxKernelRecipe} from '../js/cad_as
 import {nativeSolidSummary} from '../js/core/native_solid_summary.js';
 import {occurrenceDependencyId,mateDependencyId} from '../js/core/dependency_visualization.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function treeRow(def) {
   const component={id:1,name:'Fastener',def};
   const context={E:{assembly:{components:[component]},componentSel:[]},

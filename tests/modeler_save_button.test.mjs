@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,7 +6,7 @@ import vm from 'node:vm';
 import {syncSaveButtonAccessibility} from '../js/modeler_save_button.js';
 
 test('actual dirty-status handler keeps Part/Assembly Save names stable while retaining accessible status and shortcut',()=>{
- const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  const handler=source.slice(source.indexOf('function syncDirty()'),source.indexOf('/* The one place that asks before unsaved work'));
  const attributes=new Map([['aria-describedby','mdDraftStatus']]),classes=new Map();
  const button={dataset:{},setAttribute:(key,value)=>attributes.set(key,value),removeAttribute:key=>attributes.delete(key),classList:{toggle:(key,value)=>classes.set(key,value)}};

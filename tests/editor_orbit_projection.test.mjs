@@ -1,3 +1,5 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {PerspectiveCamera,OrthographicCamera,Vector3} from '../vendor/three/three.module.js';
 import {switchEditorCamera,pointerCameraRay} from '../js/core/editor_projection.js';
@@ -25,13 +27,13 @@ test('production view switch retains orbit preference while Normal To enforces o
  assert.equal(view.setProjection('perspective'),true);assert.equal(current(),o);assert.equal(view.getProjection(),'perspective');view.fixedFrame=null;view.setProjection('orthographic');assert.equal(current(),o);assert.equal(view.getProjection(),'orthographic');view.setProjection('perspective');assert.equal(current(),p);
 });
 test('ordinary modeler toolbar has accessible checked projection control and no CAD mutation route',()=>{
- const src=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');assert.match(src,/id="mdPerspectiveView" aria-label="Perspective" aria-pressed="true"/);
+ const src=modelerSource();assert.match(src,/id="mdPerspectiveView" aria-label="Perspective" aria-pressed="true"/);
  const start=src.indexOf('root.querySelector("#mdPerspectiveView").addEventListener'),body=src.slice(start,src.indexOf('root.querySelector("#mdSketchPlaneChip")',start));assert.match(body,/setProjection\(mode\)/);assert.match(body,/localStorage.setItem/);assert.doesNotMatch(body,/pushUndo|createFeature|E\.def\s*=/);
  const sync=sourceFunctionText(src,'syncViewButtons');assert.match(sync,/fixedFrame/);assert.match(sync,/aria-pressed/);
- const css=fs.readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');assert.match(css,/#modeler\.md-assembly\.md-is3d:not\(\.md-isdrawing\) \.md-views \{ display:flex !important; \}/);assert.match(src,/md-vgroup md-projection/);
+ const css=stylesSource();assert.match(css,/#modeler\.md-assembly\.md-is3d:not\(\.md-isdrawing\) \.md-views \{ display:flex !important; \}/);assert.match(src,/md-vgroup md-projection/);
 });
 test('actual Normal To with no face/sketch in arbitrary orbit uses Front datum without changing orbit preference',()=>{
- const src=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),{p,o}=rig(),view={dist:50,big:false,render(){},getProjection:()=> 'perspective'};
+ const src=modelerSource(),{p,o}=rig(),view={dist:50,big:false,render(){},getProjection:()=> 'perspective'};
  const esrc=fs.readFileSync(new URL('../js/editor_view.js',import.meta.url),'utf8'),chunk=esrc.slice(esrc.indexOf('view.getProjection ='),esrc.indexOf('// Keep every zoom entry'));
  new Function('view','opts','switchEditorCamera','perspectiveCam','normalCam','cam','bigZoom',`let orbitProjection='perspective';${chunk}`)(view,{normalToOrthographic:true},switchEditorCamera,p,o,p,()=>1);
  let picked;view.lookAtFrame=f=>{picked=f;view.fixedFrame=f;view.setProjection(view.getProjection());};view.orbitTo=()=>assert.fail('Normal To must not use perspective orbit fallback');

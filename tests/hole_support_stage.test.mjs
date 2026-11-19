@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -34,7 +35,7 @@ test('unverified or suppressed earlier stages are never offered and current bind
 });
 
 test('actual Hole edit picker and Update handler keep stage-qualified selection and current binding',()=>{
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),editorAt=source.indexOf('function openFeatureEditor(');
+ const source=modelerSource(),editorAt=source.indexOf('function openFeatureEditor(');
  const start=source.indexOf('  if(supportSketch){',editorAt),end=source.indexOf('  var pendingFrame=',start),block=source.slice(start,end);
  const node=()=>({children:[],appendChild(child){this.children.push(child);},setAttribute(key,value){this[key]=value;}});
  const host=node(),doc=fixture(),feature=doc.features[2],env={E:{def:doc},feature,supportSketch:doc.sketches[2],host,

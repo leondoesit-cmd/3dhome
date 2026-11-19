@@ -1,5 +1,9 @@
 /* Micro-RC world: collision, cars, track, water, doors, audio. */
 import * as THREE from "three";
+import {
+  uniform, varying, positionGeometry, positionLocal, positionWorld, cameraPosition,
+  vec3, float, sin, pow, mix, smoothstep, max, length,
+} from "three/tsl";
 import { S, clamp, fin } from "./state.js";
 import {
   wallGeom,
@@ -9,6 +13,7 @@ import {
   pointInPoly,
 } from "./geometry.js";
 import { FURN } from "./furniture.js";
+import { isSharedTexture } from "./pbr_material.js";
 import { buildRoad, courseQuality, roomCircuit } from "./track.js";
 import { courseFingerprint } from "./rc_driving.js";
 import { surfaceHeightAt, surfaceHeightNear, surfaceSampleAt } from "./road_surface.js";
@@ -492,6 +497,8 @@ export function customTruckBody(key) {
   var wrap = new THREE.Group();
   wrap.add(inner);
   wrap.position.y = 0.5; // ride height above axle plane
+  // its textures come from the planner's shared caches (see disposeGrp)
+  wrap.userData.sharedMaps = true;
   return wrap;
 }
 
@@ -623,6 +630,15 @@ export function swapPlayerBody(car) {
 
 export function disposeGrp(g) {
   if (!g) return;
+  // A custom body is built by the planner's own builders, whose maps come from
+  // caches shared with every planner/modeler material (sharedRepeat clones,
+  // the procedural detail maps, the texture caches): none of them is the
+  // body's to free. Disposing its materials still releases their counted
+  // shares (pbr_material.js). Everything else here owns its maps.
+  var borrowed = new Set();
+  g.traverse(function (o) {
+    if (o.userData && o.userData.sharedMaps) o.traverse(function (x) { borrowed.add(x); });
+  });
   g.traverse(function (o) {
     // A Sprite's geometry is a module-level singleton inside three — disposing
     // it takes out every sprite in the app (see kart.js disposeObj).
@@ -630,7 +646,7 @@ export function disposeGrp(g) {
     if (o.material) {
       (Array.isArray(o.material) ? o.material : [o.material]).forEach(
         function (m) {
-          if (m.map && m.map.dispose) m.map.dispose();
+          if (m.map && m.map.dispose && !borrowed.has(o) && !isSharedTexture(m.map)) m.map.dispose();
           m.dispose();
         },
       );
@@ -1218,33 +1234,49 @@ export function saveBestTime(ms) {
 // ---- water pools ------------------------------------------------------------
 // Track-builder tool: shader-animated pools the trucks wade through. Purely a
 // surface + drag hazard — pools never block, they slow, sink and splash.
-var WATER_VERT =
-  "uniform float uTime;\n" +
-  "varying vec3 vLocal; varying float vWave; varying vec3 vView;\n" +
-  "void main(){\n" +
-  "  vec3 p = position;\n" +
-  "  float t = uTime;\n" +
-  "  float w = sin(p.x*0.55+t*2.0)*0.22 + sin(p.z*0.43-t*1.6)*0.18 + sin((p.x+p.z)*0.31+t*1.15)*0.13;\n" +
-  "  p.y += w;\n" +
-  "  vWave = w; vLocal = position;\n" +
-  "  vec4 wp = modelMatrix * vec4(p,1.0);\n" +
-  "  vView = normalize(cameraPosition - wp.xyz);\n" +
-  "  gl_Position = projectionMatrix * viewMatrix * wp;\n" +
-  "}";
-var WATER_FRAG =
-  "uniform float uTime; uniform float uR;\n" +
-  "varying vec3 vLocal; varying float vWave; varying vec3 vView;\n" +
-  "void main(){\n" +
-  "  float d = length(vLocal.xz)/uR;\n" +
-  "  float fr = pow(1.0 - clamp(abs(vView.y),0.0,1.0), 2.2);\n" + // fresnel: brighter at glancing angles
-  "  vec3 deep = vec3(0.05,0.23,0.33); vec3 lit = vec3(0.25,0.62,0.78);\n" +
-  "  vec3 col = mix(deep, lit, clamp(fr*0.75 + (vWave+0.5)*0.25, 0.0, 1.0));\n" +
-  "  float sp = pow(max(0.0, sin(vLocal.x*1.3+uTime*3.1)*sin(vLocal.z*1.1-uTime*2.3)), 24.0);\n" +
-  "  col += vec3(0.9,0.95,1.0)*sp*0.5;\n" + // drifting sun glints
-  "  float foam = smoothstep(0.88, 0.985, d + vWave*0.06);\n" + // wobbling shoreline foam
-  "  col = mix(col, vec3(0.92,0.97,1.0), foam*0.75);\n" +
-  "  gl_FragColor = vec4(col, mix(0.82, 0.95, foam));\n" +
-  "}";
+//
+// A node material, not a raw ShaderMaterial: the node builder rejects
+// hand-written GLSL and swaps in a blank default, which is what the pools drew
+// until this port. Same maths as the GLSL it replaces.
+function waterMaterial(radius) {
+  var uTime = uniform(0),
+    uR = uniform(radius);
+  // the rest-pose position, before the swell lifts it
+  var p = positionGeometry;
+
+  // vertex: three crossing sine swells
+  var w = sin(p.x.mul(0.55).add(uTime.mul(2.0))).mul(0.22)
+    .add(sin(p.z.mul(0.43).sub(uTime.mul(1.6))).mul(0.18))
+    .add(sin(p.x.add(p.z).mul(0.31).add(uTime.mul(1.15))).mul(0.13));
+  var vWave = varying(w);
+
+  // fragment
+  var d = length(p.xz).div(uR);
+  var view = cameraPosition.sub(positionWorld).normalize();
+  var fr = pow(float(1).sub(view.y.abs().clamp(0, 1)), 2.2); // fresnel: brighter at glancing angles
+  var deep = vec3(0.05, 0.23, 0.33),
+    lit = vec3(0.25, 0.62, 0.78);
+  var col = mix(deep, lit, fr.mul(0.75).add(vWave.add(0.5).mul(0.25)).clamp(0, 1));
+  var sp = pow(
+    max(0, sin(p.x.mul(1.3).add(uTime.mul(3.1))).mul(sin(p.z.mul(1.1).sub(uTime.mul(2.3))))),
+    24.0
+  );
+  col = col.add(vec3(0.9, 0.95, 1.0).mul(sp.mul(0.5))); // drifting sun glints
+  var foam = smoothstep(0.88, 0.985, d.add(vWave.mul(0.06))); // wobbling shoreline foam
+  col = mix(col, vec3(0.92, 0.97, 1.0), foam.mul(0.75));
+
+  var mat = new THREE.MeshBasicNodeMaterial({
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  mat.positionNode = positionLocal.add(vec3(0, w, 0));
+  mat.colorNode = col;
+  mat.opacityNode = mix(0.82, 0.95, foam);
+  // the game loop drives this by hand, the way it drove the old uniform
+  mat.userData.waterUniforms = { uTime: uTime, uR: uR };
+  return mat;
+}
 
 export function makeWaterMesh(pool) {
   var g = new THREE.Group();
@@ -1259,14 +1291,7 @@ export function makeWaterMesh(pool) {
   g.add(bed);
   var surfGeo = new THREE.CircleGeometry(pool.r, 64, 0, Math.PI * 2);
   surfGeo.rotateX(-Math.PI / 2);
-  var mat = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uR: { value: pool.r } },
-    vertexShader: WATER_VERT,
-    fragmentShader: WATER_FRAG,
-    transparent: true,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
+  var mat = waterMaterial(pool.r);
   var surf = new THREE.Mesh(surfGeo, mat);
   surf.position.y = WATER_SURF;
   g.add(surf);

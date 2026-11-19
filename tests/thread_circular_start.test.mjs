@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {threadPlacementFromCircularEdge} from '../js/core/thread_circular_start.js';
 import {threadPlacementFromFace} from '../js/core/thread_placement.js';
@@ -9,7 +10,7 @@ import {shapeMassProperties} from '../js/cad_kernel.js';
 import {topologyReferenceFromEntry} from '../js/modeler_pick_geometry.js';
 import {normalizeThreadSpec,validateThreadFeature,cosmeticThread,modeledThreadSolid,threadCallout} from '../js/cad_thread.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const fn=(name,ctx)=>new Function(...Object.keys(ctx),sourceFunctionText(source,name)+';return '+name)(...Object.values(ctx));
 const edge={kind:'edge',ownerFeatureId:'shaft',persistentId:'rim',descriptor:{curve:'circle',radius:.3175,measure:2*Math.PI*.3175,origin:{x:0,y:0,z:0},axis:{x:0,y:1,z:0}}};
 const face={kind:'face',ownerFeatureId:'shaft',persistentId:'side',descriptor:{surface:'cylinder',radius:.3175,origin:{x:0,y:2.54,z:0},referenceOrigin:{x:0,y:0,z:0},axis:{x:0,y:1,z:0},axisRange:[0,5.08]}};

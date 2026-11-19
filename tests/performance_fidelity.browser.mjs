@@ -97,14 +97,14 @@ test('GPU selection retains solid buffers and matches a complete viewport rebuil
   } finally { await page.close(); }
 });
 
-test('GPU assembly selection preserves component geometry, solved poses and instance highlighting',
+for (const rotation of [0, 27]) test(`GPU assembly selection preserves component geometry, solved poses and instance highlighting (${rotation} degree pose)`,
   process.env.MF_BROWSER_GPU === '1' ? { timeout: 60000 } : { skip: 'Run with MF_BROWSER_GPU=1 for hardware rendering' }, async () => {
   const page = await openPage({ width: 1440, height: 900, lang: 'en' });
   try {
-    await page.eval(async () => {
+    await page.eval(async (rotation) => {
       const { writeModelerDraft } = await import('/js/modeler_draft.js');
       const { topologyReference } = await import('/js/cad_mates.js');
-      const a = { id: 'instance-a', name: 'Grounded', grounded: true, transform: { x: 12, y: 3, z: 4, rx: 0, ry: 0, rz: 0 },
+      const a = { id: 'instance-a', name: 'Grounded', grounded: true, transform: { x: 12, y: 3, z: 4, rx: rotation, ry: rotation, rz: rotation },
         def: { name: 'Block', parts: [{ id: 'box', kind: 'box', x0: 0, x1: 2, y0: 0, y1: 3, z0: 0, z1: 4 }] } };
       const b = { ...structuredClone(a), id: 'instance-b', name: 'Mated', grounded: false, transform: { ...a.transform, x: 17 } };
       const plane = { surface: 'plane', origin: { x: 0, y: 0, z: 0 }, normal: { x: 1, y: 0, z: 0 } };
@@ -112,7 +112,7 @@ test('GPU assembly selection preserves component geometry, solved poses and inst
         a: topologyReference(a.id, 'face', 'fa', plane), b: topologyReference(b.id, 'face', 'fb', plane) };
       writeModelerDraft(localStorage, { docType: 'assembly', assembly: { id: 'performance-assembly', name: 'Performance assembly',
         components: [a, b], mates: [], topologyMates: [mate] } });
-    });
+    }, rotation);
     await page.goto('/');
     await installModelerDraftFixture(page);
     await page.eval(async () => { const { openModeler } = await import('/js/modeler.js'); openModeler(); });
@@ -130,13 +130,16 @@ test('GPU assembly selection preserves component geometry, solved poses and inst
       const before = window.cadPreviewWorkSnapshot();
       if (!window.cadSelectComponentFace('instance-b', { surface: 'plane' })) throw new Error('Component has no selectable face');
       const after = window.cadPreviewWorkSnapshot();
-      view.render(); const incremental = view.rr.domElement.toDataURL('image/png');
+      // The first selected face introduces a GPU pipeline. Compare completed
+      // frames, not the first draw while that pipeline is still compiling.
+      const settle = async () => { await view.rr.compileAsync(view.sc, view.cam); await new Promise(requestAnimationFrame); view.render(); };
+      await settle(); const incremental = view.rr.domElement.toDataURL('image/png');
       const selected = entries.find(entry => entry.component.id === 'instance-b');
       const other = entries.find(entry => entry.component.id === 'instance-a');
       const highlights = { selected: selected.mesh.material.emissive.getHex(), other: other.mesh.material.emissive.getHex() };
       const retained = meshes.every((mesh, index) => mesh.parent && mesh.geometry === geometries[index]);
       const posesAfter = groups.map(group => ({ position: group.position.toArray(), rotation: group.rotation.toArray() }));
-      window.cadUpdatePreview(); view.render();
+      window.cadUpdatePreview(); await settle();
       return { before, after, retained, poses, posesAfter, highlights, meshes: meshes.length,
         equalPixels: incremental === view.rr.domElement.toDataURL('image/png'), draws: view.rr.info.render.calls };
     });

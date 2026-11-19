@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const bounds={x0:7,x1:11,y0:2,y1:8.62,z0:-2.8,z1:2.8};
 function fixture({fixedFrame=null,sketchBox=null}={}){
   const target={set(x,y,z){Object.assign(this,{x,y,z});}};

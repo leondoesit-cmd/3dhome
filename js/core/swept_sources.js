@@ -2,6 +2,7 @@ import {splineControls} from "../sketch_spline.js";
 /* The sketches a sweep or a loft is driven by, and the plane their points live
    on. A module of its own so both the editor and its tests can ask the same
    question without loading the browser. */
+import { sketchNormal } from "../sketch_intersection.js";
 import { framePoint } from "./frame.js";
 import { analyzeSketchChains, analyzeSketchProfiles } from "../sketch_profiles.js";
 import { helixSweepPath,circularHelixSweepProfile } from "../cad_helix.js";
@@ -93,7 +94,7 @@ export function sweepSourceRecord(profileSketch, profileEntityIds, pathSketch) {
 }
 
 export function loftSourceRecord(sketches, entityIdSets) {
-  return { kind:"loft", sections:sketches.map(function (sketch, index) { const entry=entityIdSets[index];return entry && !Array.isArray(entry)?{...entry,sketchId:sketch.id}:{sketchId:sketch.id,entityIds:(entry || []).slice()}; }) };
+  return { kind:"loft", exactEllipseSections:true, sections:sketches.map(function (sketch, index) { const entry=entityIdSets[index];return entry && !Array.isArray(entry)?{...entry,sketchId:sketch.id}:{sketchId:sketch.id,entityIds:(entry || []).slice()}; }) };
 }
 
 export function loftSectionSourceRecord(sketch,entityIds=[],allowPoint=false){
@@ -105,6 +106,28 @@ export function loftSectionSourceRecord(sketch,entityIds=[],allowPoint=false){
   const selected={...sketch,entities:entities.filter(e=>!entityIds.length||entityIds.includes(e.id))},profiles=analyzeSketchProfiles(selected).profiles;
   if(profiles.length!==1||profiles[0].entityIds.length!==selected.entities.length||!selected.entities.length)return null;
   return {sketchId:sketch.id,entityIds:profiles[0].entityIds.slice()};
+}
+
+// A loft section uses world coordinates. Carry the ellipse's own plane and
+// major direction so a differently sized or offset next section cannot tilt it.
+function loftSectionSegments(sketch, ids) {
+  const ellipse = ids?.length === 1 && sketch.entities.find(e => e.id === ids[0] && e.type === "ellipse");
+  if (!ellipse) return sketchPathSegments(sketch, ids);
+  const p = sketch.points.find(point => point.id === (ellipse.c ?? ellipse.center));
+  const center = sketchWorldPoint(sketch, p.x, p.y);
+  const angle = (ellipse.rot || 0) + (ellipse.ry > ellipse.rx ? Math.PI / 2 : 0);
+  const tip = sketchWorldPoint(sketch, p.x + Math.cos(angle), p.y + Math.sin(angle));
+  return [{ type: "ellipse", center, rx: ellipse.rx, ry: ellipse.ry, normal: sketchNormal(sketch),
+    majorAxis: { x: tip.x - center.x, y: tip.y - center.y, z: tip.z - center.z } }];
+}
+
+// A loft saved during the transition may already carry exact elliptical
+// section wires even though its source record predates the format flag.
+export function savedLoftSources(sources, sectionSegments) {
+  if (sources?.kind !== "loft" || sources.exactEllipseSections != null) return sources;
+  if (!Array.isArray(sectionSegments) || !sectionSegments.some(section =>
+    Array.isArray(section) && section.some(segment => segment?.type === "ellipse"))) return sources;
+  return { ...sources, exactEllipseSections: true };
 }
 
 export function resolveSketchSources(def, sources, resolveProfilePoints) {
@@ -134,7 +157,10 @@ export function resolveSketchSources(def, sources, resolveProfilePoints) {
       const point=sketch.points.find(p=>p.id===entry.pointId),world=sketchWorldPoint(sketch,point.x,point.y);
       return [world.x,world.y,world.z].every(Number.isFinite)?[world]:null;
     });
-    return sections.every(Boolean) ? { sections:sections, sectionSegments:entries.map(entry=>entry.pointId!=null?null:sketchPathSegments(sketchById(def,entry.sketchId),entry.entityIds)) } : null;
+    // Unversioned lofts used sampled elliptical sections. Their faces and
+    // edges can already be referenced by downstream features.
+    const segments = sources.exactEllipseSections ? loftSectionSegments : sketchPathSegments;
+    return sections.every(Boolean) ? { sections:sections, sectionSegments:entries.map(entry=>entry.pointId!=null?null:segments(sketchById(def,entry.sketchId),entry.entityIds)) } : null;
   }
   var profile = loop(sources.profile);
   if (!profile) return null;

@@ -1,4 +1,5 @@
 import { getLang } from './i18n.js';
+import { safeHref } from './safe.js';
 import { cabinetProductionParts } from './cabinet_production_parts.js';
 import { BANDING, bandLabel } from './stock.js';
 import { cabinetProductionDrawingHTML } from './cabinet_production_drawings.js';
@@ -71,7 +72,7 @@ export function mountCabinetProduction(host, getItems, download, onChange, getRe
     presetSummary.appendChild(node('p',label('Construction: ','מבנה: ')+c.system+' · '+label('units ','יחידות ')+profile.units+' · '+label('panel ','לוח ')+(c.panelMm??label('shop-defined','לפי הסדנה'))+' mm · '+label('back ','גב ')+(c.backMm??label('shop-defined','לפי הסדנה'))+' mm · '+label('reveal ','מרווח ')+(c.revealMm??label('shop-defined','לפי הסדנה'))+' mm'));
     presetSummary.appendChild(node('p',label('Standards focus: ','מוקד תקינה: ')+profile.standards.focus.join(', ')+' · '+label('market ','שוק ')+profile.standards.market));
     for(const note of profile.notes)presetSummary.appendChild(node('p',note));
-    for(const reference of profile.references){const p=node('p'),a=node('a',reference.label);a.href=reference.url;a.target='_blank';a.rel='noopener noreferrer';p.appendChild(a);presetSummary.appendChild(p);}
+    for(const reference of profile.references){const p=node('p'),a=node('a',reference.label),href=safeHref(reference.url);if(href){a.href=href;a.target='_blank';a.rel='noopener noreferrer';}p.appendChild(a);presetSummary.appendChild(p);}
     const changed=value.changes.filter(change=>change.fields.length);
     const heading=node('p',changed.length?changed.length+label(' cabinets would change.',' ארונות ישתנו.'):label('No model changes in this scope.','אין שינויי מודל בהיקף זה.'));heading.className='nz-preset-count';presetChanges.appendChild(heading);
     for(const change of changed){
@@ -261,7 +262,8 @@ export function mountCabinetProduction(host, getItems, download, onChange, getRe
       row.appendChild(node('summary', rule.label + ' · ' + label(...pair)));
       row.appendChild(node('p', rule.reason));
       const source = node('a', label('Source and edition', 'מקור ומהדורה') + ': ' + rule.edition);
-      if (/^https:\/\//.test(rule.source)) { source.href = rule.source; source.target = '_blank'; source.rel = 'noopener noreferrer'; }
+      const href = safeHref(rule.source);
+      if (href) { source.href = href; source.target = '_blank'; source.rel = 'noopener noreferrer'; }
       row.appendChild(source); rules.appendChild(row);
     }
     return assessment;

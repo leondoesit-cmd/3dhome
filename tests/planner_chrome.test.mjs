@@ -1,9 +1,10 @@
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+const interaction = moduleSource("js/interaction.js");
 const chrome = await readFile(new URL("../js/planner_chrome.js", import.meta.url), "utf8");
 const api = await readFile(new URL("../js/furniture_api.js", import.meta.url), "utf8");
 

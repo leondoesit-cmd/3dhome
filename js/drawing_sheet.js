@@ -12,6 +12,9 @@
    js/sheet_print.js wraps the fragment in paper and a title block. */
 import { planDimensionChains } from "./planner_drawing.js";
 import { symbolPrims, localToWorld } from "./plan_symbols.js";
+import { dimensionFormatter, formatLevel } from "./drafting_standards.js";
+import { openingLabelsSVG, standardRoomLabelsSVG } from "./drawing_sheet/annotations.js";
+import { proPlanParts } from "./drawing_sheet/pro_plan.js";
 
 const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]);
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -53,10 +56,14 @@ export function outlineSegments(wallPolys) {
 export function constructionSheetSVG(snap, opts) {
   const o = opts || {};
   const k = o.cmPerMm || 5; // model cm per paper mm (1:50 → 5)
-  const fmt = o.fmt || ((cm) => String(Math.round(cm)));
+  // a drafting standard (js/drafting_standards.js) writes dimensions its own way
+  const std = o.standard || null;
+  const fmt = o.fmt || (std ? dimensionFormatter(std) : ((cm) => String(Math.round(cm))));
   const t = o.t || ((key) => key);
   const b = o.bounds || sheetBounds(snap, k);
   if (!b) return "";
+  // to a standard: the architect's working drawing (js/drawing_sheet/pro_plan.js)
+  if (std) return proPlanParts(snap, Object.assign({}, o, { cmPerMm: k, bounds: b, fmt: o.fmt })).svg;
   const X = (x) => r2(x - b.minx), Y = (z) => r2(z - b.minz);
   const mm = (v) => r2(v * k);
   const pts = (poly) => poly.map((p) => X(p.x) + "," + Y(p.z)).join(" ");
@@ -111,9 +118,12 @@ export function constructionSheetSVG(snap, opts) {
   });
   out.push(`<g id="fixtures">${fx.join("")}</g>`);
 
-  // ---- room names with their size ----
+  // ---- room names with their size (or, to a standard, area and level) ----
   const rl = [];
-  (snap.rooms || []).forEach((room) => {
+  const ctx = std && { X, Y, mm, lang: o.lang, level: snap.level || 0, floorNumber: snap.floorNumber,
+    centre: { x: (b.plan.minx + b.plan.maxx) / 2, z: (b.plan.minz + b.plan.maxz) / 2 } };
+  if (std) rl.push(standardRoomLabelsSVG(snap.rooms, std, ctx));
+  else (snap.rooms || []).forEach((room) => {
     const name = String(room.name || "").trim();
     if (!name && !(room.width > 0)) return;
     const cx = X(room.cx), cz = Y(room.cz), big = mm(3.2), small = mm(2.4);
@@ -124,6 +134,7 @@ export function constructionSheetSVG(snap, opts) {
       rl.push(`<text x="${cx}" y="${r2(cz + big * 0.9)}" font-family="${FACE}" font-size="${small}" text-anchor="middle" fill="${INK}" ${halo}>${esc(fmt(room.width) + " x " + fmt(room.depth))}</text>`);
   });
   out.push(`<g id="room-labels">${rl.join("")}</g>`);
+  if (std) out.push(`<g id="opening-labels">${openingLabelsSVG(snap.openings, std, ctx)}</g>`);
 
   // ---- chained exterior dimensions ----
   out.push(`<g id="dimensions">${dimensionStrings(snap, b, k, fmt, X, Y, mm).join("")}</g>`);
@@ -132,6 +143,8 @@ export function constructionSheetSVG(snap, opts) {
   if (snap.area && snap.area.text) {
     out.push(`<text x="${X(b.plan.minx)}" y="${Y(b.plan.maxz) + mm(SHEET_PAD_MM.pad + 4)}" font-family="${FACE}" font-size="${mm(3.4)}" font-weight="600" fill="${INK}">${esc(snap.area.text)}</text>`);
   }
+  if (std && std.levelPlace === "sheet")
+    out.push(`<text id="level" x="${X(b.plan.maxx)}" y="${Y(b.plan.maxz) + mm(SHEET_PAD_MM.pad + 4)}" font-family="${FACE}" font-size="${mm(3)}" text-anchor="end" fill="${INK}">${esc(formatLevel(std, snap.level || 0, o.lang))}</text>`);
   const nx = X(b.plan.maxx) + mm(14), nz = Y(b.plan.minz) - mm(14), nr = mm(4);
   out.push(`<g id="north" fill="none" stroke="${INK}" stroke-width="${mm(0.25)}"><circle cx="${nx}" cy="${nz}" r="${nr}"/>` +
     `<path d="M${nx} ${r2(nz - nr)} L${r2(nx + nr * 0.45)} ${r2(nz + nr * 0.55)} L${nx} ${r2(nz + nr * 0.2)} L${r2(nx - nr * 0.45)} ${r2(nz + nr * 0.55)}Z" fill="${INK}"/>` +

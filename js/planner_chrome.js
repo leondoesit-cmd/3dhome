@@ -1,12 +1,12 @@
 import { newDocumentKey } from "./redesign.js";
-import { showcaseHouse } from "./demo_house.js";
+import { showcaseHouse, defaultApartment } from "./demo_house.js";
 import { initPlannerWorkflow } from "./planner_workflow.js";
 import { normalizePlanningGuide } from "./planning_guide.js";
 import { initPlanningGuide, openPlanningGuide } from "./ui_planning_guide.js";
 // Planner main-page chrome: modern layout by default, classic layout from the
 // same More menu as games / modeler / textures. Also owns the start screen,
 // floor tabs, left-sidebar panes, tool hints, and library drag-to-place.
-import { S } from "./state.js";
+import { S, DEFAULT_HOUR } from "./state.js";
 import { t, tTouch, onLangChange } from "./i18n.js";
 import {
   applyData,
@@ -18,11 +18,11 @@ import {
   syncPlanStyleUI,
   syncCutawayUI,
 } from "./ui.js";
-import { defaultScene, emptyScene, FURN } from "./furniture.js";
+import { emptyScene, FURN } from "./furniture.js";
 import { rebuildProject } from "./core/project.js";
 import { setTool } from "./interaction.js";
-import { resetLayers, saveLayers } from "./layers.js";
-import { render2D, fitView, wx, wz, dropPoint } from "./plan2d.js";
+import { resetLayers, saveLayers, workSetForNewFloor, enterFloorWorkSet } from "./layers.js";
+import { render2D, fitView, wx, wz, dropPoint, onAfterRender } from "./plan2d.js";
 import { loadMEP } from "./mep.js";
 import { renderPanel as refreshMEPPanel } from "./ui_mep.js";
 import { withoutRoomPrompts } from "./ui_tree.js";
@@ -32,7 +32,28 @@ import {
   ensureFloors,
   addFloor,
   switchFloor,
+  floorBelow,
+  floorAbove,
+  floorById,
+  floorsByElevation,
+  setReferenceFloor,
+  nextFloorElevation,
+  nextFloorName,
+  cutStairwellVoids,
+  referenceShown,
+  referenceTarget,
+  toggleReferenceFloor,
+  followReferenceFloor,
 } from "./floors.js";
+import { floorText, floorDisplayName } from "./floor_strings.js";
+import { fmtLen } from "./display_units.js";
+import { viewModeSelect, fillViewModeSelect, labelViewButtons, syncViewModeGroup, syncPageTitle } from "./view_modes.js";
+import { slabOpenings, stairVoidFields } from "./slab_openings.js";
+import { planFrameOnScreen } from "./plan2d/reference_floor.js";
+import { markDirty } from "./persist.js";
+import { toggleWholeHouse, wholeHouseOn } from "./floor_stack.js";
+import { syncFloorStack } from "./view3d/floor_stack.js";
+import { initCoach, coachEvaluate } from "./coach.js";
 
 configureFloorIO({ sceneObject: sceneObject, applyData: applyData });
 
@@ -117,19 +138,12 @@ function setLeftTab(id, persist) {
 function syncViewPills() {
   var cc = $("center-canvas");
   if (!cc) return;
-  var mode = cc.classList.contains("max-view-2d")
-    ? "plan"
-    : cc.classList.contains("max-view-3d")
-      ? "3d"
-      : "split";
-  var map = { plan: "viewPlanBtn", "3d": "view3dBtn", split: "viewSplitBtn" };
-  Object.keys(map).forEach(function (k) {
-    var b = $(map[k]);
-    if (b) {
-      b.classList.toggle("active", k === mode);
-      b.setAttribute("aria-pressed", String(k === mode));
-    }
-  });
+  var pill = $("viewModePill");
+  // the dropdown form of the same group, shown by css where the buttons do not fit
+  if (pill && !pill.querySelector("select.view-mode-select")) pill.appendChild(viewModeSelect());
+  syncViewModeGroup(pill);
+  syncPageTitle();
+  var mode =cc.classList.contains("max-view-2d") ? "plan" : cc.classList.contains("max-view-3d") ? "3d" : "split";
   // The strip belongs to a visible pane; keeping it under 3D hides floor
   // navigation whenever the user maximizes the plan.
   var host = $("floor-tabs");
@@ -155,14 +169,15 @@ export function renderFloorTabs() {
   }
   host.hidden = false;
   host.innerHTML = "";
-  floors.forEach(function (floor, i) {
+  // lowest storey first, each tooltip carrying its level
+  floorsByElevation(S.workspace).forEach(function (floor) {
+    var i = floors.indexOf(floor);
     var b = document.createElement("button");
     b.type = "button";
-    var name = (floor.id === "floor-1" && (!floor.name || floor.name === "Ground floor" || floor.name === "קומת קרקע"))
-      ? t("floor_ground_name")
-      : (floor.name || t("floor_ground") + " " + (i + 1));
+    var name = floorDisplayName(floor, i);
+    var elev = Number(floor.elevation) || 0;
     b.textContent = name;
-    b.title = t("floor_rename_tip");
+    b.title = floorText("elevTip", { elev: (elev > 0 ? "+" : "") + fmtLen(elev) }) + " · " + t("floor_rename_tip");
     b.classList.toggle("active", floor.id === S.workspace.activeFloor);
     var hold = 0;
     var held = false;
@@ -183,13 +198,19 @@ export function renderFloorTabs() {
       if (e.detail >= 2) { renameFloorInline(b, floor, name); return; }
       // Re-clicking the current floor must not rebuild the strip or refit the view.
       if (floor.id === S.workspace.activeFloor) return;
+      // two storeys with content stay registered on screen: keep the view
+      var hadContent = S.walls.length > 0 || S.items.length > 0;
       switchFloor(floor.id);
+      // an empty storey starts on Structure, with the ribbon on Build
+      if (enterFloorWorkSet(S)) syncWorkSetUI();
+      followReferenceFloor(S.workspace);
       S.dirty3D = true;
+      if (!hadContent || !planFrameOnScreen()) fitView();
       render2D();
       refreshTree();
       fillProps();
-      fitView();
       renderFloorTabs();
+      coachEvaluate();
     });
     host.appendChild(b);
   });
@@ -200,6 +221,109 @@ export function renderFloorTabs() {
   add.title = t("floor_add");
   add.addEventListener("click", addFloorFromUI);
   host.appendChild(add);
+  if (floors.length > 1) {
+    var ref = document.createElement("button");
+    ref.type = "button";
+    ref.className = "floor-ref";
+    /* An explicit show/hide toggle for the floor-below underlay: an eye that
+       opens and closes with it (syncFloorRefToggle), aria-pressed for its
+       state. The "over Ground floor" text is part of the toggle, so it is
+       clickable too. */
+    ref.innerHTML = '<i class="ph ph-eye-slash" aria-hidden="true"></i><span class="floor-ref-note" hidden></span>';
+    ref.addEventListener("click", toggleReferenceFromStrip);
+    host.appendChild(ref);
+    var all = document.createElement("button");
+    all.type = "button";
+    all.className = "floor-all";
+    all.innerHTML = '<i class="ph ph-buildings" aria-hidden="true"></i><span class="floor-all-label"></span>';
+    all.addEventListener("click", toggleWholeHouseFromStrip);
+    host.appendChild(all);
+  }
+  syncFloorRefToggle();
+  syncWholeHouseToggle();
+}
+
+/* "Whole house": the 3D pane stacks every storey at its level around the one
+   being edited (js/floor_stack.js, js/view3d/floor_stack.js). */
+function toggleWholeHouseFromStrip() {
+  toggleWholeHouse(S.workspace);
+  markDirty();
+  syncFloorStack();
+  syncWholeHouseToggle();
+}
+
+function syncWholeHouseToggle() {
+  var host = $("floor-tabs");
+  var btn = host && host.querySelector(".floor-all");
+  if (!btn) return;
+  var on = wholeHouseOn(S.workspace);
+  var tip = floorText(on ? "wholeHouseOff" : "wholeHouseOn");
+  btn.title = tip;
+  btn.setAttribute("aria-label", tip);
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  btn.classList.toggle("active", on);
+  var label = btn.querySelector(".floor-all-label");
+  if (label) label.textContent = floorText("wholeHouse");
+  fitWholeHouseLabel();
+}
+
+/* The strip is capped narrow in the 3D pane (it shares the top edge with the
+   view's own buttons): the label shows wherever it fits on the strip's one
+   row and drops to the icon (its tooltip says the rest) where it does not. */
+var wholeHouseFitWatch = null;
+function fitWholeHouseLabel() {
+  var host = $("floor-tabs");
+  var btn = host && host.querySelector(".floor-all");
+  if (!btn) return;
+  btn.classList.remove("tight");
+  var first = host.firstElementChild;
+  if (host.offsetParent && first && (btn.offsetTop > first.offsetTop + 4 || host.scrollWidth > host.clientWidth + 1))
+    btn.classList.add("tight");
+  if (!wholeHouseFitWatch && typeof ResizeObserver === "function") {
+    var area = document.getElementById("center-canvas") || document.body;
+    wholeHouseFitWatch = new ResizeObserver(function () { fitWholeHouseLabel(); });
+    wholeHouseFitWatch.observe(area);
+    // a 2D/3D/split switch moves the strip between panes without resizing the canvas
+    host.parentElement && wholeHouseFitWatch.observe(host.parentElement.parentElement || host.parentElement);
+  }
+}
+
+/* The strip's "show the floor below" button: the same state as the Layers
+   row (js/floors.js toggleReferenceFloor), so the two cannot disagree. */
+function toggleReferenceFromStrip() {
+  if (!toggleReferenceFloor(S.workspace)) return;
+  markDirty();
+  render2D();
+  syncFloorRefToggle();
+}
+
+function syncFloorRefToggle() {
+  var host = $("floor-tabs");
+  var btn = host && host.querySelector(".floor-ref");
+  if (!btn) return;
+  var ws = S.workspace;
+  var on = referenceShown(ws);
+  var ref = on ? floorById(ws.referenceFloor, ws) : referenceTarget(ws);
+  var below = floorBelow(ws), above = floorAbove(ws);
+  var isAbove = !!(ref && above && ref.id === above.id && !(below && below.id === ref.id));
+  var label = floorText(isAbove ? (on ? "hideAbove" : "showAbove") : (on ? "hideBelow" : "showBelow"));
+  if (btn.title !== label) {
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
+  }
+  var pressed = on ? "true" : "false";
+  if (btn.getAttribute("aria-pressed") !== pressed) btn.setAttribute("aria-pressed", pressed);
+  btn.classList.toggle("active", on);
+  var eye = btn.querySelector("i");
+  var eyeClass = "ph " + (on ? "ph-eye" : "ph-eye-slash");
+  if (eye && eye.className !== eyeClass) eye.className = eyeClass;
+  var note = btn.querySelector(".floor-ref-note");
+  if (note) {
+    var text = on && ref ? floorText(isAbove ? "under" : "over", { name: floorDisplayName(ref, (ws.floors || []).indexOf(ref)) }) : "";
+    if (note.textContent !== text) note.textContent = text;
+    if (note.hidden !== !text) note.hidden = !text;
+    btn.classList.toggle("with-note", !!text);
+  }
 }
 
 /* A floor's name edits in place: the pill becomes a field, Enter keeps the new
@@ -237,20 +361,43 @@ function renameFloorInline(button, floor, shown) {
   input.addEventListener("blur", function () { finish(true); });
 }
 
+/* The work set was reset for a storey: the layer chips and both panes hear it,
+   and `resync` asks the ribbon (js/pro_ribbon.js) to bring the work set's tab
+   forward even when the work set was Structure already. */
+function syncWorkSetUI() {
+  window.dispatchEvent(new CustomEvent("layers:changed", { detail: { resync: true } }));
+}
+
 // Also reachable as the "addFloor" action (File menu / the phone's More sheet),
 // because the strip that used to be the only way in is hidden on a compact
 // layout until a second floor exists.
 export function addFloorFromUI() {
   ensureFloors();
-  var floors = (S.workspace && S.workspace.floors) || [];
+  // on top of the highest storey, named "Floor 1", "Floor 2"…
+  var elevation = nextFloorElevation(S.workspace, S);
+  var name = nextFloorName(S.workspace, function (n) { return floorText("floorN", { n: n }); });
   pushHistory();
-  addFloor(t("floor_add"), floors.length * 300, false);
+  addFloor(name, elevation, false);
+  // same undo step: show the storey below under it, and cut the stairwells
+  // of any stairs that come up from it
+  var below = floorBelow(S.workspace);
+  if (below) {
+    setReferenceFloor(below.id, true);
+    S.workspace.referenceFollows = true;
+    var rise = elevation - (Number(below.elevation) || 0);
+    var cut = cutStairwellVoids(below.scene, rise, slabOpenings(), stairVoidFields);
+    if (cut) flash(floorText("stairwellCut", { name: floorDisplayName(below, S.workspace.floors.indexOf(below)) }), "success");
+  }
+  // a new storey starts with its walls: no pin, Structure is the work set
+  workSetForNewFloor();
+  syncWorkSetUI();
   S.dirty3D = true;
   render2D();
   refreshTree();
   fillProps();
   fitView();
   renderFloorTabs();
+  coachEvaluate();
 }
 
 function updateToolHint() {
@@ -259,7 +406,7 @@ function updateToolHint() {
   var msg = "";
   if (S.placeType) msg = tTouch("hint_tool_place");
   else if (S.tool === "wall") msg = tTouch("hint_tool_wall");
-  else if (S.tool === "rect") msg = tTouch("hint_tool_rect");
+  else if (S.tool === "rect") msg = tTouch(S.rectDraft ? "hint_tool_rect_next" : "hint_tool_rect");
   else if (S.tool === "walloffset") msg = tTouch("hint_tool_offset");
   else if (S.tool === "wallbreak") msg = tTouch("hint_tool_break");
   else if (S.tool === "wallbite") msg = tTouch("hint_tool_wallbite");
@@ -269,8 +416,9 @@ function updateToolHint() {
   else if (S.tool === "erase") msg = tTouch("hint_tool_erase");
   else if (S.tool === "door" || S.tool === "window" || S.tool === "passage")
     msg = tTouch("hint_tool_opening");
-  el.textContent = msg;
-  el.hidden = !msg || currentUi() === "legacy";
+  if (el.textContent !== msg) el.textContent = msg;
+  var hide = !msg || currentUi() === "legacy";
+  if (el.hidden !== hide) el.hidden = hide;
 }
 
 function refreshAfterScene() {
@@ -280,7 +428,7 @@ function refreshAfterScene() {
      rebuildProject's own garbage collection is what removes them. The three
      in-home game modes build their courses from that map, so a skipped rebuild
      left them climbing furniture that is no longer in the plan. main.js
-     already does this after its own defaultScene() call at boot. */
+     already does this after its own defaultApartment() call at boot. */
   rebuildProject(S, FURN);
   loadMEP(S.mep || null);
   refreshMEPPanel();
@@ -318,6 +466,10 @@ function applyStart(kind) {
   if (fresh) S.workspace = { ...S.workspace, documentKey: newDocumentKey(), baselines: Object.freeze([]), redesign: {} };
   if (fresh) {
     resetLayers();
+    /* A drawing start arms the rectangle tool below; starting on its layer
+       spares a "Now editing Structure · Stay on Furniture" toast about a
+       plan that has no furniture yet. */
+    if (intention && intention !== "explore") S.workSet = "structure";
     saveLayers();
     window.dispatchEvent(new CustomEvent("layers:changed"));
   }
@@ -326,12 +478,12 @@ function applyStart(kind) {
     S.roomMeta = {};
     var guidedStart = !!intention && intention !== "explore";
     S.workspace.guidance = normalizePlanningGuide({ enabled: guidedStart, intention: intention || "explore" });
-    S.hour = 13;
+    S.hour = DEFAULT_HOUR;
     S.northAngle = 0;
     loadMEP(null);
     setTool(intention === "explore" ? "select" : "rect");
   } else if (kind === "demo") {
-    defaultScene();
+    defaultApartment();
     S.workspace.guidance = normalizePlanningGuide(null);
     loadMEP(null);
     setTool("select");
@@ -453,6 +605,68 @@ function bindLibraryDrag() {
   if (view2) view2.addEventListener("dragleave", function (e) {
     if (!e.relatedTarget || !view2.contains(e.relatedTarget)) hideDropGhost();
   });
+
+  /* Touch has no HTML5 drag-and-drop, so on a phone a library piece could only
+     be tap-armed and then tapped onto the plan. Holding one now lifts it
+     (~0.35 s, a short buzz) and it drags onto the plan with the same drop
+     ghost and the same placement as a mouse drop. A quick tap still arms
+     placement (mobile_shell.js); moving before the hold completes is a list
+     scroll, exactly as before. */
+  var touchLift = null, swallowClickUntil = 0;
+  ui.addEventListener("pointerdown", function (e) {
+    if (e.pointerType !== "touch") return;
+    var item = e.target.closest(".furn-item[data-type]");
+    if (!item || !FURN[item.dataset.type]) return;
+    var d = { id: e.pointerId, x: e.clientX, y: e.clientY, type: item.dataset.type, item: item, live: false };
+    d.timer = setTimeout(function () {
+      d.live = true;
+      dragType = d.type;
+      item.classList.add("touch-lifted");
+      try { if (navigator.vibrate) navigator.vibrate(10); } catch (_) {}
+    }, 350);
+    touchLift = d;
+  });
+  // once lifted, the finger drags the piece, not the list
+  ui.addEventListener("touchmove", function (e) {
+    if (touchLift && touchLift.live) e.preventDefault();
+  }, { passive: false });
+  function overPlan(x, y) {
+    var el = document.elementFromPoint(x, y);
+    return !!el && !!plan && (el === plan || (!!view2 && view2.contains(el)));
+  }
+  window.addEventListener("pointermove", function (e) {
+    var d = touchLift;
+    if (!d || e.pointerId !== d.id) return;
+    if (!d.live) {
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) { clearTimeout(d.timer); touchLift = null; }
+      return;
+    }
+    if (overPlan(e.clientX, e.clientY)) showDropGhost(e);
+    else hideDropGhost();
+  });
+  function endLift(e, drop) {
+    var d = touchLift;
+    if (!d || e.pointerId !== d.id) return;
+    clearTimeout(d.timer);
+    touchLift = null;
+    d.item.classList.remove("touch-lifted");
+    if (!d.live) return;
+    swallowClickUntil = Date.now() + 500; // the lift is not also a tap-to-arm
+    hideDropGhost();
+    dragType = null;
+    if (drop && overPlan(e.clientX, e.clientY)) {
+      var rect = plan.getBoundingClientRect();
+      placeFurnAt(d.type, wx(e.clientX - rect.left, e.clientY - rect.top), wz(e.clientX - rect.left, e.clientY - rect.top));
+    }
+  }
+  window.addEventListener("pointerup", function (e) { endLift(e, true); });
+  window.addEventListener("pointercancel", function (e) { endLift(e, false); });
+  ui.addEventListener("click", function (e) {
+    if (Date.now() < swallowClickUntil && e.target.closest(".furn-item[data-type]")) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }, true);
 }
 
 function updateCostChip() {
@@ -471,6 +685,8 @@ function initPlannerChrome() {
      this module is its own entry point in index.html, outside main.js's graph,
      so nothing there can import it. */
   onAfterRestore(renderFloorTabs);
+  // the Layers row can flip the same overlay; keep the strip's button in step
+  onAfterRender(syncFloorRefToggle);
   document.body.classList.toggle("legacy-ui", currentUi() === "legacy");
 
   document.querySelectorAll("#leftTabs [data-left-tab]").forEach(function (b) {
@@ -507,10 +723,22 @@ function initPlannerChrome() {
   });
   window.addEventListener("planner-tool", updateToolHint);
   window.addEventListener("planner-place", updateToolHint);
+  // the rectangle hint changes with its first corner, which fires no tool event
+  onAfterRender(updateToolHint);
   var cc = $("center-canvas");
   if (cc && window.MutationObserver) {
     new MutationObserver(syncViewPills).observe(cc, { attributes: true, attributeFilter: ["class"] });
   }
+  // Dollhouse is 3D with the cutaway on: its chip in the 3D pane moves the highlight too
+  window.addEventListener("walls3d:changed", syncViewPills);
+  labelViewButtons($("viewModePill"));
+  onLangChange(function () {
+    labelViewButtons($("viewModePill"));
+    var sel = $("viewModePill") && $("viewModePill").querySelector("select.view-mode-select");
+    if (sel) fillViewModeSelect(sel);
+    // applyStatic reset the tab title to the static one; name the view again
+    syncPageTitle();
+  });
   var tot = $("costTotal");
   if (tot && window.MutationObserver) {
     new MutationObserver(updateCostChip).observe(tot, { childList: true, characterData: true, subtree: true });
@@ -526,6 +754,7 @@ function initPlannerChrome() {
   }
 
   maybeShowStart();
+  initCoach();
   window.dispatchEvent(new CustomEvent("planner-boot-ready", { detail: "chrome" }));
 }
 

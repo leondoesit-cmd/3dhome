@@ -6,12 +6,13 @@
    A key with no TXT entry silently falls back to English: the Hebrew user sees
    an English field label and nothing anywhere reports it.  These tests make
    that a red suite instead. */
+import { modelerSource as readModelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { FEATURE_CATALOG, featureEditorGroups, featureLabel, setFeatureLabelResolver } from "../js/core/feature_catalog.js";
 
-const modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modelerSource = readModelerSource();
 /* The TXT table itself lives in js/modeler_strings.js; modeler.js keeps the
    setFeatureLabelResolver wiring that reads it. */
 const stringsSource = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");

@@ -1,6 +1,7 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import fs from 'node:fs';import test from 'node:test';import assert from 'node:assert/strict';
 test('mate topology is reused only while exact cache and authoring identities are unchanged',()=>{
- const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  const body=source.slice(source.indexOf('function finalMateTopology(document) {'),source.indexOf('function assemblyMateInspector() {'));
  let compiles=0;
  const read=new Function('mateTopologyMemo','compileKernelFeatureTree','interferenceDocument','verifiedFinalTopology',body+'; return finalMateTopology;')(new WeakMap(),()=>{compiles++;return {ok:true,features:[]};},d=>d,()=>['face']);

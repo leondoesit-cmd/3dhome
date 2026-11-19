@@ -1,3 +1,5 @@
+import { createReferenceResolver } from "./library_occurrence.js";
+
 const DB_NAME="home3d_model_library";
 const DB_VERSION=2;
 const MODEL_STORE="models";
@@ -104,8 +106,42 @@ async function saveKeyedStore(storeName, memoryRef, items=[]) {
   return clone(next);
 }
 
-const modelRef={get list(){return modelMemory;}, set list(value){modelMemory=value;}};
-const assemblyRef={get list(){return assemblyMemory;}, set list(value){assemblyMemory=value;}};
+let libraryRevision = 0;
+const modelRef={get list(){return modelMemory;}, set list(value){modelMemory=value;libraryRevision++;}};
+const assemblyRef={get list(){return assemblyMemory;}, set list(value){assemblyMemory=value;libraryRevision++;}};
+
+// Drawing repaint is synchronous. Read the last loaded or saved library and
+// clone only the chosen document, whose geometry builders may mutate it.
+export function modelLibraryRevision() { return libraryRevision; }
+
+let resolver, resolverRevision = -1;
+function libraryResolver() {
+  if (resolverRevision !== libraryRevision) {
+    const models = new Map(modelMemory.map(record => [record.key,record]));
+    const assemblies = new Map(assemblyMemory.map(record => [record.key,record]));
+    resolver = createReferenceResolver((kind,key) => (kind === "assembly" ? assemblies : models).get(key));
+    resolverRevision = libraryRevision;
+  }
+  return resolver;
+}
+export function resolvedLibraryAssembly(assembly) {
+  return libraryResolver().resolve(assembly).document;
+}
+export function libraryOccurrenceUpdate(component,ownerKey,inspectOnly=false) {
+  return libraryResolver().occurrence(component,[ownerKey],inspectOnly);
+}
+export function readLibrarySource({ kind, key }) {
+  const records = kind === "assembly" ? assemblyMemory : modelMemory;
+  const record = records.find(item => item.key === key);
+  return clone(record && kind === "assembly" ? resolvedLibraryAssembly(record) : record || null);
+}
+
+export function listLibrarySources() {
+  return [
+    ...modelMemory.filter(record => record.parts?.length).map(({ key, name }) => ({ kind: "part", key, name: name || key })),
+    ...assemblyMemory.map(({ key, name }) => ({ kind: "assembly", key, name: name || key })),
+  ];
+}
 
 export async function loadModelLibrary(legacy=[]) {
   return loadKeyedStore(MODEL_STORE, modelRef, legacy);
@@ -205,7 +241,7 @@ export async function deleteAssemblyLibraryRecord(key) {
 
 export async function mergeStoredAssemblyLibrary(incoming=[],options={}) {
   return changeKeyedStore(ASSEMBLY_STORE,assemblyRef,(records)=>{
-    const merged=mergeLibraryRecords(records,incoming,options);
+    const merged=mergeLibraryRecords(records,incoming,{...options,kind:"assembly"});
     const before=new Map(records.map((item)=>[item.key,JSON.stringify(item)]));
     return {ok:true,records:merged,puts:merged.filter((item)=>before.get(item.key)!==JSON.stringify(item))};
   });
@@ -303,7 +339,7 @@ export async function claimLegacyModelerDraftRecord(owner) {
   }));
 }
 
-export function clearMemoryModelLibrary() { modelMemory=[]; assemblyMemory=[]; draftMemory=new Map(); draftWrites.clear(); }
+export function clearMemoryModelLibrary() { modelMemory=[]; assemblyMemory=[]; libraryRevision++; draftMemory=new Map(); draftWrites.clear(); }
 
 export const LIBRARY_BUNDLE_FORMAT = "modelforge-library";
 
@@ -333,23 +369,120 @@ export function uniqueLibraryKey(base, taken) {
   return root + "-" + n;
 }
 
+// Reserve incoming keys in both namespaces before rewriting any reference.
+// Recurse into embedded definitions, including snapshots in subassemblies.
+function keptBundle(current, incoming) {
+  const bundle = libraryBundle(incoming.models, incoming.assemblies);
+  const maps = {};
+  for (const [list,kind] of [["models","part"],["assemblies","assembly"]]) {
+    const existing = new Set(current[list].map(record => record.key));
+    const taken = new Set([...existing, ...bundle[list].map(record => record.key)]);
+    const map = maps[kind] = new Map();
+    for (const record of bundle[list]) {
+      if (map.has(record.key)) throw new Error("Duplicate incoming " + kind + " key: " + record.key);
+      const key = existing.has(record.key) ? uniqueLibraryKey(record.key, taken) : record.key;
+      map.set(record.key,key);
+      taken.add(key);
+    }
+  }
+  const rekey = (kind,key) => maps[kind].get(key) ?? key;
+  const ref = source => { if (source && maps[source.kind] instanceof Map) source.key = rekey(source.kind,source.key); };
+  const visited = new Set();
+  function visit(record, kind) {
+    if (!record || visited.has(record)) return;
+    visited.add(record);
+    if (record.key) {
+      const old = record.key;
+      record.key = rekey(kind,old);
+      if (old !== record.key && (!record.name || record.name === old)) record.name = record.key;
+      if (record.id === old) record.id = record.key;
+      if (record.definitionId === old) record.definitionId = record.key;
+    }
+    for (const component of record.components || []) {
+      if (component.modelKey) component.modelKey = rekey("part",component.modelKey);
+      if (component.assemblyKey) component.assemblyKey = rekey("assembly",component.assemblyKey);
+      visit(component.def,"part");
+      visit(component.asm,"assembly");
+    }
+    visit(record.metadata?.sourceAssembly,"assembly");
+    const context = record.metadata?.contextEditor;
+    if (context?.assemblyKey) context.assemblyKey = rekey("assembly",context.assemblyKey);
+  }
+  bundle.models.forEach(record => visit(record,"part"));
+  bundle.assemblies.forEach(record => visit(record,"assembly"));
+  // A drawing may also live in a saved feature or document snapshot. Only
+  // rewrite typed drawing references, never arbitrary IDs or displayed text.
+  const scanned = new Set();
+  function visitDrawings(node) {
+    if (!node || typeof node !== "object" || scanned.has(node) || ArrayBuffer.isView(node)) return;
+    scanned.add(node);
+    for (const view of node.drawing?.views || []) {
+      ref(view.source);
+      ref(view.breakView?.source);
+      ref(view.alternatePosition?.source);
+    }
+    for (const dim of node.drawing?.dims || []) ref(dim.sourceBinding?.source);
+    if (Array.isArray(node)) {
+      for (const child of node) if (child && typeof child === "object") visitDrawings(child);
+    } else Object.values(node).forEach(visitDrawings);
+  }
+  visitDrawings(bundle);
+  return bundle;
+}
+
+// Key allocation and both sets of writes share one IndexedDB transaction,
+// so a concurrent save cannot claim a reference's destination mid-import.
+export async function importKeptLibraryBundle(incoming) {
+  const combine = (current, additions) => ({
+    models: current.models.concat(additions.models), assemblies: current.assemblies.concat(additions.assemblies),
+    importedModels: additions.models,
+  });
+  let result;
+  if (typeof indexedDB === "undefined") {
+    const current = { models: modelMemory, assemblies: assemblyMemory };
+    result = combine(current, keptBundle(current,incoming));
+  } else {
+    const db = await openDatabase();
+    try {
+      result = await new Promise((resolve,reject) => {
+        const tx = db.transaction([MODEL_STORE,ASSEMBLY_STORE],"readwrite");
+        const models = tx.objectStore(MODEL_STORE), assemblies = tx.objectStore(ASSEMBLY_STORE);
+        const mr = models.getAll(), ar = assemblies.getAll();
+        let merged, pending = 2;
+        const write = () => {
+          if (--pending) return;
+          try {
+            const current = { models: mr.result, assemblies: ar.result };
+            const additions = keptBundle(current,incoming);
+            additions.models.forEach(record => models.add(record));
+            additions.assemblies.forEach(record => assemblies.add(record));
+            merged = combine(current,additions);
+          } catch (error) { tx.abort(); reject(error); }
+        };
+        mr.onsuccess = write; ar.onsuccess = write;
+        tx.oncomplete = () => resolve(merged);
+        tx.onabort = () => reject(tx.error || new Error("Library import aborted"));
+      });
+    } finally { db.close(); }
+  }
+  modelRef.list = clone(result.models);
+  assemblyRef.list = clone(result.assemblies);
+  return clone(result);
+}
+
 export function mergeLibraryRecords(current = [], incoming = [], options = {}) {
   const conflict = options.conflict === "keep-both" || options.conflict === "skip" ? options.conflict : "replace";
   const byKey = new Map((current || []).filter((item) => item && item.key).map((item) => [item.key, clone(item)]));
-  const taken = new Set(byKey.keys());
+  if (conflict === "keep-both") {
+    const list = options.kind === "assembly" ? "assemblies" : "models";
+    const existing = { models: [], assemblies: [], [list]: current };
+    const additions = keptBundle(existing,{ models: [], assemblies: [], [list]: incoming });
+    return [...byKey.values(), ...additions[list]];
+  }
   for (const item of incoming || []) {
     if (!item || !item.key) continue;
-    if (byKey.has(item.key) && conflict !== "replace") {
-      if (conflict === "skip") continue;
-      const copy = clone(item);
-      copy.key = uniqueLibraryKey(item.key, taken);
-      if (!copy.name || copy.name === item.key) copy.name = copy.key;
-      byKey.set(copy.key, copy);
-      taken.add(copy.key);
-      continue;
-    }
+    if (byKey.has(item.key) && conflict === "skip") continue;
     byKey.set(item.key, clone(item));
-    taken.add(item.key);
   }
   return Array.from(byKey.values());
 }

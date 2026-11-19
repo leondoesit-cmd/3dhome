@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 import {flattenAssembly} from '../js/core/assembly_structure.js';
 import {interferenceDocument} from '../js/core/worker_interference.js';
 import {buildCommandCatalog} from '../js/modeler_commands.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function handlers(E,worker){
  const downloads=[],messages=[];let undo=0;
  const context={E,flattenAssembly,componentDef:c=>c.def,activeParts:d=>d.parts.filter(p=>!p.suppressed),hasSingleToolboxKernelRecipe:()=>false,interferenceDocument,rejectFlexibleSpringPreview:()=>false,cloneData:structuredClone,assemblyPrintInCadWorker:worker,pushUndo:()=>undo++,downloadBytes:(...args)=>downloads.push(args),flash:m=>messages.push(m)};

@@ -1,0 +1,2429 @@
+{
+  "version": 1,
+  "files": {
+    "assets/materials/bamboo_light/color_1k.webp": {
+      "bytes": 87004,
+      "sha256": "125227af234989e8d172d179fd59cc93299c2b643e645c75eebd3b15d9e50c0f"
+    },
+    "assets/materials/bamboo_light/color_2k.webp": {
+      "bytes": 219768,
+      "sha256": "40675400b72996f657e0e2e9302f81c324000990d63242a499a5a029c39a6d5f"
+    },
+    "assets/materials/bamboo_light/normal_1k.webp": {
+      "bytes": 297994,
+      "sha256": "deab67c855c57be26b368cb1a1339f5443f66269de605bdcd533973ceb8fcd19"
+    },
+    "assets/materials/bamboo_light/normal_2k.webp": {
+      "bytes": 944054,
+      "sha256": "686a2271967eb7694aa23995038ff9928ada3887be7edf9cac4fd55b81f830e7"
+    },
+    "assets/materials/bamboo_light/orm_1k.webp": {
+      "bytes": 136586,
+      "sha256": "fc7e16344bc5069a55fbfb07570b0a9d2acdb913e90d0c7fde9ac0220725c572"
+    },
+    "assets/materials/bamboo_light/thumb.webp": {
+      "bytes": 7492,
+      "sha256": "2815cbab44503a94d172a095326af63a9d2a624fe802da1654df346777f4d7aa"
+    },
+    "assets/materials/botanical_wallpaper/color_1k.webp": {
+      "bytes": 148318,
+      "sha256": "fde75fcae446d714d09f30514b08eb3eb7176a40cb0743a883de8c39635b2e67"
+    },
+    "assets/materials/botanical_wallpaper/color_2k.webp": {
+      "bytes": 279070,
+      "sha256": "850babf96fe48a7a3e84cb7a1187e454fb4123500ad6b9199876b06c32cf908d"
+    },
+    "assets/materials/botanical_wallpaper/normal_1k.webp": {
+      "bytes": 266758,
+      "sha256": "34b40b2defcedbdedab173effb092f35a8f1e7344870cdf405924e8cfeddec84"
+    },
+    "assets/materials/botanical_wallpaper/normal_2k.webp": {
+      "bytes": 706056,
+      "sha256": "1cfc3e39f67e1fbdb5086d3e8598a1a6b9e466bf9b5c87dbb5cb2b67af3e1511"
+    },
+    "assets/materials/botanical_wallpaper/orm_1k.webp": {
+      "bytes": 131964,
+      "sha256": "b0ec6b194bb58a6b13697edd279b10c658023a73d314a5d3724172d3d1afcab7"
+    },
+    "assets/materials/botanical_wallpaper/thumb.webp": {
+      "bytes": 10716,
+      "sha256": "0a221e5729be4202691714a87c07b82e12b2b421a8997a20779bba2c7dd6e73e"
+    },
+    "assets/materials/boucle_cream/color_1k.webp": {
+      "bytes": 173990,
+      "sha256": "70aa4e74f3fa85290aeb2b40ce4c6d99d1f77265521ac62bb0fbb9d50cccca5a"
+    },
+    "assets/materials/boucle_cream/color_2k.webp": {
+      "bytes": 399820,
+      "sha256": "62fbfca8754b966f6c953137acc3f3ecdf04f5623be73d55268051c0fc62df98"
+    },
+    "assets/materials/boucle_cream/normal_1k.webp": {
+      "bytes": 492556,
+      "sha256": "a2a8331776b9b41e7f01937a079cec4f8c77a8e0042f5a78072095021420c493"
+    },
+    "assets/materials/boucle_cream/normal_2k.webp": {
+      "bytes": 1307606,
+      "sha256": "498df666463b79d0c9ecbaf429f2a54fd076748a74be8e1fa70eb706299919dd"
+    },
+    "assets/materials/boucle_cream/orm_1k.webp": {
+      "bytes": 247786,
+      "sha256": "0a12ad327e13b4612f32f36f214ed88f266e8d7e4c453a18bf6074ad14d4fe59"
+    },
+    "assets/materials/boucle_cream/thumb.webp": {
+      "bytes": 8210,
+      "sha256": "17116ee8aa2211a160cb1d0125fbad3034f0d597c995d04ff19aa9f0163a03cf"
+    },
+    "assets/materials/brushed_steel/color_1k.webp": {
+      "bytes": 94768,
+      "sha256": "9617755279f56b35a52110c20b4c5e56043d9e2e41a5d85273d74dd5fd81c3b6"
+    },
+    "assets/materials/brushed_steel/color_2k.webp": {
+      "bytes": 224220,
+      "sha256": "1d82c97d079d540d6e8cd2f8742ae68da939a5867551d01b546843e9d8097507"
+    },
+    "assets/materials/brushed_steel/normal_1k.webp": {
+      "bytes": 296714,
+      "sha256": "78bad256d523293c39258d1a07bbf42c0a2f7fa379dec8b7aed2508f3fe6d24e"
+    },
+    "assets/materials/brushed_steel/normal_2k.webp": {
+      "bytes": 900120,
+      "sha256": "394f9df9d99f261be8a6507c72110a1c7eeb39dc58fead30418205f8e9600927"
+    },
+    "assets/materials/brushed_steel/orm_1k.webp": {
+      "bytes": 203908,
+      "sha256": "c92151e794a63cc3de19df83dae3fd7166af9f936223d30c2b29a82c65839cec"
+    },
+    "assets/materials/brushed_steel/thumb.webp": {
+      "bytes": 8008,
+      "sha256": "f01b753a7032086465d339161fd69a4084fa9c1536a9dd1cf53ac7e9a21bbbb6"
+    },
+    "assets/materials/calacatta_gold/color_1k.webp": {
+      "bytes": 81520,
+      "sha256": "b499aa66a24487467586eb5b2db6a5715e1e7ccc9c777ba565312842f2ff5ded"
+    },
+    "assets/materials/calacatta_gold/color_2k.webp": {
+      "bytes": 168040,
+      "sha256": "00f16ef50c1e4dbb5390c0526bd10653ee10b0c016a36fac3c5001a060a71f28"
+    },
+    "assets/materials/calacatta_gold/normal_1k.webp": {
+      "bytes": 13710,
+      "sha256": "15aa5796b1b8d553a062c7ad7e1995a745e6e74ae9c18f9d1e8acdd1392b2b70"
+    },
+    "assets/materials/calacatta_gold/normal_2k.webp": {
+      "bytes": 59708,
+      "sha256": "815377025f4f6ce72a99de267dc952e4b0ab8b1c5166a42ae2ec6a6cafce1078"
+    },
+    "assets/materials/calacatta_gold/orm_1k.webp": {
+      "bytes": 20788,
+      "sha256": "cdf6d18c751383bacf0064fa500075035da21a334154497dd981587a1b096450"
+    },
+    "assets/materials/calacatta_gold/thumb.webp": {
+      "bytes": 5484,
+      "sha256": "53defdff75a09f2c1008e8525d701ebc226598c3008c95d3a273ab72e41d4728"
+    },
+    "assets/materials/caramel_leather/color_1k.webp": {
+      "bytes": 213152,
+      "sha256": "38051fcf72634e1b8e32ec72766252bffa0fc78e9931a691a3ea2010218e8c5a"
+    },
+    "assets/materials/caramel_leather/color_2k.webp": {
+      "bytes": 547386,
+      "sha256": "a53f7e9aa4dcaae14586c1680c60b3bb8128e0d8cfb0d5b6bf7946e845c0c108"
+    },
+    "assets/materials/caramel_leather/normal_1k.webp": {
+      "bytes": 681546,
+      "sha256": "152b1f46b4c492bb8f50e4cf253be233a70340c9275f59aedec586a82f9f769a"
+    },
+    "assets/materials/caramel_leather/normal_2k.webp": {
+      "bytes": 2357232,
+      "sha256": "b59f9b28b30f89e41e214583d28c4f378cfa533b1d35659ae1109faa306f7abb"
+    },
+    "assets/materials/caramel_leather/orm_1k.webp": {
+      "bytes": 332196,
+      "sha256": "8487665463ed71002c834493c68e202d72ce5db282792663bd5fd1eba24fc7cc"
+    },
+    "assets/materials/caramel_leather/thumb.webp": {
+      "bytes": 8600,
+      "sha256": "0e49590abdf0129edcf672225757f9253d31879e89c4180378b404322646cda4"
+    },
+    "assets/materials/ceiling_paint/color_1k.webp": {
+      "bytes": 189250,
+      "sha256": "2227eaaee3dbbf14f00593be16f9cc160916105d87979e32fded4fbe866e8ec0"
+    },
+    "assets/materials/ceiling_paint/color_2k.webp": {
+      "bytes": 467180,
+      "sha256": "26bb25ab68a4781f09d3037240122bc2a4f44b9b87bdf5bbc13822be95be64d8"
+    },
+    "assets/materials/ceiling_paint/normal_1k.webp": {
+      "bytes": 647866,
+      "sha256": "a2a4d541349d52cf97001086d30b8359923dbbc746d957a30b25083487588bad"
+    },
+    "assets/materials/ceiling_paint/normal_2k.webp": {
+      "bytes": 2184626,
+      "sha256": "ceb7966d9c1e22c8f387813375df2d6db60fc1c76f1721752d40615a63773400"
+    },
+    "assets/materials/ceiling_paint/orm_1k.webp": {
+      "bytes": 359442,
+      "sha256": "7b73ea17f844828becc7768d860e6e4394767f792c061f937b96412624f9fb49"
+    },
+    "assets/materials/ceiling_paint/thumb.webp": {
+      "bytes": 5978,
+      "sha256": "ca3e8d42155da64867b59296f6aa9c8e5a832236f1f327f9a00cf79468619127"
+    },
+    "assets/materials/checkerboard_bw/color_1k.webp": {
+      "bytes": 109030,
+      "sha256": "e617ba5d4824ecdb3280214eb635bf82f214f46fc3aeb4b42ccb2e649974c2ed"
+    },
+    "assets/materials/checkerboard_bw/color_2k.webp": {
+      "bytes": 252444,
+      "sha256": "3d60a26f94bf9665fd15a17d64e6fa600fd9cd6fac042c5de3d99b8c3c2c5e9a"
+    },
+    "assets/materials/checkerboard_bw/normal_1k.webp": {
+      "bytes": 152940,
+      "sha256": "d1db5f1493cbf7c661c9c9f1e6a3b5cfa675da1c173ae86c68471a5fad8b80e3"
+    },
+    "assets/materials/checkerboard_bw/normal_2k.webp": {
+      "bytes": 446972,
+      "sha256": "2a634e4de4ce4eccdede70acbcdb12897929d3f04abda5b952c90c94095140bd"
+    },
+    "assets/materials/checkerboard_bw/orm_1k.webp": {
+      "bytes": 54464,
+      "sha256": "b3199aec51bbb1bef5b186118bffa46a4f09ccbe767ed102d01b7f75adfcefbc"
+    },
+    "assets/materials/checkerboard_bw/thumb.webp": {
+      "bytes": 9292,
+      "sha256": "f9f22b4e6e3ba93e35c0493202df234f5f6515117943b7cafd305aaa2dc11c70"
+    },
+    "assets/materials/chevron_parquet/color_1k.webp": {
+      "bytes": 160856,
+      "sha256": "192f404894e6377af70d3f3fefa4296fdf0caff9876c05f09e5a16c2976d3f2d"
+    },
+    "assets/materials/chevron_parquet/color_2k.webp": {
+      "bytes": 358506,
+      "sha256": "412e4f5c1741e1696d8aaca70e07a3bd483081604636afd15957a25d4bd3e046"
+    },
+    "assets/materials/chevron_parquet/normal_1k.webp": {
+      "bytes": 484320,
+      "sha256": "806a8fe69c3f3da3e1ec922ab56ecea12baf56a1df3b14a18cb9d1f4ee7c0ad5"
+    },
+    "assets/materials/chevron_parquet/normal_2k.webp": {
+      "bytes": 1555470,
+      "sha256": "70e5c99f5ff7635e89e079de6dbe0edbc4c7121d0b0281ba64263873d27f88de"
+    },
+    "assets/materials/chevron_parquet/orm_1k.webp": {
+      "bytes": 207984,
+      "sha256": "74b256d578b8eda3e48c3cc1a16bc6665498d4e476eb3e90cf9cc1f68190c33f"
+    },
+    "assets/materials/chevron_parquet/thumb.webp": {
+      "bytes": 8566,
+      "sha256": "c227acbff3a53fde3690b7814239ddee933ec7c0c563d000a52670964255824c"
+    },
+    "assets/materials/cognac_leather/color_1k.webp": {
+      "bytes": 225052,
+      "sha256": "3da4c82c58b736853c1bbc22223b85b3cca7ac9f6218910da35c63939cfed227"
+    },
+    "assets/materials/cognac_leather/color_2k.webp": {
+      "bytes": 596436,
+      "sha256": "719087bf770bba68f99b5d58013b545d7e562da986dea09127453cb1bbd1dc2b"
+    },
+    "assets/materials/cognac_leather/normal_1k.webp": {
+      "bytes": 656738,
+      "sha256": "6c51986a8c4eac541f31d9e7349ff5d841fb29b03e605a25e24c6c8338b38c11"
+    },
+    "assets/materials/cognac_leather/normal_2k.webp": {
+      "bytes": 2196508,
+      "sha256": "8af4ab302f8712740909f3c0362d564a87ea7fcc3ec901c7d0de999523e9a776"
+    },
+    "assets/materials/cognac_leather/orm_1k.webp": {
+      "bytes": 319092,
+      "sha256": "0bb2d196c94854e1167ea982495de7e466ce187f5c55b9dfdb597842270319e3"
+    },
+    "assets/materials/cognac_leather/thumb.webp": {
+      "bytes": 8864,
+      "sha256": "7215fbbc24f9e46ff2029c608307546009fdc15ed5d09f1b23ad0bd0a67e979f"
+    },
+    "assets/materials/composite_decking/color_1k.webp": {
+      "bytes": 94072,
+      "sha256": "10d82c36a7d07c0dd62ee7dc00489ba18c7e631cc59be18f23245ce971b7c492"
+    },
+    "assets/materials/composite_decking/color_2k.webp": {
+      "bytes": 261530,
+      "sha256": "1556a7a5b7693da6ebcf2e2602ad0606f8efbb6b39599e4a4f50cf74f03b56df"
+    },
+    "assets/materials/composite_decking/normal_1k.webp": {
+      "bytes": 255522,
+      "sha256": "e26329c802e733288e09c8beb9d870d442286d909ee595212f391c548b0b0d3b"
+    },
+    "assets/materials/composite_decking/normal_2k.webp": {
+      "bytes": 792122,
+      "sha256": "545a56d81a8d162c7fff1918623a2b048177aa7e33a4cac0aab93f864278e302"
+    },
+    "assets/materials/composite_decking/orm_1k.webp": {
+      "bytes": 105004,
+      "sha256": "e1e24ce9548181d4e7e7bb877dfd7911ef110d5f87019c4aa39866083be0a84d"
+    },
+    "assets/materials/composite_decking/thumb.webp": {
+      "bytes": 5830,
+      "sha256": "89a17dfbe9e94afe03dc7fb20e9a08d15c88db251cb8460df8b2d8f525d24e6c"
+    },
+    "assets/materials/cork_natural/color_1k.webp": {
+      "bytes": 365730,
+      "sha256": "e99990118324b658db8d954e581db6c2501a1902f78e629cbec16cf4911b4e0d"
+    },
+    "assets/materials/cork_natural/color_2k.webp": {
+      "bytes": 834322,
+      "sha256": "2114a16d6ef88adea05213f8e9700664b18e025f1d584591274558ad66936d1c"
+    },
+    "assets/materials/cork_natural/normal_1k.webp": {
+      "bytes": 544382,
+      "sha256": "8e37e16f3db1d53a381f965e404a7e3c88e3ed3fc046288c294c73f85b1432fd"
+    },
+    "assets/materials/cork_natural/normal_2k.webp": {
+      "bytes": 1606924,
+      "sha256": "c754275bfe4534c03a6e020ea511dbe01226edf45558fceb98907709bbe3a19f"
+    },
+    "assets/materials/cork_natural/orm_1k.webp": {
+      "bytes": 260034,
+      "sha256": "6f13f88e4184e00339630f1e7fc43062f9044093ef3732705663eb58c2ca63f7"
+    },
+    "assets/materials/cork_natural/thumb.webp": {
+      "bytes": 11604,
+      "sha256": "24291d5da92cc377151dce7d77170c9d9f9c37d6fa35c8d14b7a35caa1c97f1a"
+    },
+    "assets/materials/dark_microcement/color_1k.webp": {
+      "bytes": 123744,
+      "sha256": "460942af1d90a95585384180f6d79e0ab1776cde55482a720de39d6ae5e6364b"
+    },
+    "assets/materials/dark_microcement/color_2k.webp": {
+      "bytes": 339758,
+      "sha256": "8e6d07a025a549ef3d504a45a1e22ce0611c8e2333fa70fa6e38e07074d113aa"
+    },
+    "assets/materials/dark_microcement/normal_1k.webp": {
+      "bytes": 27112,
+      "sha256": "b021c55ae43f68a3bcc438d2d6bad93201551fd02d4e4939ddc88df6c002c522"
+    },
+    "assets/materials/dark_microcement/normal_2k.webp": {
+      "bytes": 224572,
+      "sha256": "9778fb07f3ff62e8c2127caddcda5ff08b6b32027c25ce35c711e6e87c37078a"
+    },
+    "assets/materials/dark_microcement/orm_1k.webp": {
+      "bytes": 78130,
+      "sha256": "65c11e9df176bd10e0ec626cc475a1459caa31f1f52efd54a6fd11e1331bcdf4"
+    },
+    "assets/materials/dark_microcement/thumb.webp": {
+      "bytes": 4652,
+      "sha256": "ef70784aa49ff538598a0fca3364b2e6eba01bfaf1f9a7611df5b06bd859b90e"
+    },
+    "assets/materials/detail_boucle/color_1k.webp": {
+      "bytes": 253154,
+      "sha256": "4787814e04c7955af5c31e759f0b26c89108a8d52c4e6a4eee2421333b9327ce"
+    },
+    "assets/materials/detail_boucle/color_2k.webp": {
+      "bytes": 540686,
+      "sha256": "8afa135671e486ce4b36b60f7e8f00a54837d2b1475bf8e289e3c8035c9824ac"
+    },
+    "assets/materials/detail_boucle/normal_1k.webp": {
+      "bytes": 562760,
+      "sha256": "d7a3d36826c2e1c12e46e392b4af8ac865167df8c5ed9d21535f626ca2e37d23"
+    },
+    "assets/materials/detail_boucle/normal_2k.webp": {
+      "bytes": 1641282,
+      "sha256": "a37e60d08e888b6503e76a3122f47c1f261a954115e61e5cc94e39e4addb2c4b"
+    },
+    "assets/materials/detail_boucle/orm_1k.webp": {
+      "bytes": 280496,
+      "sha256": "dacad6d18af3c4485e8545de60568e8999d3bb23d61ef1181aa3d1620e9cf0a4"
+    },
+    "assets/materials/detail_boucle/thumb.webp": {
+      "bytes": 5824,
+      "sha256": "15943da8057c38a2ec2427a93faddb03bc503cfbc1fe95b9af7b6219056a7036"
+    },
+    "assets/materials/detail_brushed/color_1k.webp": {
+      "bytes": 186228,
+      "sha256": "6d72373cc6f71b12bc6ea51a7124fdf304dbb14ad8138eea74b4a2aeb0986d99"
+    },
+    "assets/materials/detail_brushed/color_2k.webp": {
+      "bytes": 440676,
+      "sha256": "6162dfa932f7ac443baff43ce61947c667fd7984efda3ee9e5ae12a1495a4bf3"
+    },
+    "assets/materials/detail_brushed/normal_1k.webp": {
+      "bytes": 301134,
+      "sha256": "33b79dbc006410d0051ec2fd20fef1722637d4dd2882161d5a9a24301df5df10"
+    },
+    "assets/materials/detail_brushed/normal_2k.webp": {
+      "bytes": 915494,
+      "sha256": "ccebec2ba629b79ce345256dba184c97742e373a81cb0d8c8fc0505028e96736"
+    },
+    "assets/materials/detail_brushed/orm_1k.webp": {
+      "bytes": 202312,
+      "sha256": "fb1019d7830a7a8acc025f8a3192072ccd13caeaf7b0687475abffe2f9bc9439"
+    },
+    "assets/materials/detail_brushed/thumb.webp": {
+      "bytes": 5538,
+      "sha256": "1d06c42d0851717635c53873cbb147619088a2b86c7cc0a73125846d7027f846"
+    },
+    "assets/materials/detail_ceramic/color_1k.webp": {
+      "bytes": 286996,
+      "sha256": "75a1352454821146991104a0817b66473a72b490f7a8e34dce8ef519cd053e4f"
+    },
+    "assets/materials/detail_ceramic/color_2k.webp": {
+      "bytes": 739524,
+      "sha256": "aa20441406df17c3af469cf44cc90c7970a3381ea6f4ea88602b940d809fecd5"
+    },
+    "assets/materials/detail_ceramic/normal_1k.webp": {
+      "bytes": 398276,
+      "sha256": "4954d1aaccad8586bcf1940d959a16a65e0ff9caadc945377e540b6ab195a69b"
+    },
+    "assets/materials/detail_ceramic/normal_2k.webp": {
+      "bytes": 1149558,
+      "sha256": "5d248b0fa965b6c21d8739e4c7cfd7cebd2f52f2085f63f693ba4e79e4362d07"
+    },
+    "assets/materials/detail_ceramic/orm_1k.webp": {
+      "bytes": 303892,
+      "sha256": "6929943097c4f65be53a336015be21c522db64c6e3682111564683b581da2e8a"
+    },
+    "assets/materials/detail_ceramic/thumb.webp": {
+      "bytes": 4398,
+      "sha256": "7988718c32620c1916aaa0c3417f690186bf64e64d588295a7055f1f529ead5d"
+    },
+    "assets/materials/detail_cotton/color_1k.webp": {
+      "bytes": 293274,
+      "sha256": "8dd14f35e6d08db64707a67ddfcba712048d5bfb7a999b25ba42855670520029"
+    },
+    "assets/materials/detail_cotton/color_2k.webp": {
+      "bytes": 628718,
+      "sha256": "3e396bf54366f13e86b6bc4c0c3a6dd5bdeee71d70699123ba9638e8f7990570"
+    },
+    "assets/materials/detail_cotton/normal_1k.webp": {
+      "bytes": 607254,
+      "sha256": "d1d2d249660334e2122420a649ae9543dcc2b849ac7fd5651c0953637fbe4528"
+    },
+    "assets/materials/detail_cotton/normal_2k.webp": {
+      "bytes": 1764642,
+      "sha256": "d2cfa969a4f619a2ac643824c4db6f9755d25cfcfb34b2eccc0e06ae757ea602"
+    },
+    "assets/materials/detail_cotton/orm_1k.webp": {
+      "bytes": 310860,
+      "sha256": "7939d6ed94019f7884c34f5ce3921d6137f3b2ba3621d05bd5ff2883fe6be1a4"
+    },
+    "assets/materials/detail_cotton/thumb.webp": {
+      "bytes": 3774,
+      "sha256": "6fc4d94446c8097e69e2b17d2ab07347c403cabe0017183d495c727e3b85bfb4"
+    },
+    "assets/materials/detail_foliage/color_1k.webp": {
+      "bytes": 165892,
+      "sha256": "bbe83f7eeac90442da853710d4358a77f1c8f1132efc7eacaa364863394edf32"
+    },
+    "assets/materials/detail_foliage/color_2k.webp": {
+      "bytes": 372164,
+      "sha256": "d58000618e4a5ca76df9246ac998d4316275c7a67b82429d2d02b64e834ecc59"
+    },
+    "assets/materials/detail_foliage/normal_1k.webp": {
+      "bytes": 390866,
+      "sha256": "e60931443e15d6afc4d09e5399a06423a153599c2269f1f6783aff6bf79011e7"
+    },
+    "assets/materials/detail_foliage/normal_2k.webp": {
+      "bytes": 1120980,
+      "sha256": "201e7124333be486ffd94440ccaa75eaca89e17f82471bf5b08e4334a9e486f0"
+    },
+    "assets/materials/detail_foliage/orm_1k.webp": {
+      "bytes": 150652,
+      "sha256": "77c5e8d90480fad43744f5b8426bd37f15fe63a5fef8e6d420361934e860a186"
+    },
+    "assets/materials/detail_foliage/thumb.webp": {
+      "bytes": 6584,
+      "sha256": "c49e48683df87c72a11deafec97a6c9e70c679a0c246e90e1b9c5bfab1d49150"
+    },
+    "assets/materials/detail_lacquer/color_1k.webp": {
+      "bytes": 303002,
+      "sha256": "0cbb31bbc17ab5c9acc604ae76ea11e66fce90f4ac9827447fdc687a7f0a80fe"
+    },
+    "assets/materials/detail_lacquer/color_2k.webp": {
+      "bytes": 724664,
+      "sha256": "22c86dc2858137e25f6975a3d4b43f342d0f95cdc561583b85e37ed94db62e4b"
+    },
+    "assets/materials/detail_lacquer/normal_1k.webp": {
+      "bytes": 454146,
+      "sha256": "e8d96537251baf9eb6fd922764c7d06ff051cd40d11412519aecfb7a5da8d286"
+    },
+    "assets/materials/detail_lacquer/normal_2k.webp": {
+      "bytes": 1337318,
+      "sha256": "5fdc50bb365e27de1e35fb76643d08e8f21945baca8f9926a04498f2ad21e746"
+    },
+    "assets/materials/detail_lacquer/orm_1k.webp": {
+      "bytes": 279708,
+      "sha256": "23d71979641ae207a6408c423645f2240ba09ac2b274baeaa3154e9d7f48a55b"
+    },
+    "assets/materials/detail_lacquer/thumb.webp": {
+      "bytes": 3916,
+      "sha256": "62d043c5e52f4c42a889bb2b0808d95f66f69793c8840cb57f754cf9070e79d1"
+    },
+    "assets/materials/detail_leather/color_1k.webp": {
+      "bytes": 341016,
+      "sha256": "463d2f7ff761e762338cefa96de6ad631b6cdb9e180fd9fc39a51dadea3d9ee3"
+    },
+    "assets/materials/detail_leather/color_2k.webp": {
+      "bytes": 817368,
+      "sha256": "3b2d6beb147f253c9705f1a20d227ae850fbf6784388ff0b533326f83cc26668"
+    },
+    "assets/materials/detail_leather/normal_1k.webp": {
+      "bytes": 660338,
+      "sha256": "08f7ca1c96d745df03e1b41bf1a4e2e196eba983554a033581cb8ed5e103b342"
+    },
+    "assets/materials/detail_leather/normal_2k.webp": {
+      "bytes": 2180082,
+      "sha256": "65e05a14a2d6246d031aff50a7cd7cd7e6cc5f1b1b9e99fc35439c97ab190260"
+    },
+    "assets/materials/detail_leather/orm_1k.webp": {
+      "bytes": 302602,
+      "sha256": "1cf7f7d97c85a79dd0866653739578f904e1ff42c11d3d898e038413a45b5fa8"
+    },
+    "assets/materials/detail_leather/thumb.webp": {
+      "bytes": 4282,
+      "sha256": "e912588cde57a8f01553229741e2f68940dd97b277f5deba16bff31e50cb5a2c"
+    },
+    "assets/materials/detail_linen/color_1k.webp": {
+      "bytes": 242964,
+      "sha256": "aa71d1047a994c74c5797fccb40453e69ff9cd4a62bd2ecdb2f97b04f43f9588"
+    },
+    "assets/materials/detail_linen/color_2k.webp": {
+      "bytes": 518672,
+      "sha256": "175da2f36f0a4dee3a814be60e62bae003ceac9b9466e89466ecea20e7253a0c"
+    },
+    "assets/materials/detail_linen/normal_1k.webp": {
+      "bytes": 549252,
+      "sha256": "875016cddeed6620ec3cdc055d9d2116039d4acb270fe676f7ea97d97245570c"
+    },
+    "assets/materials/detail_linen/normal_2k.webp": {
+      "bytes": 1565424,
+      "sha256": "0de84c69a195c9d73457ff340fd955e3da9aef25d8753662de2c2728bc5dda40"
+    },
+    "assets/materials/detail_linen/orm_1k.webp": {
+      "bytes": 249790,
+      "sha256": "8f3794dfd7f9c147dbb33f15f21f32bd76a37f0670638f37355480c91c3bf0e4"
+    },
+    "assets/materials/detail_linen/thumb.webp": {
+      "bytes": 4398,
+      "sha256": "1cda9fa07d799e7bcc1e1e1f8d6b2bbe18d77e1906ea51d96d68649e74932507"
+    },
+    "assets/materials/detail_marble/color_1k.webp": {
+      "bytes": 91734,
+      "sha256": "5e1a06ddd172b58e227b6bb2ffaec037552a09cf49a7daeae923aa8eac9e21e3"
+    },
+    "assets/materials/detail_marble/color_2k.webp": {
+      "bytes": 206244,
+      "sha256": "bc2f29e91321655d606028ed5e14f529ecd2b265f78be02f8b2b9320fbe8e4d7"
+    },
+    "assets/materials/detail_marble/normal_1k.webp": {
+      "bytes": 11620,
+      "sha256": "96bc9053f2951e608dacc1526ca8e0c752518f59f5b8b8e2bf2928773d4cda79"
+    },
+    "assets/materials/detail_marble/normal_2k.webp": {
+      "bytes": 52746,
+      "sha256": "77bdd9f6013e4245a4667dd3fa32864cc2f52c7b2b640551c01461f182b633f8"
+    },
+    "assets/materials/detail_marble/orm_1k.webp": {
+      "bytes": 26864,
+      "sha256": "e8eb97b84def4257e2ff406384137293fac252cd0ee8d4d380cfb60fa60a02d9"
+    },
+    "assets/materials/detail_marble/thumb.webp": {
+      "bytes": 5162,
+      "sha256": "327b10080031690e55fafa2a9ed0d97d9b92832f60bedb4324eab5d4894e2ea8"
+    },
+    "assets/materials/detail_oak/color_1k.webp": {
+      "bytes": 179314,
+      "sha256": "f096d4dceb4a7e7adcd96a677f0a666b620bbaca52a4207e78fcdcf5c8a58fa3"
+    },
+    "assets/materials/detail_oak/color_2k.webp": {
+      "bytes": 404778,
+      "sha256": "025c9b5378164295653a13355e582d8378ceceadcf46dad63ceb1194a140e9b1"
+    },
+    "assets/materials/detail_oak/normal_1k.webp": {
+      "bytes": 389758,
+      "sha256": "61fd35ec9766c694f5931563950ee7abc87814b267bf4ee23b3d955a9bfd5735"
+    },
+    "assets/materials/detail_oak/normal_2k.webp": {
+      "bytes": 1160890,
+      "sha256": "9f5d70487b4c7fd023af4dd342e6ceedda8cee87e64af420c2dde303dd0a4d7b"
+    },
+    "assets/materials/detail_oak/orm_1k.webp": {
+      "bytes": 177444,
+      "sha256": "8a1c82445845fcf08136a186d00463aa49e430eb13b3abf0de149694ce3720d7"
+    },
+    "assets/materials/detail_oak/thumb.webp": {
+      "bytes": 5292,
+      "sha256": "4e9741cdcb097832edbd79d72e288df50a66205df1653935df0ffd0007a9ed23"
+    },
+    "assets/materials/detail_plaster/color_1k.webp": {
+      "bytes": 356708,
+      "sha256": "4e65d464a27ee2bb225bcd99b38fb84f2243ac3beca247f677ba3a370f53bdf3"
+    },
+    "assets/materials/detail_plaster/color_2k.webp": {
+      "bytes": 949652,
+      "sha256": "3d178f6bbab8bce4f97240b0d6e7030452fdb0dc539fe504ec46e950f34d09b5"
+    },
+    "assets/materials/detail_plaster/normal_1k.webp": {
+      "bytes": 662372,
+      "sha256": "daf729ef7acc70ec4d5919fa28b9112813dcdab552f2a9c24de9d8e2a081bb51"
+    },
+    "assets/materials/detail_plaster/normal_2k.webp": {
+      "bytes": 2320168,
+      "sha256": "e1c1811e1d4ba55713544681a12b65c2d4c1599755b1c224e282fed8e9f8e473"
+    },
+    "assets/materials/detail_plaster/orm_1k.webp": {
+      "bytes": 338620,
+      "sha256": "700823d76ddfc1febeb60768e4fd7156678f453b384303d5353f8ae773cba4a5"
+    },
+    "assets/materials/detail_plaster/thumb.webp": {
+      "bytes": 3716,
+      "sha256": "d74d1da39894eecf7bcb761b132ced8e0adf2774b18fc8c81818f5c39577c3a5"
+    },
+    "assets/materials/detail_plastic/color_1k.webp": {
+      "bytes": 350692,
+      "sha256": "e355a156db25b6db770a1aaeff4b908ad762cb68f386fe70de9bf2a8642517a2"
+    },
+    "assets/materials/detail_plastic/color_2k.webp": {
+      "bytes": 786636,
+      "sha256": "c431c3c7ea7975216aac17f50469a354e4a19fdc06fe4fb0c40afec054f0477c"
+    },
+    "assets/materials/detail_plastic/normal_1k.webp": {
+      "bytes": 656410,
+      "sha256": "e6d7467cd6ee62c360f7fa4d5f9e4d6255c4673191efbb1b1ceec74421fcf05a"
+    },
+    "assets/materials/detail_plastic/normal_2k.webp": {
+      "bytes": 2094862,
+      "sha256": "5bdb76bcf5411e1f765b165b02fe22c4c10864d9b10baa139141376755de7155"
+    },
+    "assets/materials/detail_plastic/orm_1k.webp": {
+      "bytes": 336522,
+      "sha256": "59a6082bcbd9bc10e0940a495fbac4089c2ece6801d04030071369ed3009af3b"
+    },
+    "assets/materials/detail_plastic/thumb.webp": {
+      "bytes": 3576,
+      "sha256": "2e9fca1f15b7d48093a349dfaf3be7057dd50d3089758a83450b01890d826005"
+    },
+    "assets/materials/detail_quartz/color_1k.webp": {
+      "bytes": 272306,
+      "sha256": "4aae13ae53e60ee034845ebd3909f0b62e1bacaf6c9f3973eb1cf36a7d2f3bc9"
+    },
+    "assets/materials/detail_quartz/color_2k.webp": {
+      "bytes": 607834,
+      "sha256": "a23410ca40f1532f6ec4abef1c913300ffb6e7be17133a12c08c0e0c275861d2"
+    },
+    "assets/materials/detail_quartz/normal_1k.webp": {
+      "bytes": 27550,
+      "sha256": "381dc63fc2f7d80a5a28545005e7ce5694b8c2dbd3baaa46d7a81172e5168c89"
+    },
+    "assets/materials/detail_quartz/normal_2k.webp": {
+      "bytes": 175428,
+      "sha256": "f459e5867f6f6d9a4bbe8f9099ec93d815026d225151b9308a4c798f1c683603"
+    },
+    "assets/materials/detail_quartz/orm_1k.webp": {
+      "bytes": 53516,
+      "sha256": "2d3a22ec12ff31d09447237ca258ed928f15ee120a872a8402987aef77cec5d4"
+    },
+    "assets/materials/detail_quartz/thumb.webp": {
+      "bytes": 3736,
+      "sha256": "f116d271083bfeaa813f2c0193ad8349b6fbb8c9cc9bfc7e449a3400f0fc17ab"
+    },
+    "assets/materials/detail_velvet/color_1k.webp": {
+      "bytes": 338090,
+      "sha256": "be8f422bacf95b52cfe68fcdc0c7bb3541eeda8d3a550e025820d562cdfa3a2d"
+    },
+    "assets/materials/detail_velvet/color_2k.webp": {
+      "bytes": 831064,
+      "sha256": "bc897e24d3a8620644da13761fb3828af7133a46a40d4e54afadcf47fedef7cf"
+    },
+    "assets/materials/detail_velvet/normal_1k.webp": {
+      "bytes": 660020,
+      "sha256": "4fc05323f87e8642d456954370dd27dd47d022490d947dc0960dd996f2fb059b"
+    },
+    "assets/materials/detail_velvet/normal_2k.webp": {
+      "bytes": 2199094,
+      "sha256": "5121e1c2b981a9f7e0e286342dac05f5d48316891232f685b028d86fe37312ce"
+    },
+    "assets/materials/detail_velvet/orm_1k.webp": {
+      "bytes": 309508,
+      "sha256": "a0b54d91919d05a02a9df623d9d991ec503859051c0ae97630f394f03d420384"
+    },
+    "assets/materials/detail_velvet/thumb.webp": {
+      "bytes": 5718,
+      "sha256": "68966f5cad0935aa3cfd0ac6c266a5fcbaa21db96a3564c9ca0f38564bd5d28c"
+    },
+    "assets/materials/ebony_black/color_1k.webp": {
+      "bytes": 50920,
+      "sha256": "486ff31a635505f69eb54ef7a0c58c402ca4cbec33616484d58c4076b169eb76"
+    },
+    "assets/materials/ebony_black/color_2k.webp": {
+      "bytes": 158914,
+      "sha256": "dc2d064ea7f75f93a2012d29b1729fe55dc132578a24a185e4810c9b4f3b37c4"
+    },
+    "assets/materials/ebony_black/normal_1k.webp": {
+      "bytes": 392646,
+      "sha256": "65164061b002a2a1d0613b44c91d44da5c16c6b8ec423cd710a1446215f8b16e"
+    },
+    "assets/materials/ebony_black/normal_2k.webp": {
+      "bytes": 1224024,
+      "sha256": "4acf977d40c20e89ba0224eaa8db25047698fa834c9200f39ff8ccb92a365562"
+    },
+    "assets/materials/ebony_black/orm_1k.webp": {
+      "bytes": 150500,
+      "sha256": "0eb7458b731aea410a55c9d8335766ce568ea6bad59ce067dad597b5d9f2bcf3"
+    },
+    "assets/materials/ebony_black/thumb.webp": {
+      "bytes": 5404,
+      "sha256": "f52b7f501e48430f681299178aeb761f665a8d71fbd7c721e123baabe65c6e98"
+    },
+    "assets/materials/emerald_marble/color_1k.webp": {
+      "bytes": 343976,
+      "sha256": "c5b0a13c4aa561d1860cedad89df4611154e927ebf55127c55e736baf55b41de"
+    },
+    "assets/materials/emerald_marble/color_2k.webp": {
+      "bytes": 795426,
+      "sha256": "c9c5da5731cc72a25e7dca9e0ab8a6cae70677b6281393fc8c9844a1648e4109"
+    },
+    "assets/materials/emerald_marble/normal_1k.webp": {
+      "bytes": 20152,
+      "sha256": "b1256ac792c297e9f06437a3b230f2202e21a10fdbe3cf5011e0f4088d354820"
+    },
+    "assets/materials/emerald_marble/normal_2k.webp": {
+      "bytes": 110946,
+      "sha256": "bcf86d5591acabf7328d54f6dcc8cccb8cfc6b23fa1fc2ff062783a38eab58fa"
+    },
+    "assets/materials/emerald_marble/orm_1k.webp": {
+      "bytes": 35876,
+      "sha256": "b6a33fb5b0917cfbe588d08bc3d6715910ce93e47f4afb1f60c4cbdbe12011be"
+    },
+    "assets/materials/emerald_marble/thumb.webp": {
+      "bytes": 11188,
+      "sha256": "d10ba9d2ac8cb41de638d7fbc7322112ddf07e699bee02120a93ff817ebd7aab"
+    },
+    "assets/materials/fish_scale_tiles/color_1k.webp": {
+      "bytes": 187062,
+      "sha256": "e1a7746a6521b2e03f869fe915661a13f9a0fcb8ccff327dc036af99c833f6f8"
+    },
+    "assets/materials/fish_scale_tiles/color_2k.webp": {
+      "bytes": 431886,
+      "sha256": "769bd493308b31ffec623b14ab9fe59a2c987f7a37930df423d3fe46f96a9a9c"
+    },
+    "assets/materials/fish_scale_tiles/normal_1k.webp": {
+      "bytes": 101248,
+      "sha256": "f3a045c717a15e823d92adf1d00d523dd5b5a08eb68e4c8b581e3086b8b04e50"
+    },
+    "assets/materials/fish_scale_tiles/normal_2k.webp": {
+      "bytes": 290438,
+      "sha256": "16d573280a7f7680d53bb53470c90feacf24bd78085c1ebd24e2ecf80aa6c86a"
+    },
+    "assets/materials/fish_scale_tiles/orm_1k.webp": {
+      "bytes": 84056,
+      "sha256": "05981653e4ed24cbffb6978b14bdd896b3184b303770ad8b06451b76f02925c0"
+    },
+    "assets/materials/fish_scale_tiles/thumb.webp": {
+      "bytes": 12828,
+      "sha256": "63a3bc58a94dd7eead65ed768a52a6913dea9e7f515e01e22937a20fbbe9dba9"
+    },
+    "assets/materials/floor_balcony/color_1k.webp": {
+      "bytes": 249564,
+      "sha256": "1ef0f3f43be9fb7cb594b0ab8985023c7d587f450e7ed6c06298100c88284c7e"
+    },
+    "assets/materials/floor_balcony/color_2k.webp": {
+      "bytes": 623970,
+      "sha256": "13efda6ffbbdd95d540c7a6a9ffea7080ea9e1eb6da9a50ef676bb7a98c9f92a"
+    },
+    "assets/materials/floor_balcony/normal_1k.webp": {
+      "bytes": 565102,
+      "sha256": "bb03f8c8f132ec751bc7af6be520b524a3e2bb1cf6006ca2fde2a0802bc088a0"
+    },
+    "assets/materials/floor_balcony/normal_2k.webp": {
+      "bytes": 1816870,
+      "sha256": "255c83f38ffe1f9d69f0b96672667f63835706571972bcdef25528b29286ca5c"
+    },
+    "assets/materials/floor_balcony/orm_1k.webp": {
+      "bytes": 244188,
+      "sha256": "14a1b67e86869ddc01efce8e9c394c45a0f174cdf129fbcab907db67e7e9b6ba"
+    },
+    "assets/materials/floor_balcony/thumb.webp": {
+      "bytes": 6686,
+      "sha256": "d1c650ff93c679098439a96cb4a3ab281d9c095f09eff02b6c738af934074d2e"
+    },
+    "assets/materials/floor_brick/color_1k.webp": {
+      "bytes": 287336,
+      "sha256": "9501e02506cd5884019dc25f6483e9aa153d857b62f6b1c2ebf78f866b4631fb"
+    },
+    "assets/materials/floor_brick/color_2k.webp": {
+      "bytes": 698016,
+      "sha256": "f72b2b25ca2b2a2a6df7e5141a22c4a94db6c338a5585790fa2e2ba02102fc21"
+    },
+    "assets/materials/floor_brick/normal_1k.webp": {
+      "bytes": 570396,
+      "sha256": "7e818c01851febb85abe8975ab7eab0583e352ae75e8b6e74d53dc686de69d23"
+    },
+    "assets/materials/floor_brick/normal_2k.webp": {
+      "bytes": 1876782,
+      "sha256": "6635af90983fdc1efac1c0c08c24d2f8b9e838d93587c2fb347162819fabf58a"
+    },
+    "assets/materials/floor_brick/orm_1k.webp": {
+      "bytes": 259966,
+      "sha256": "204beed38d6bc7f14d6454791bdbe6d80189d159b6063fb106cb2d4c2ca85ba4"
+    },
+    "assets/materials/floor_brick/thumb.webp": {
+      "bytes": 9588,
+      "sha256": "199b88f062c45d114ae382b99a388f4fd038e2ad526bf114973afec34c27b7be"
+    },
+    "assets/materials/floor_carpet/color_1k.webp": {
+      "bytes": 344194,
+      "sha256": "cd00e936ca99d83e551b30eb2c923cf0f68bae8bfe1f30ce1274a87f3ae54270"
+    },
+    "assets/materials/floor_carpet/color_2k.webp": {
+      "bytes": 707536,
+      "sha256": "e6eac1b72cb7ec4727bc077b2284d2428222067f2864a0df057ef7dffc0117b5"
+    },
+    "assets/materials/floor_carpet/normal_1k.webp": {
+      "bytes": 553822,
+      "sha256": "0852f51e7108be747adfac2719e8929c1fd7722c62d9ff70bb7494d801bb5440"
+    },
+    "assets/materials/floor_carpet/normal_2k.webp": {
+      "bytes": 1498990,
+      "sha256": "e74573a2ae27c686029538f4d8bb31d1ab9ba77390bb623fcc5d9c1e44d0b640"
+    },
+    "assets/materials/floor_carpet/orm_1k.webp": {
+      "bytes": 291992,
+      "sha256": "e2440ed9c8ccc4115474a3e5d57aeaf7add484bf459b31713ba78beb387c70ff"
+    },
+    "assets/materials/floor_carpet/thumb.webp": {
+      "bytes": 9994,
+      "sha256": "457810e6370cfab8cba4eea249695354b948aa775dcb4bd3c65a39d6d240177d"
+    },
+    "assets/materials/floor_carpetGrey/color_1k.webp": {
+      "bytes": 388204,
+      "sha256": "26872a3aa926aa2ea25ef1c32feb96b468456aa5c0484b7f2435511d8bffe754"
+    },
+    "assets/materials/floor_carpetGrey/color_2k.webp": {
+      "bytes": 859172,
+      "sha256": "bdf35fc0ffacb31df8f3ada728490c665205e31e5167e3d94808123991feddba"
+    },
+    "assets/materials/floor_carpetGrey/normal_1k.webp": {
+      "bytes": 609660,
+      "sha256": "e48c617733e935c74f6279f21ecef18384675ec44073539571a9fb8020e0feaa"
+    },
+    "assets/materials/floor_carpetGrey/normal_2k.webp": {
+      "bytes": 1772634,
+      "sha256": "1590db44a36f8a24282610db98deb69dfe97bc13a63037dc6c9bcd49500157c1"
+    },
+    "assets/materials/floor_carpetGrey/orm_1k.webp": {
+      "bytes": 306940,
+      "sha256": "2a53fad373adf042ff9f1ffda542d2c03574e035db6aea5c6504fec41685e31d"
+    },
+    "assets/materials/floor_carpetGrey/thumb.webp": {
+      "bytes": 11234,
+      "sha256": "ac53bedaaeb3d3f2bd472b01d47fc1034a6805591c954de6becf8e5a3027675c"
+    },
+    "assets/materials/floor_checker/color_1k.webp": {
+      "bytes": 108140,
+      "sha256": "d2ba80a239a974b2dd7d7b3cb408cc0a81dc43991998851e78b25aee802d2f15"
+    },
+    "assets/materials/floor_checker/color_2k.webp": {
+      "bytes": 284002,
+      "sha256": "b002b09c48f65bd70c04094e3acf1982c349aef562dbadf7ab1628f595789125"
+    },
+    "assets/materials/floor_checker/normal_1k.webp": {
+      "bytes": 272026,
+      "sha256": "abc0777d95945fd452c519e277f6b3769fc9552d2d872b0191384fadb50c42ca"
+    },
+    "assets/materials/floor_checker/normal_2k.webp": {
+      "bytes": 870548,
+      "sha256": "ba7d0fe9bbcbf481ff2545d6e400368ca88a13b7be4baf7e183bfeba54d9b6ed"
+    },
+    "assets/materials/floor_checker/orm_1k.webp": {
+      "bytes": 73416,
+      "sha256": "32216a3a3b776a4a7d10bb66bc21edb795f31b3b759776d75322131ccbdba1d6"
+    },
+    "assets/materials/floor_checker/thumb.webp": {
+      "bytes": 5876,
+      "sha256": "f52c91a17ceeacd38622860f238599ac71a5232d2a4da3bded189ff511380261"
+    },
+    "assets/materials/floor_concrete/color_1k.webp": {
+      "bytes": 150988,
+      "sha256": "3fa20ff4a50dc866c30ef251c84208d37866d7e73e6d6c69b377736009393bf5"
+    },
+    "assets/materials/floor_concrete/color_2k.webp": {
+      "bytes": 400344,
+      "sha256": "0c7c8cdfb294ac80261681cf6afa27376e3afca9e8b2d7b790c7cafaedfae831"
+    },
+    "assets/materials/floor_concrete/normal_1k.webp": {
+      "bytes": 610462,
+      "sha256": "7753ba778b5f10f68e379ddf337df85961d2b8f0a70a1ac6a65b66120dca5464"
+    },
+    "assets/materials/floor_concrete/normal_2k.webp": {
+      "bytes": 1986542,
+      "sha256": "6f69cee4ab9108804d069ef491dc3596acce987f217631efc04f54c2e5972d6a"
+    },
+    "assets/materials/floor_concrete/orm_1k.webp": {
+      "bytes": 307312,
+      "sha256": "9bdd330db564033aa04d89b3cda9e5d9e9287f7ba7dba6f21ef9d9f6bde618ce"
+    },
+    "assets/materials/floor_concrete/thumb.webp": {
+      "bytes": 9124,
+      "sha256": "1012dc219fabac01d50c6bbea2add1ed4e867a7b15676512aef78d43db62d483"
+    },
+    "assets/materials/floor_darkwood/color_1k.webp": {
+      "bytes": 105640,
+      "sha256": "e299ba397216080ed9441a0e1007bbb79012a63bba59a03b2327793327642c8a"
+    },
+    "assets/materials/floor_darkwood/color_2k.webp": {
+      "bytes": 311234,
+      "sha256": "0de570f2c8b7e56846d188e3ebe894a3fac8b139ac952d9173ca34bd3395f266"
+    },
+    "assets/materials/floor_darkwood/normal_1k.webp": {
+      "bytes": 470652,
+      "sha256": "427b3ae073a08fcc2678009ec77be719a90d1fa4e7f3e7ad8579e7c1086278d8"
+    },
+    "assets/materials/floor_darkwood/normal_2k.webp": {
+      "bytes": 1510620,
+      "sha256": "08370d0e1c759ff38fcd7d32e6db7bd3e26dbb6b49e9891f1b2df0fddf591e7b"
+    },
+    "assets/materials/floor_darkwood/orm_1k.webp": {
+      "bytes": 180656,
+      "sha256": "d9b53b9d8fa0a2bdcf19a3c4738f59a1f09ae17976a9ea672a9bbc5430a54c7b"
+    },
+    "assets/materials/floor_darkwood/thumb.webp": {
+      "bytes": 6022,
+      "sha256": "fa80dfb7ef4ae2f6f6073edb26b2ebf9e1abe8c106732195f261f201c242683c"
+    },
+    "assets/materials/floor_deck/color_1k.webp": {
+      "bytes": 264504,
+      "sha256": "136a91d162fe94eaf2dd2ba85363d9e595ce342d38f023a65bbd813274c0c4e2"
+    },
+    "assets/materials/floor_deck/color_2k.webp": {
+      "bytes": 677998,
+      "sha256": "ac0b4feba3a95a2f2b0c9f96859ecf024b1ac7f2a56cf241265c5de68510c84b"
+    },
+    "assets/materials/floor_deck/normal_1k.webp": {
+      "bytes": 445930,
+      "sha256": "45ba0f1f8ad54adf668c9a9953a8c7e940de43dd10b74a404bd645f1381f47c1"
+    },
+    "assets/materials/floor_deck/normal_2k.webp": {
+      "bytes": 1413060,
+      "sha256": "3066076efb2dff8bcb6015faf17abdde562e1b2059d3294d05bc090cbfc5e966"
+    },
+    "assets/materials/floor_deck/orm_1k.webp": {
+      "bytes": 169168,
+      "sha256": "b0f2d95a96a8ef44042a228ff3de5840fa2f8c37ca1b26d951924417ea20cbf1"
+    },
+    "assets/materials/floor_deck/thumb.webp": {
+      "bytes": 8108,
+      "sha256": "50902c9f38b4b2e65f5ea88076d51e98290866cde407f2bb972b1201f8328f22"
+    },
+    "assets/materials/floor_epoxy/color_1k.webp": {
+      "bytes": 82576,
+      "sha256": "ffacc9793cd37beceb792f2bcbf5180f04db0a5950ef677ad80aa5155d7ca80b"
+    },
+    "assets/materials/floor_epoxy/color_2k.webp": {
+      "bytes": 192930,
+      "sha256": "c755afec4278e8525a071d10415046f8333bb4817bbacb46093441bef495951d"
+    },
+    "assets/materials/floor_epoxy/normal_1k.webp": {
+      "bytes": 14894,
+      "sha256": "51219643746c35b354bbee0be4569a53a207e6e6fa9a45c55a528f889c9d4823"
+    },
+    "assets/materials/floor_epoxy/normal_2k.webp": {
+      "bytes": 103596,
+      "sha256": "98ad0b50a0720bdf431144e9ce7f756bae07fdaac75664f4c3cfa2adce75df60"
+    },
+    "assets/materials/floor_epoxy/orm_1k.webp": {
+      "bytes": 20288,
+      "sha256": "d2181df524addeafb9e085e6b9f7e413a4c883802a6556507a7ad7426ceaec27"
+    },
+    "assets/materials/floor_epoxy/thumb.webp": {
+      "bytes": 4442,
+      "sha256": "886b2f182f5d37f4d22ef59cddb06a6280573bea9a1390d28d95a34b2183412e"
+    },
+    "assets/materials/floor_granite/color_1k.webp": {
+      "bytes": 392490,
+      "sha256": "bcae78e743b1b465e45771d6c46d4a4b138f927bc7d63624394c1d42f22ecb7f"
+    },
+    "assets/materials/floor_granite/color_2k.webp": {
+      "bytes": 902118,
+      "sha256": "c71b9fe30efa5048b52e5a9cbeaa8e2b7df92e6ee3295388684c7db5118598cf"
+    },
+    "assets/materials/floor_granite/normal_1k.webp": {
+      "bytes": 563462,
+      "sha256": "51bb37ed5cfb9c6854933b1ba52221396f3ff38f1d93f1f0d2073efdd0893488"
+    },
+    "assets/materials/floor_granite/normal_2k.webp": {
+      "bytes": 1666184,
+      "sha256": "b2ca55678cdf00c160574593c552c7e6d538ea164557f46b19b6be9a00dd0270"
+    },
+    "assets/materials/floor_granite/orm_1k.webp": {
+      "bytes": 289120,
+      "sha256": "7853570d4cc57e1c232201c57681c74f8d3498a47c54aca6eac5543a1d95a072"
+    },
+    "assets/materials/floor_granite/thumb.webp": {
+      "bytes": 12932,
+      "sha256": "8af719ac04c2477aa7f9379a7181df063ecc8d80014305387f35795907b7bddb"
+    },
+    "assets/materials/floor_hexTile/color_1k.webp": {
+      "bytes": 41582,
+      "sha256": "4daa6178ffc1602f995cb41ab44646ce5641b505db49fde994925be8a74ce009"
+    },
+    "assets/materials/floor_hexTile/color_2k.webp": {
+      "bytes": 88098,
+      "sha256": "dd212df240106162a738e5b6b83be066a6edad95e21d2054274c02f91882a182"
+    },
+    "assets/materials/floor_hexTile/normal_1k.webp": {
+      "bytes": 76990,
+      "sha256": "7c44b4ae60088d5eb9d9b1c6f456f77b02754ced76d315e5f04c8af3348bbab8"
+    },
+    "assets/materials/floor_hexTile/normal_2k.webp": {
+      "bytes": 241122,
+      "sha256": "d44c6a0560c0a209928b109cc9ea1421b731c5c08e18b0d4a5dd603a54c4f104"
+    },
+    "assets/materials/floor_hexTile/orm_1k.webp": {
+      "bytes": 34126,
+      "sha256": "c4607e83ca8cfac565ccc4a4e124b59d8345bb8a81b07c3465001739e2bd708d"
+    },
+    "assets/materials/floor_hexTile/thumb.webp": {
+      "bytes": 6532,
+      "sha256": "7661d41486828b08d0440098f2401c7ce7e1fe9314b58b776e2370a953c68415"
+    },
+    "assets/materials/floor_laminate/color_1k.webp": {
+      "bytes": 103630,
+      "sha256": "2af7f3471bd7960deb1d818443a3a2e1621739198a36ce5fb82ad7bd6462fa2e"
+    },
+    "assets/materials/floor_laminate/color_2k.webp": {
+      "bytes": 283588,
+      "sha256": "86d681fa7e2a962562ee27669796318c3f2b58a1399e9ce5b395fbd82208f1de"
+    },
+    "assets/materials/floor_laminate/normal_1k.webp": {
+      "bytes": 405298,
+      "sha256": "b474fedfe80eb51fe68fd449d7d01972959229586111060578d4dfdb790eca97"
+    },
+    "assets/materials/floor_laminate/normal_2k.webp": {
+      "bytes": 1324366,
+      "sha256": "947e405d0ab9dc10cc01c0694950c10978d4f62715fa3a247e4b3c5a3c7e80e8"
+    },
+    "assets/materials/floor_laminate/orm_1k.webp": {
+      "bytes": 162816,
+      "sha256": "6e2dc50ec5fdc5604834018fadae985c62918c04c088d75215368ed3897ff3d2"
+    },
+    "assets/materials/floor_laminate/thumb.webp": {
+      "bytes": 5898,
+      "sha256": "45219e7bb7387e22ce73aae7323c2b0285a5dcc3d4b825e8b9db8f0804ca2117"
+    },
+    "assets/materials/floor_marble/color_1k.webp": {
+      "bytes": 52612,
+      "sha256": "2fe5161ef76afe5d550a6becf64857a6c101c6d22045ab90bed910f0cdfbecc9"
+    },
+    "assets/materials/floor_marble/color_2k.webp": {
+      "bytes": 133454,
+      "sha256": "a5d421ee840f3c852dabd252f3a9f4dd2499c838454601a791f03e7b5901b36d"
+    },
+    "assets/materials/floor_marble/normal_1k.webp": {
+      "bytes": 12092,
+      "sha256": "c5aa270d1bbce49846bbfec4fcba80a3ccab8bd1f62b9731850ca5e3a560652d"
+    },
+    "assets/materials/floor_marble/normal_2k.webp": {
+      "bytes": 57330,
+      "sha256": "3ec9a723a785811a8560a1caf3a30eb31b5a976ae1d56ae653c7138ccdc7f3e3"
+    },
+    "assets/materials/floor_marble/orm_1k.webp": {
+      "bytes": 25906,
+      "sha256": "5377975d9af466a08d23671e5afdb2d1199023e412a532d1e74409f49f755e37"
+    },
+    "assets/materials/floor_marble/thumb.webp": {
+      "bytes": 4522,
+      "sha256": "9a3ab38620c3a0e6ac619e96c4f6f0e162a4c91360d5fa18b8535f4e3fc6584a"
+    },
+    "assets/materials/floor_marbleDark/color_1k.webp": {
+      "bytes": 283268,
+      "sha256": "26e2737c5e6ec3976b4e710691e31a05147c7cec2e25a00e73c80c4d48b2a944"
+    },
+    "assets/materials/floor_marbleDark/color_2k.webp": {
+      "bytes": 615682,
+      "sha256": "c7f6aa5df5035b15017f5d90039a19b2eff912b79702e73b68bf1751aa8bdbb6"
+    },
+    "assets/materials/floor_marbleDark/normal_1k.webp": {
+      "bytes": 18928,
+      "sha256": "4be2fa36d443237f2cb95460b6f7a43298a07f941c6c784b2f7c71f00ae03df5"
+    },
+    "assets/materials/floor_marbleDark/normal_2k.webp": {
+      "bytes": 97676,
+      "sha256": "6323a4e7b71b24ec1fc5dadf138ca8556db6938c426d97052bc690a7e0230b92"
+    },
+    "assets/materials/floor_marbleDark/orm_1k.webp": {
+      "bytes": 46082,
+      "sha256": "565d3d43a97d9b5bd07261abae7db61b76833bfe6b225dd6930cd69f2b963599"
+    },
+    "assets/materials/floor_marbleDark/thumb.webp": {
+      "bytes": 9508,
+      "sha256": "c2bef91b914bf1806c381dd3398c0fa4e413536b0255ed420cb0dc1b6b7e1657"
+    },
+    "assets/materials/floor_mosaic/color_1k.webp": {
+      "bytes": 96700,
+      "sha256": "c68c894c4589aae5f77a017c952f614749719445d5a6eb52fe44b96bda242ee6"
+    },
+    "assets/materials/floor_mosaic/color_2k.webp": {
+      "bytes": 208032,
+      "sha256": "84f7e3f54be45365e2307d8457a25383b032411e0e7415eb99a5b528d7b67caa"
+    },
+    "assets/materials/floor_mosaic/normal_1k.webp": {
+      "bytes": 200186,
+      "sha256": "8759002d6477eb7dfd6bbceec3dc02bb2572a60dd31ce6e13a7d2b0b136da013"
+    },
+    "assets/materials/floor_mosaic/normal_2k.webp": {
+      "bytes": 544456,
+      "sha256": "5c5605e769b08f9842d8a428d8da7c22b9f76ff29c73f92dba257c9a720ef526"
+    },
+    "assets/materials/floor_mosaic/orm_1k.webp": {
+      "bytes": 108452,
+      "sha256": "93550764621814c66030a09c71da701f7d12c1931ff44097a62afefec4612343"
+    },
+    "assets/materials/floor_mosaic/thumb.webp": {
+      "bytes": 10354,
+      "sha256": "4d4451eb3e16a874d732b1754dca8e54b7733b4ae6bfd488edadb1d20375130e"
+    },
+    "assets/materials/floor_parquet/color_1k.webp": {
+      "bytes": 157068,
+      "sha256": "29e4400f789b5989d918674572895be2a757f61f4630c680efd860345a045f46"
+    },
+    "assets/materials/floor_parquet/color_2k.webp": {
+      "bytes": 402144,
+      "sha256": "e123c8730f6e3ccd9a0bf7d2757cf8febde1a477015d529125e149dbbd4f40d5"
+    },
+    "assets/materials/floor_parquet/normal_1k.webp": {
+      "bytes": 419324,
+      "sha256": "fcebb2054195c9b5e2bab0add5adce2876230a9f3e1f081920edb9d14bc0e10a"
+    },
+    "assets/materials/floor_parquet/normal_2k.webp": {
+      "bytes": 1312080,
+      "sha256": "bf7ba5e1a5589f4bed3a8548fad94612620197b020ca3295f8c3b2a6898125e8"
+    },
+    "assets/materials/floor_parquet/orm_1k.webp": {
+      "bytes": 169872,
+      "sha256": "a9277c00a7e9ae1a945fca89a09dc7c115096e261ecdf9bb3990137f6faaad3f"
+    },
+    "assets/materials/floor_parquet/thumb.webp": {
+      "bytes": 7344,
+      "sha256": "f857cabf90ae9ace5f70e3f34e6f07499badd9dc605acf7e75511d7f6bee3bd4"
+    },
+    "assets/materials/floor_pavers/color_1k.webp": {
+      "bytes": 275806,
+      "sha256": "6195a1c8cb96c95401b234d9e47d2f47fdb6dbe5d0596c7a18f5cf5800f147bd"
+    },
+    "assets/materials/floor_pavers/color_2k.webp": {
+      "bytes": 675374,
+      "sha256": "dc89d3882e4a0be130612e74fb352f9cbd466098522296cad9dc11a3dfe9c13d"
+    },
+    "assets/materials/floor_pavers/normal_1k.webp": {
+      "bytes": 527010,
+      "sha256": "b91d76c67f265ccff7a5b73ae043a254031f89e74cc7dd5664cf7cb597f9c981"
+    },
+    "assets/materials/floor_pavers/normal_2k.webp": {
+      "bytes": 1688036,
+      "sha256": "240a3ef4ae74a42ef9750a1eb1612106bbfc71b1f799d322352d69ecc4864232"
+    },
+    "assets/materials/floor_pavers/orm_1k.webp": {
+      "bytes": 209456,
+      "sha256": "c328501e6b29123558aa1ff9a260f56c721edcbf452388ea356dc080ffb2eca6"
+    },
+    "assets/materials/floor_pavers/thumb.webp": {
+      "bytes": 7362,
+      "sha256": "7a4b9baaaaa7286958937ebc3aa6113d73bdb1e5515c76adbd0e204ee7d776e3"
+    },
+    "assets/materials/floor_pebble/color_1k.webp": {
+      "bytes": 277644,
+      "sha256": "5786fde55f28c2e864bf8b7572563402b2daa369c17eecfdebcfbe24a8f211f7"
+    },
+    "assets/materials/floor_pebble/color_2k.webp": {
+      "bytes": 634396,
+      "sha256": "1b00494402d7ad25755c55df52798bb72bc03eb52805853500b324877f7a307e"
+    },
+    "assets/materials/floor_pebble/normal_1k.webp": {
+      "bytes": 494942,
+      "sha256": "cb585205940962374bd121b1c09803d3d505dbfdc4cf57ed7acad442e0339167"
+    },
+    "assets/materials/floor_pebble/normal_2k.webp": {
+      "bytes": 1499850,
+      "sha256": "62df6c90b3a0938af68db4c921de334c10afa3802b1c92419b0a7344902fc2c6"
+    },
+    "assets/materials/floor_pebble/orm_1k.webp": {
+      "bytes": 200478,
+      "sha256": "a7c2974859449846bb09ccf000d7f2ac7d1f52a5dbd863a64a118f2ca93bbdfe"
+    },
+    "assets/materials/floor_pebble/thumb.webp": {
+      "bytes": 10194,
+      "sha256": "f9fc4000bcfb44e9636f069d18e685fb7913131f2866bd748aee23d650b847c4"
+    },
+    "assets/materials/floor_porcelain/color_1k.webp": {
+      "bytes": 21452,
+      "sha256": "dc3e665b386ee023d5f0a079d95fbcca91e60fd018f6a83591f94c15c086fc29"
+    },
+    "assets/materials/floor_porcelain/color_2k.webp": {
+      "bytes": 105186,
+      "sha256": "46b3083178b8c31826a571649ca6040a9c1ce492ccfa40c77a5bf1299611da3b"
+    },
+    "assets/materials/floor_porcelain/normal_1k.webp": {
+      "bytes": 445410,
+      "sha256": "0f7ad93aab500ba42f7fad4a9cf89e2c4b43ae8abee53df64f77f03b83929296"
+    },
+    "assets/materials/floor_porcelain/normal_2k.webp": {
+      "bytes": 1251114,
+      "sha256": "a1e13a98f9244c7b6353d4dee74bd786d9d3fa7f34e080ccbb0c01a847bc0f8d"
+    },
+    "assets/materials/floor_porcelain/orm_1k.webp": {
+      "bytes": 166782,
+      "sha256": "cc9df2c03618e62516ff93956188cdae4005d7e819be9eb22fbfae897f8de970"
+    },
+    "assets/materials/floor_porcelain/thumb.webp": {
+      "bytes": 4492,
+      "sha256": "fac2b0321ee1b9b9fb230ca60cafe14a916d336468d2490fd7f02b93f6ca68cd"
+    },
+    "assets/materials/floor_slate/color_1k.webp": {
+      "bytes": 249552,
+      "sha256": "3cc5ea67d38ee9e83d0142b60b8e568c5c3870deb9c0b8d043fcfc7ca4128a91"
+    },
+    "assets/materials/floor_slate/color_2k.webp": {
+      "bytes": 579992,
+      "sha256": "168e1c18b250532afe95c509066006668f5f619ebe1b88c4eb5fb8aa4774639b"
+    },
+    "assets/materials/floor_slate/normal_1k.webp": {
+      "bytes": 533974,
+      "sha256": "7244216f5400b85834a682e1cfc302bfddfe1159b09a889e3342202c8fc3f934"
+    },
+    "assets/materials/floor_slate/normal_2k.webp": {
+      "bytes": 1670548,
+      "sha256": "4a84f725bc02b5d24c5f4868390934a10d23f3b7c95b292a6563e8d093a92ab2"
+    },
+    "assets/materials/floor_slate/orm_1k.webp": {
+      "bytes": 223074,
+      "sha256": "a5718285dd70063ea278025a57cebd461b7273ffc2bbbf20eeb11c92f00025e1"
+    },
+    "assets/materials/floor_slate/thumb.webp": {
+      "bytes": 7488,
+      "sha256": "6e1893e34dd9430afafb967886b4f548b0275bf0adfbfb8cfce61390e2c89517"
+    },
+    "assets/materials/floor_terrazzo/color_1k.webp": {
+      "bytes": 282990,
+      "sha256": "302c5c5b8b0e217b3dbc6fbc99d231bca47c416a7133a141198190bdc67e8028"
+    },
+    "assets/materials/floor_terrazzo/color_2k.webp": {
+      "bytes": 609998,
+      "sha256": "e165f7bc3799c1d8144e591a023fa53730423f5f46fd89c50d3b6797d278ab1e"
+    },
+    "assets/materials/floor_terrazzo/normal_1k.webp": {
+      "bytes": 512072,
+      "sha256": "fd5df111fffed052539e6551faab580b21de707b03cfba889a541dceb524d66a"
+    },
+    "assets/materials/floor_terrazzo/normal_2k.webp": {
+      "bytes": 1460572,
+      "sha256": "4bc17c145a4e08487eb3475a6e93d0eb6e58caed16b6271407a911ab95078a2f"
+    },
+    "assets/materials/floor_terrazzo/orm_1k.webp": {
+      "bytes": 247094,
+      "sha256": "b8be68c547bace181038e6fb82d4753f1db47e5643f824838f26af2710745405"
+    },
+    "assets/materials/floor_terrazzo/thumb.webp": {
+      "bytes": 9882,
+      "sha256": "ddd92d9c99f2b30e88e933d4e07c48576a2534d773393817da5ad22b9019793e"
+    },
+    "assets/materials/floor_tiles/color_1k.webp": {
+      "bytes": 111074,
+      "sha256": "1068149efb1aa111f3cbc127ca0213f97ee403e617a96531c1392dfec2e61ec6"
+    },
+    "assets/materials/floor_tiles/color_2k.webp": {
+      "bytes": 308374,
+      "sha256": "ed96a00beafd5594edbe95c46106e118a6ae160fd469f9299fa9f0ac44619e17"
+    },
+    "assets/materials/floor_tiles/normal_1k.webp": {
+      "bytes": 383822,
+      "sha256": "ad763b1b9242fb69e7f166da5e8aa0f1c191d7cb007606ba5395b82797db2bef"
+    },
+    "assets/materials/floor_tiles/normal_2k.webp": {
+      "bytes": 1179742,
+      "sha256": "5b0bcd8aefdbe74ef439933982e12faec5603478482b4d1b6665c0531b000c43"
+    },
+    "assets/materials/floor_tiles/orm_1k.webp": {
+      "bytes": 122452,
+      "sha256": "6be240ef2fda0a05ff0f71ac90d30e11320bac01191f410a8696996c3cbba73d"
+    },
+    "assets/materials/floor_tiles/thumb.webp": {
+      "bytes": 3970,
+      "sha256": "4db36087f420672baf6bc320768365ff8c04f90e8913ccf15932f46cf2989d4e"
+    },
+    "assets/materials/floor_vinyl/color_1k.webp": {
+      "bytes": 182610,
+      "sha256": "49424adab801b0f68b01eadd15758bc54acc5c8774a933bcba49346ee32a8f62"
+    },
+    "assets/materials/floor_vinyl/color_2k.webp": {
+      "bytes": 464252,
+      "sha256": "0dfed366e49d2de195a49c9f33ce000a0716a49c9426b054a113945209fbd048"
+    },
+    "assets/materials/floor_vinyl/normal_1k.webp": {
+      "bytes": 602648,
+      "sha256": "bad75133ef1b619e87e5aa886bd4e8934ffe1d2e57addcab0e2e81f12ee24a80"
+    },
+    "assets/materials/floor_vinyl/normal_2k.webp": {
+      "bytes": 1945512,
+      "sha256": "6ed7d70fdc68f3a5fc7649e7c20fc4ac9a7fc8d4de900736234e5a58088210ab"
+    },
+    "assets/materials/floor_vinyl/orm_1k.webp": {
+      "bytes": 308880,
+      "sha256": "166b45d6a1d99d3c9fed17264d9729e6697816c1fa1a9bf851e58413359de5f1"
+    },
+    "assets/materials/floor_vinyl/thumb.webp": {
+      "bytes": 8792,
+      "sha256": "f006eb51d927ddef94f46c6bb5ed43e5fb9370bab1e8d659642c57edadbe00b0"
+    },
+    "assets/materials/floor_wood/color_1k.webp": {
+      "bytes": 110350,
+      "sha256": "1cf0238c4a023875c86673c54d02b91d45384351b7cc63a533648b0eeb8eff50"
+    },
+    "assets/materials/floor_wood/color_2k.webp": {
+      "bytes": 295832,
+      "sha256": "c2ad7279d7241749a5a9ba5177320695cbe75feab44f1a20e701201cbc469ffb"
+    },
+    "assets/materials/floor_wood/normal_1k.webp": {
+      "bytes": 351114,
+      "sha256": "66f5b1b645759cd50a66ff27146406e051cb599bb726cbc2e6c57782da9e66cb"
+    },
+    "assets/materials/floor_wood/normal_2k.webp": {
+      "bytes": 1115136,
+      "sha256": "a1385db71347dc37b38c6e3b5e8cc76ad0c5ca746ed23c569e9f7e92c72eaa15"
+    },
+    "assets/materials/floor_wood/orm_1k.webp": {
+      "bytes": 124420,
+      "sha256": "ae2fb29327ee32262f429a03f7c5fff65504d8d2627f80b92f666f0983f7906b"
+    },
+    "assets/materials/floor_wood/thumb.webp": {
+      "bytes": 6204,
+      "sha256": "ecca19e17d5e6debeca6a5c03ce0d5c2ed949c274dc0584f684cbf081aa98f71"
+    },
+    "assets/materials/granite_grey/color_1k.webp": {
+      "bytes": 421322,
+      "sha256": "ae1bd4d176d8fbb2cc779be77793368b602dccf2476340166708b6c1314e2840"
+    },
+    "assets/materials/granite_grey/color_2k.webp": {
+      "bytes": 918036,
+      "sha256": "963fe2dc34066ae744f57fefe9f2fa3f69438902cd44781401d7e8da5ef47cb4"
+    },
+    "assets/materials/granite_grey/normal_1k.webp": {
+      "bytes": 538046,
+      "sha256": "0921b0c954a4ac5f6aea4bbb413a33dcd3634cf92136d77f0704859f21c6defb"
+    },
+    "assets/materials/granite_grey/normal_2k.webp": {
+      "bytes": 1494614,
+      "sha256": "7cdae53d598a1bcca70f7c1162dc284855e30e4e887c3f554d6443465daa7e29"
+    },
+    "assets/materials/granite_grey/orm_1k.webp": {
+      "bytes": 277900,
+      "sha256": "db8aef35772acc5726d07c2a7de089527566f8c7b47944b5b99116b68bd964f2"
+    },
+    "assets/materials/granite_grey/thumb.webp": {
+      "bytes": 14754,
+      "sha256": "626b77dcfc40304ecb759295022ea58a6b303cab6901de4d9bb63d9c8fc2e2f1"
+    },
+    "assets/materials/green_grass/color_1k.webp": {
+      "bytes": 527938,
+      "sha256": "45ea00f30812296031e7f45719a8b4f4174fe58b99ed57159f2d7d5a34937913"
+    },
+    "assets/materials/green_grass/color_2k.webp": {
+      "bytes": 1384568,
+      "sha256": "304174a4765a0da8e8b58d1cc340f37c28240f707d597228480af32e21c26f3e"
+    },
+    "assets/materials/green_grass/normal_1k.webp": {
+      "bytes": 611104,
+      "sha256": "b6c130bc300cd371abfc5fdae897f2ec28eacb00362ae0be2d03706e30cda567"
+    },
+    "assets/materials/green_grass/normal_2k.webp": {
+      "bytes": 1931998,
+      "sha256": "7bf4c07977b829ba508e7444e2e919d3fc0de96862f1f236b4aed6a1a01f80cb"
+    },
+    "assets/materials/green_grass/orm_1k.webp": {
+      "bytes": 333144,
+      "sha256": "2e98ebaff9c22fe9bca5737d9567316b0e8f92c53c6837a9fb5d827171f684b0"
+    },
+    "assets/materials/green_grass/thumb.webp": {
+      "bytes": 15844,
+      "sha256": "7b5a75ff98ec616bd8a3b5468acedf4e496bcbfb4d361fcdb9c29fcedc2f9add"
+    },
+    "assets/materials/grey_wool/color_1k.webp": {
+      "bytes": 392048,
+      "sha256": "7c355862a1040df1c85ffb00c94522e33268550b6c1f28d6342a93103e93a28a"
+    },
+    "assets/materials/grey_wool/color_2k.webp": {
+      "bytes": 868762,
+      "sha256": "65d74c47d55c61b74db8af5d3666f144daa634a0b8566c1496b7e669fd69deb6"
+    },
+    "assets/materials/grey_wool/normal_1k.webp": {
+      "bytes": 618938,
+      "sha256": "cc2974474205d844f2c4a91b19d5eed47d3f1740173b1ced90a188b3b0931562"
+    },
+    "assets/materials/grey_wool/normal_2k.webp": {
+      "bytes": 1808642,
+      "sha256": "6949656e54bbe7b7da7a3a6de769f0fb2d450a8096be2be722df3e905061a0b8"
+    },
+    "assets/materials/grey_wool/orm_1k.webp": {
+      "bytes": 322324,
+      "sha256": "43286f48043f3a6e756b3676e48ea141bcddbe91a3de1bec7fe394ddd7b79265"
+    },
+    "assets/materials/grey_wool/thumb.webp": {
+      "bytes": 10356,
+      "sha256": "8d9b1661a9f959a1de68021d0afc321e83185e08b847cd97be9922c0270bd92e"
+    },
+    "assets/materials/ground_asphalt/color_1k.webp": {
+      "bytes": 411960,
+      "sha256": "b9e134918ebc210833ddbb62a21a1aafe4b663df06ee1096c7d7ea31073a59c2"
+    },
+    "assets/materials/ground_asphalt/color_2k.webp": {
+      "bytes": 988578,
+      "sha256": "ce97a3385898c39065b56d566c5526029f5a58e082c3c2e62c636c6f85d97ab9"
+    },
+    "assets/materials/ground_asphalt/normal_1k.webp": {
+      "bytes": 573954,
+      "sha256": "43ebee0f770c587388b37baa920bc3f23aad58289946d517f2936d7b721eadc1"
+    },
+    "assets/materials/ground_asphalt/normal_2k.webp": {
+      "bytes": 1739020,
+      "sha256": "ad48199eb150ccad247a1e6dc54e5b783b66adc069a1b36395e551400846db43"
+    },
+    "assets/materials/ground_asphalt/orm_1k.webp": {
+      "bytes": 288586,
+      "sha256": "ec8c7c06794e609efad45a738555fdb4b808c9dd75bcd41251a0f86a9d9a12e0"
+    },
+    "assets/materials/ground_asphalt/thumb.webp": {
+      "bytes": 13262,
+      "sha256": "e4de333108599f5057cc6d62a1eef954a3d6152d12d74ad27b615508a99daaab"
+    },
+    "assets/materials/ground_lawn/color_1k.webp": {
+      "bytes": 507830,
+      "sha256": "3a92300d052e7d77f6ee38bd958a34bf2eec452822c1f58b6ebfe5abc8b11f1c"
+    },
+    "assets/materials/ground_lawn/color_2k.webp": {
+      "bytes": 1246214,
+      "sha256": "6d8babab2e26cafb5468e4ecb37b0cd5ea9194ca9c8147aef1e0362d74cdeacf"
+    },
+    "assets/materials/ground_lawn/normal_1k.webp": {
+      "bytes": 580202,
+      "sha256": "a93f11e25b030eb51c27d1016479a4939c974bc8e4957b04ac5e662e4df3a2ce"
+    },
+    "assets/materials/ground_lawn/normal_2k.webp": {
+      "bytes": 1729818,
+      "sha256": "2f4b2602838a8ada4c28f5afaaae690836b0ab396da50699f0bfcda931cf574a"
+    },
+    "assets/materials/ground_lawn/orm_1k.webp": {
+      "bytes": 316158,
+      "sha256": "36100f11205158dc27bbfe7bc7cbc5438d686a8ff2fcae7fdd0d8f9312ce4f94"
+    },
+    "assets/materials/ground_lawn/thumb.webp": {
+      "bytes": 16666,
+      "sha256": "dccb5538b68bfd5ef9856e8a080fdcf5f3fa81727436d0017530c4f8a73df41a"
+    },
+    "assets/materials/herringbone_parquet/color_1k.webp": {
+      "bytes": 214298,
+      "sha256": "7ccd561af25249e86fc9786a1b2a2df632e61d9db0b309802bc55b5b840a1a0a"
+    },
+    "assets/materials/herringbone_parquet/color_2k.webp": {
+      "bytes": 427062,
+      "sha256": "580245b6a6379ff680c94a987b9bf9b59d0120f1bd8bcfb47819cd9b7d702cd6"
+    },
+    "assets/materials/herringbone_parquet/normal_1k.webp": {
+      "bytes": 511788,
+      "sha256": "c97c08e1049e623e30d928a6a714b3c8f27f9270fceb60fb44f225a00d6e0739"
+    },
+    "assets/materials/herringbone_parquet/normal_2k.webp": {
+      "bytes": 1686728,
+      "sha256": "0ac9d6d94940decaaeebc3c4fe432b24161e9f010556b40229c36958f8a2463e"
+    },
+    "assets/materials/herringbone_parquet/orm_1k.webp": {
+      "bytes": 235476,
+      "sha256": "3090551082af46dfdf0a9f448369521c9b379d9621a342ec855ea48bde9c2c4c"
+    },
+    "assets/materials/herringbone_parquet/thumb.webp": {
+      "bytes": 8896,
+      "sha256": "228a02c3b022da1f15e1e70bd00afaee4e73ffb936f28d7865477963f32d41ac"
+    },
+    "assets/materials/hexagon_teal/color_1k.webp": {
+      "bytes": 123184,
+      "sha256": "c775d9eacff5527be47c105a76fc0fd1dd9d77e27bae569c4020292b81688b01"
+    },
+    "assets/materials/hexagon_teal/color_2k.webp": {
+      "bytes": 272650,
+      "sha256": "28f1948c7b05f29b207a7ef7c7b0efa924feb3c1a602b8cf2a7be9151121839e"
+    },
+    "assets/materials/hexagon_teal/normal_1k.webp": {
+      "bytes": 118540,
+      "sha256": "8435b17bbdf97ee83a985dff2fd845e01ac41bd2c89b5f5ff2cd0ff7ba1813ca"
+    },
+    "assets/materials/hexagon_teal/normal_2k.webp": {
+      "bytes": 351580,
+      "sha256": "f95386ea2a616931649c770b9cdebd5907eeee268a6b8a9719c1291a844136a9"
+    },
+    "assets/materials/hexagon_teal/orm_1k.webp": {
+      "bytes": 80898,
+      "sha256": "a7745df845feb77f463e969855d7913423cc61d64d3aaa50fcb0ba3ccecf619e"
+    },
+    "assets/materials/hexagon_teal/thumb.webp": {
+      "bytes": 8666,
+      "sha256": "0908fd5c2fd56a93b2b121329589f4e08fdf82e722c714e83f2bbe349fe494ae"
+    },
+    "assets/materials/large_format_white/color_1k.webp": {
+      "bytes": 8610,
+      "sha256": "fda90ec61594d5d4e6028bb6de87d20458ba4315403fd64ea3603bb429c5b2c7"
+    },
+    "assets/materials/large_format_white/color_2k.webp": {
+      "bytes": 32704,
+      "sha256": "6b99db8e0f1960e874ab202a9c6540445375eee1d5c123c81141c570fc2ea924"
+    },
+    "assets/materials/large_format_white/normal_1k.webp": {
+      "bytes": 159276,
+      "sha256": "22d9f120ff9c26ccb69d9a30993cd32515984ca3ad5ab17c91d63901efc36b05"
+    },
+    "assets/materials/large_format_white/normal_2k.webp": {
+      "bytes": 591512,
+      "sha256": "ca5e5d957cc7ad374d7a1e49b2fa84c1d873fd5d473898704fd8fabb4d79c1a0"
+    },
+    "assets/materials/large_format_white/orm_1k.webp": {
+      "bytes": 37560,
+      "sha256": "893db36b6bdee047ce91a2283713cc0531de6875c5d5d0be9aadf54aa2c45a33"
+    },
+    "assets/materials/large_format_white/thumb.webp": {
+      "bytes": 4490,
+      "sha256": "e33d6b421582ac84968783ebabaf87abc179d5fd631d68aecbbbce4f5b55b8d0"
+    },
+    "assets/materials/lime_wash/color_1k.webp": {
+      "bytes": 33920,
+      "sha256": "7f4079c8375ea54b24585e14b9271fe91fc44d4de77f0215264e802d727f798a"
+    },
+    "assets/materials/lime_wash/color_2k.webp": {
+      "bytes": 141496,
+      "sha256": "9e1cdd1b2a70ef0526932924a74ce3a61052618559758eb6700f33200e12e540"
+    },
+    "assets/materials/lime_wash/normal_1k.webp": {
+      "bytes": 594990,
+      "sha256": "cfac6b5c92f094242c07fcea344cfd324923d492c36255c80957f0a14b0c6e4d"
+    },
+    "assets/materials/lime_wash/normal_2k.webp": {
+      "bytes": 1970756,
+      "sha256": "7b6a5396dce6a4fa0e8b12e02fb8cf1aa28d10231389ec5e8166bf266ae91f7a"
+    },
+    "assets/materials/lime_wash/orm_1k.webp": {
+      "bytes": 308384,
+      "sha256": "10139d6024eb82c4fab559f9605a6a38c9c9e12eeb6f7f36ef8fdc08b04d7bd9"
+    },
+    "assets/materials/lime_wash/thumb.webp": {
+      "bytes": 6410,
+      "sha256": "a0e1312cd26f21a8a9534a7a45ced2f50afa8b2c72c2002ab1ec41833104b301"
+    },
+    "assets/materials/limestone_cream/color_1k.webp": {
+      "bytes": 175434,
+      "sha256": "59a7cddeba3a213043ca15f5a9ac76d205f3579c94356df656bc127ad5a0e7b1"
+    },
+    "assets/materials/limestone_cream/color_2k.webp": {
+      "bytes": 431884,
+      "sha256": "656b2e9a70c9f5ddb37459885fc7b3f67c8ab88642977022ab32d812552f1029"
+    },
+    "assets/materials/limestone_cream/normal_1k.webp": {
+      "bytes": 572846,
+      "sha256": "3ba629ff0d608b8095bd3b484ba882e2763b08f40648ae76a240c9ca1742f43c"
+    },
+    "assets/materials/limestone_cream/normal_2k.webp": {
+      "bytes": 1836512,
+      "sha256": "87cee2ee8c25de4990221b748447938221a5b0272cda748626686c5e8dd0f129"
+    },
+    "assets/materials/limestone_cream/orm_1k.webp": {
+      "bytes": 271984,
+      "sha256": "948694e8d4803e68b685f35ecb84e36404a6d0bc7618d8c5d96554b0101cf124"
+    },
+    "assets/materials/limestone_cream/thumb.webp": {
+      "bytes": 6516,
+      "sha256": "94d01ab37c9eace74c9045e62e7877014326dcff13ea6528ae5671e404be0552"
+    },
+    "assets/materials/maple_honey/color_1k.webp": {
+      "bytes": 79938,
+      "sha256": "9c57cb9b22a3fd3bd228b0e90dcb14bf8964142ffd87bbfe9f9b84edd8b94186"
+    },
+    "assets/materials/maple_honey/color_2k.webp": {
+      "bytes": 216938,
+      "sha256": "6038c1e1e42f9d1d1eadd5dd19d61ff0f0dd1ac29142f846b0d6b5d6f0c10ad4"
+    },
+    "assets/materials/maple_honey/normal_1k.webp": {
+      "bytes": 382966,
+      "sha256": "a65a865d9ab8da7d8ca7b63bbe52b401b84284639485182c974e79177bcce41d"
+    },
+    "assets/materials/maple_honey/normal_2k.webp": {
+      "bytes": 1187130,
+      "sha256": "e12efea8799c19661794a1751b2e9d5c798d16038ecc98b3eed55e072d26472e"
+    },
+    "assets/materials/maple_honey/orm_1k.webp": {
+      "bytes": 153570,
+      "sha256": "b095de3a59bcb0cd77ff97e424b626ef9f2ef12704cb4b1cc84d1fdbde674323"
+    },
+    "assets/materials/maple_honey/thumb.webp": {
+      "bytes": 8004,
+      "sha256": "f6b218115c82a66ac61a23900fab78575a78b3a93187dccd8eedd576f8c22e51"
+    },
+    "assets/materials/moroccan_zellige/color_1k.webp": {
+      "bytes": 121520,
+      "sha256": "95f341eff626be042db15fe44f2a73c13636a6a5939bdaa81eae868fb644b8ff"
+    },
+    "assets/materials/moroccan_zellige/color_2k.webp": {
+      "bytes": 301870,
+      "sha256": "7274028b038eefd7273dddb643db7112683aa73955a31f814fbc6321d341190e"
+    },
+    "assets/materials/moroccan_zellige/normal_1k.webp": {
+      "bytes": 92488,
+      "sha256": "eb03e74194cb02e3343d090d7a525fc89e585d2169d8dfb2ffebbde29e11ebfd"
+    },
+    "assets/materials/moroccan_zellige/normal_2k.webp": {
+      "bytes": 299094,
+      "sha256": "a93343000b31a974b4ca532bba74aa4c1b45a2275fc5d92fa32a60ca1d6c8f22"
+    },
+    "assets/materials/moroccan_zellige/orm_1k.webp": {
+      "bytes": 74952,
+      "sha256": "13a97d47da8a18dc433c31d8a11d013eb7784908b136a8523488070ae4b523f9"
+    },
+    "assets/materials/moroccan_zellige/thumb.webp": {
+      "bytes": 9886,
+      "sha256": "6ca869339eedbd68a1ffbc04ba50b09e192355bcb3f4d1dd368c761899c89ac1"
+    },
+    "assets/materials/mosaic_blue/color_1k.webp": {
+      "bytes": 263278,
+      "sha256": "99c50aa3045f78cceba65399f671a3e69e086b47c90ff0d1c388a91dafd832f5"
+    },
+    "assets/materials/mosaic_blue/color_2k.webp": {
+      "bytes": 568944,
+      "sha256": "95d17b1537943394931fc9e5d66c6ed0c7356b715935680ad6e642b3052fc95a"
+    },
+    "assets/materials/mosaic_blue/normal_1k.webp": {
+      "bytes": 205932,
+      "sha256": "efd1fb21c65c5f52206ffa884c77ad7bd6f3fc9043186f1ea83dc65d529d3214"
+    },
+    "assets/materials/mosaic_blue/normal_2k.webp": {
+      "bytes": 490202,
+      "sha256": "92c1429766773e08325d796ce060ceaa228cb4a9a1d17e9e93ca80e7ff5a31bf"
+    },
+    "assets/materials/mosaic_blue/orm_1k.webp": {
+      "bytes": 179424,
+      "sha256": "8aab6326e981f1e1cfae377cfae2d4feceb31b1085bf9897905efeb3a8e234e5"
+    },
+    "assets/materials/mosaic_blue/thumb.webp": {
+      "bytes": 15278,
+      "sha256": "64efbd30a51cf26a989a689994dddfb04a273606e2450314ab13a3b40decffe9"
+    },
+    "assets/materials/natural_linen/color_1k.webp": {
+      "bytes": 360868,
+      "sha256": "ba99e227556691bb816d55e800db178608ada920d5dd058369bd7c325ad634f7"
+    },
+    "assets/materials/natural_linen/color_2k.webp": {
+      "bytes": 773844,
+      "sha256": "15493be836828a728ec6768db0e6abc318a8cb476d2e3d997b96e2a385d5ec72"
+    },
+    "assets/materials/natural_linen/normal_1k.webp": {
+      "bytes": 618640,
+      "sha256": "496144242768b84cb3a60910deb3dc8e6ae75f9c67b37c4e2efa3f29a14a051d"
+    },
+    "assets/materials/natural_linen/normal_2k.webp": {
+      "bytes": 1814052,
+      "sha256": "8e4f519dedff9d673cf49330b1d08f9290130c6afcc85dfa886f10f2a8df4721"
+    },
+    "assets/materials/natural_linen/orm_1k.webp": {
+      "bytes": 320930,
+      "sha256": "1e31e755ac63880fa70b57a9b9144eea013db4fe727035b30c4c88cf07a5e6b3"
+    },
+    "assets/materials/natural_linen/thumb.webp": {
+      "bytes": 7242,
+      "sha256": "2dbcdaf91f9cdb0100f5fe494d2546a9bc8eceef1fc7781031d3d4af07756ee0"
+    },
+    "assets/materials/nero_marquina/color_1k.webp": {
+      "bytes": 141658,
+      "sha256": "2fb10b8b2ad398adefe521c3d376a06b256be02e5f4ebbab766cc8c65a81a7a8"
+    },
+    "assets/materials/nero_marquina/color_2k.webp": {
+      "bytes": 305170,
+      "sha256": "82e7b9baa95dfb99f183d7a9e490d16f22a3b613ce42839a06453fc61e5fc689"
+    },
+    "assets/materials/nero_marquina/normal_1k.webp": {
+      "bytes": 9084,
+      "sha256": "87ae0ae24c64b73210cedc159eb1b732da231bbf13d9d3991b50529e42f3b3c3"
+    },
+    "assets/materials/nero_marquina/normal_2k.webp": {
+      "bytes": 39616,
+      "sha256": "ff969564dd96fe5573022ede42cfb0c71f450ad2cea7c23ede9c821d9d4e2077"
+    },
+    "assets/materials/nero_marquina/orm_1k.webp": {
+      "bytes": 15430,
+      "sha256": "4c93630431db9933362c1770175c025f45d34cb69fd022bb8b71956c12d31563"
+    },
+    "assets/materials/nero_marquina/thumb.webp": {
+      "bytes": 7354,
+      "sha256": "9cfcdde3df7e1f4215f8dcfaf775b7b04bbdcd1bf9c41a78e1e13d0c374c333e"
+    },
+    "assets/materials/oak_natural/color_1k.webp": {
+      "bytes": 133520,
+      "sha256": "11985555a6383e4c8be7386dd62ba16867e19509354ec0ce4fedeace06f38ff3"
+    },
+    "assets/materials/oak_natural/color_2k.webp": {
+      "bytes": 328116,
+      "sha256": "61137134dc6d69709192166bd971ead53efc3cc8aa6b21c26af239aea21e3f01"
+    },
+    "assets/materials/oak_natural/normal_1k.webp": {
+      "bytes": 427666,
+      "sha256": "45b2b232542e68ba1f1ad34956b2015a5d33c0018069067f75fd895947a6732e"
+    },
+    "assets/materials/oak_natural/normal_2k.webp": {
+      "bytes": 1376742,
+      "sha256": "fc89a4547c26f2a58cc28443c81beb92a12a86f5b9422b0073ecf451e5636180"
+    },
+    "assets/materials/oak_natural/orm_1k.webp": {
+      "bytes": 184690,
+      "sha256": "4f7dd4b4dd6f94736dcbbd566d53eba2b0b3f090385f57416df5dc3985b49dba"
+    },
+    "assets/materials/oak_natural/thumb.webp": {
+      "bytes": 7836,
+      "sha256": "86618557a0d0e9e1dae686dfc98b8d3f123cdd9f6664a0ff11dfdc5a78ebc666"
+    },
+    "assets/materials/onyx_gold/color_1k.webp": {
+      "bytes": 164594,
+      "sha256": "229d08c20cac0010e50f4a2ed0d7c6240372b21003604cb1fd1608dd284f852a"
+    },
+    "assets/materials/onyx_gold/color_2k.webp": {
+      "bytes": 383596,
+      "sha256": "954d42d2263a553cd2c531b9ac2b8a49cad1cf123a244a50b3e3c7ecf3dc6c4d"
+    },
+    "assets/materials/onyx_gold/normal_1k.webp": {
+      "bytes": 18934,
+      "sha256": "4c56d33b2cd044dc3dc87c763f67e1d3fef54e5766d8dfad3a9e109ccf6348f8"
+    },
+    "assets/materials/onyx_gold/normal_2k.webp": {
+      "bytes": 91720,
+      "sha256": "0d938b42cecd289fa52bc8f911264bcdb8b23d0db35370e243f2b81d19ccb360"
+    },
+    "assets/materials/onyx_gold/orm_1k.webp": {
+      "bytes": 25394,
+      "sha256": "cc2ff7b403ef6c7ac3da052f678fdf193223fd14bee8765ad60b6b59c819938e"
+    },
+    "assets/materials/onyx_gold/thumb.webp": {
+      "bytes": 7922,
+      "sha256": "d4b75176d2846e204faa095c7a8e3ea8730f1fe9c5ccb65d985817a370ff583d"
+    },
+    "assets/materials/pebble_grey/color_1k.webp": {
+      "bytes": 303542,
+      "sha256": "2721e510f9957ed9a838c9622dfa59db0dcf83523b1b90b59c976f4eaab1d80c"
+    },
+    "assets/materials/pebble_grey/color_2k.webp": {
+      "bytes": 708532,
+      "sha256": "15c93732e1c3387b3d779dc29a1ee6bf7f7b9f30a2e1fb4e07d983bf6477585a"
+    },
+    "assets/materials/pebble_grey/normal_1k.webp": {
+      "bytes": 512866,
+      "sha256": "6312abf20528d2a1d7a7748faec74bae6e3a8727110711d9b201d232ec4b3ac2"
+    },
+    "assets/materials/pebble_grey/normal_2k.webp": {
+      "bytes": 1568456,
+      "sha256": "7e69d841fdfdb066531be48672af52e628e30cc6b0908b800c0386b205c931d6"
+    },
+    "assets/materials/pebble_grey/orm_1k.webp": {
+      "bytes": 217698,
+      "sha256": "4cb79c42f4d17f0b271c78cc19364c63ec70edc98a954955b8e0736a6a338cc6"
+    },
+    "assets/materials/pebble_grey/thumb.webp": {
+      "bytes": 11166,
+      "sha256": "765e7cc810a36a7488cc2f9553a570a30852210562708da03804d39a21b23ba8"
+    },
+    "assets/materials/polished_brass/color_1k.webp": {
+      "bytes": 93326,
+      "sha256": "89765416f9bf638a02d85894f81af56474b034d5ad545dbce1788c8ac328b6b7"
+    },
+    "assets/materials/polished_brass/color_2k.webp": {
+      "bytes": 261248,
+      "sha256": "5777121d12c7c4da57ca24ce6054c7a1724134cc141b7b361f3a369ef4ed6e83"
+    },
+    "assets/materials/polished_brass/normal_1k.webp": {
+      "bytes": 406894,
+      "sha256": "5456cc33a818421955a4c6bdc5957fd17cd008c76acc125d2fe0936ad8cba145"
+    },
+    "assets/materials/polished_brass/normal_2k.webp": {
+      "bytes": 1281012,
+      "sha256": "405cacd412e75e9c52a766731c4bef27e601ee0e3e24986e953353a3c300754d"
+    },
+    "assets/materials/polished_brass/orm_1k.webp": {
+      "bytes": 266704,
+      "sha256": "063863671f2597b6d9a7a8125448a0d9d940654e374964d8cd8da29cd000f7fc"
+    },
+    "assets/materials/polished_brass/thumb.webp": {
+      "bytes": 8770,
+      "sha256": "5ee01f0053b37a34781725e479a0234e410e4162a4bccdd2e1a7e84423795dde"
+    },
+    "assets/materials/polished_microcement/color_1k.webp": {
+      "bytes": 35862,
+      "sha256": "f2c19794b40a59252c839c4a4d5f952a50b2128430b185070b1a2d1603cbe859"
+    },
+    "assets/materials/polished_microcement/color_2k.webp": {
+      "bytes": 151808,
+      "sha256": "3a875e9c03f3a57cf3e0766b4d245104dd83830d3eeeea6f1a67b0984a4576f3"
+    },
+    "assets/materials/polished_microcement/normal_1k.webp": {
+      "bytes": 29706,
+      "sha256": "16cf5a9b8186752d175a32ece2e7ec2b3b860e25d6c455823a2780a510665e33"
+    },
+    "assets/materials/polished_microcement/normal_2k.webp": {
+      "bytes": 213890,
+      "sha256": "f6560a829c8f637fa23acc4c59e8b1861528a6927f3923e461e49ece013b69aa"
+    },
+    "assets/materials/polished_microcement/orm_1k.webp": {
+      "bytes": 45594,
+      "sha256": "0d70912fda232f1356867f9b30819eb351d23201e23545bc02c061a9077bd9a2"
+    },
+    "assets/materials/polished_microcement/thumb.webp": {
+      "bytes": 3768,
+      "sha256": "ba5966fc548f785986fe4cd754fca9db7ad3f9ada8004fa1da675cbaa6f05eec"
+    },
+    "assets/materials/raw_board_concrete/color_1k.webp": {
+      "bytes": 221838,
+      "sha256": "0acaa81a548e5a6f2534fb642af7a0c53098bed5c596f6a02b5a9986894198b7"
+    },
+    "assets/materials/raw_board_concrete/color_2k.webp": {
+      "bytes": 558724,
+      "sha256": "aa45e375ec583a87ffae1a8a12d4ef72fea68fa00cf4ce1b1acf9888b3fb60e2"
+    },
+    "assets/materials/raw_board_concrete/normal_1k.webp": {
+      "bytes": 522878,
+      "sha256": "d3d9c38daab607ed53e891e4507ac7094086d85d63cacee013b33b99b94611eb"
+    },
+    "assets/materials/raw_board_concrete/normal_2k.webp": {
+      "bytes": 1717974,
+      "sha256": "8b99b1f93df1644ecd7ed2c21f62c3e42be95098ac3bb0ae5bf80c989cb536ef"
+    },
+    "assets/materials/raw_board_concrete/orm_1k.webp": {
+      "bytes": 226416,
+      "sha256": "0545dd9d1e4f49810b54d03f72a4c87cdb51f9f09521baa1b23600c11a461717"
+    },
+    "assets/materials/raw_board_concrete/thumb.webp": {
+      "bytes": 7878,
+      "sha256": "49a5298b6c1a839d39628a264ede951087cd14ae222370e01a0094d20147c5e0"
+    },
+    "assets/materials/reclaimed_wood/color_1k.webp": {
+      "bytes": 280742,
+      "sha256": "b21d3a126e00b87bd3774b3091a39975912eec4d6556fe49f9ef6792165dc783"
+    },
+    "assets/materials/reclaimed_wood/color_2k.webp": {
+      "bytes": 688090,
+      "sha256": "e264f675edbc8ac0ca3f74583fd6d7dfe0274906ca443205f177c574e6228906"
+    },
+    "assets/materials/reclaimed_wood/normal_1k.webp": {
+      "bytes": 528032,
+      "sha256": "e6f6379f5b37557022d14f2622a54a39babc9154c8833c4a0462c1b9e7f579d1"
+    },
+    "assets/materials/reclaimed_wood/normal_2k.webp": {
+      "bytes": 1667634,
+      "sha256": "78eed2945a6de97f45770d2b15595374dfcdcb41fef32ebb1f4103cabe46e507"
+    },
+    "assets/materials/reclaimed_wood/orm_1k.webp": {
+      "bytes": 210146,
+      "sha256": "8b2a50a41698cd5a8281c4bc365cb7f711b75487b13be55fb5ec3a38fd4121b2"
+    },
+    "assets/materials/reclaimed_wood/thumb.webp": {
+      "bytes": 9220,
+      "sha256": "dd566a9627ac60bdd5478fd04705dfa3d66c0c2fc509d867dc5110891ac56de4"
+    },
+    "assets/materials/red_heritage_brick/color_1k.webp": {
+      "bytes": 210178,
+      "sha256": "a4015927c65e7c6f2a54d262d28eae3353ebba2e99c75ba6bc79f93b0df48914"
+    },
+    "assets/materials/red_heritage_brick/color_2k.webp": {
+      "bytes": 538756,
+      "sha256": "785d3d319004ca3b62dcf9a46435557dcc426c13977428752f2574d7de6efa48"
+    },
+    "assets/materials/red_heritage_brick/normal_1k.webp": {
+      "bytes": 315714,
+      "sha256": "c9891225f58d9cc1a5b43cbd7ce0c3002e3056b874e9f072e44e4f326ed925ec"
+    },
+    "assets/materials/red_heritage_brick/normal_2k.webp": {
+      "bytes": 1016060,
+      "sha256": "2af354f4938df17d46f274ea74ac93f737cd456ea3bb8201e8f47bad9f43f4c2"
+    },
+    "assets/materials/red_heritage_brick/orm_1k.webp": {
+      "bytes": 126216,
+      "sha256": "5bd8b5d962068bd293976d8b2a45c7e7fa2f24a0a3242baafd562ffa170f8abc"
+    },
+    "assets/materials/red_heritage_brick/thumb.webp": {
+      "bytes": 12554,
+      "sha256": "d9f9752b2049a1557cd5d380294677aba2196ea60bdb88285a616e1b93a527e7"
+    },
+    "assets/materials/reeded_glass/color_1k.webp": {
+      "bytes": 14636,
+      "sha256": "5c80cd2f672619ce1d9c936e35b3a4a2cc33c19fc1dc4fc0be1ba06e2e0f89ec"
+    },
+    "assets/materials/reeded_glass/color_2k.webp": {
+      "bytes": 42552,
+      "sha256": "2f78c245e77b1eea7540029d333267dd20a2a28cf95e92a42824df42d47d1954"
+    },
+    "assets/materials/reeded_glass/normal_1k.webp": {
+      "bytes": 41570,
+      "sha256": "0dad54ee939a787ededb0685863bc904239191aa65b357f75157d0b35c7758e2"
+    },
+    "assets/materials/reeded_glass/normal_2k.webp": {
+      "bytes": 186956,
+      "sha256": "d85f99cca67adae0c40215e570d7dcc88ef1903aeea21e3149b213af00505cb3"
+    },
+    "assets/materials/reeded_glass/orm_1k.webp": {
+      "bytes": 20658,
+      "sha256": "4b06d9a3c8881d04f8d9836f66749b24ef73afccb44242094872ccd8f920a11e"
+    },
+    "assets/materials/reeded_glass/thumb.webp": {
+      "bytes": 4712,
+      "sha256": "26c25d98cd212a258ba5bccab96d38c983497631fccf7ef1ca5c0d4d82790bf8"
+    },
+    "assets/materials/roof_clay_tile/color_1k.webp": {
+      "bytes": 128580,
+      "sha256": "05cc593e6b4fdc0bc2bec71305ad225dbf7f94aae5a265a549d34198d586dcda"
+    },
+    "assets/materials/roof_clay_tile/color_2k.webp": {
+      "bytes": 335998,
+      "sha256": "947157111e28cf1295748a574241937ac93327e0ffb0e17586545ae03f18b353"
+    },
+    "assets/materials/roof_clay_tile/normal_1k.webp": {
+      "bytes": 354132,
+      "sha256": "3eb22c9250cbf1579c5d53a59ff63e4d3d0401e6cb614d2ff0961c62b8d6f04d"
+    },
+    "assets/materials/roof_clay_tile/normal_2k.webp": {
+      "bytes": 1107624,
+      "sha256": "f9a4c4ab64088cc66d3a0dcfa90b4435ecc883f79b332efe6af3819aff1ae353"
+    },
+    "assets/materials/roof_clay_tile/orm_1k.webp": {
+      "bytes": 114630,
+      "sha256": "6fc9ab29626fa67f4286ec2d8590dd6b334461e73ffb0d93845ef57a46d8aa90"
+    },
+    "assets/materials/roof_clay_tile/thumb.webp": {
+      "bytes": 9608,
+      "sha256": "d7e9153425592f13351228310ac045c09f74f8c1a4451672096d7f89294d1135"
+    },
+    "assets/materials/roof_shingle/color_1k.webp": {
+      "bytes": 355968,
+      "sha256": "223e101382b33c429f1d684329e85844ea6bb547c8e2c5854c72dfa8466427c9"
+    },
+    "assets/materials/roof_shingle/color_2k.webp": {
+      "bytes": 919730,
+      "sha256": "b4f1925fa80053a0cb8feb319d78c189eb520caeeb204895645b048511250b10"
+    },
+    "assets/materials/roof_shingle/normal_1k.webp": {
+      "bytes": 612216,
+      "sha256": "f50a395f0977eeff2e7712393f45da7a85ceb6fade989b7107e1f3a12132fb93"
+    },
+    "assets/materials/roof_shingle/normal_2k.webp": {
+      "bytes": 2076708,
+      "sha256": "bf1693f703187a95d3bc634f6bdcc71155c14f941f6330386127292e527c2545"
+    },
+    "assets/materials/roof_shingle/orm_1k.webp": {
+      "bytes": 285942,
+      "sha256": "48f675f26c238440eea26c8a546ed068007e194d342f5357cfd5afc7516c8425"
+    },
+    "assets/materials/roof_shingle/thumb.webp": {
+      "bytes": 7766,
+      "sha256": "c3d0987a38318ec82bd15a5f2dd8cc1fe236375f25d4e1a17596b7ff2ca5d502"
+    },
+    "assets/materials/roof_standing_seam/color_1k.webp": {
+      "bytes": 76428,
+      "sha256": "f417e92c9a12762fa799c61f2bd12504c7bde2ee1693ff576bc0c58c9e68032c"
+    },
+    "assets/materials/roof_standing_seam/color_2k.webp": {
+      "bytes": 272930,
+      "sha256": "e7285ed1a5c11321d8be7f4f6d5c15b83b5f6b593bda8f6d99d1549197fb528f"
+    },
+    "assets/materials/roof_standing_seam/normal_1k.webp": {
+      "bytes": 267334,
+      "sha256": "fe423d82d00d7d4f33839680f02017f5b45de063f1bbab2117f8a7badedadaa6"
+    },
+    "assets/materials/roof_standing_seam/normal_2k.webp": {
+      "bytes": 978288,
+      "sha256": "87a94217ecd957656a6946ac24b008bc274df485f662783cbfefd4ace8045661"
+    },
+    "assets/materials/roof_standing_seam/orm_1k.webp": {
+      "bytes": 104316,
+      "sha256": "95722674946326a0a81d5e41c005aacffc44db18c4a95743249292788e0f8974"
+    },
+    "assets/materials/roof_standing_seam/thumb.webp": {
+      "bytes": 5120,
+      "sha256": "a6fc57aab80f171a85089ae920825bb8651efbcbf05676df0dc5be0f752dbf06"
+    },
+    "assets/materials/sandstone_paving/color_1k.webp": {
+      "bytes": 216230,
+      "sha256": "3162d870c82c9e018a00fd0b15d67fe8f9dc167f8ba108866fbc387b893675f6"
+    },
+    "assets/materials/sandstone_paving/color_2k.webp": {
+      "bytes": 567272,
+      "sha256": "3c350a3d2fc3c7985b096f7c9b8f41545ce67d1d45ae408601556e8dd871d88f"
+    },
+    "assets/materials/sandstone_paving/normal_1k.webp": {
+      "bytes": 503488,
+      "sha256": "7035e246dc80f8c060ddb375421eb1acdeb0e340673652cc93a0488ac4e89629"
+    },
+    "assets/materials/sandstone_paving/normal_2k.webp": {
+      "bytes": 1617506,
+      "sha256": "bac1afa61118c04d5ebe2df10cb4774d03c2de4a2e26dc6934be43c435b878d4"
+    },
+    "assets/materials/sandstone_paving/orm_1k.webp": {
+      "bytes": 197746,
+      "sha256": "c14f7d02a82dc5d06e55d801e63c7a2564a1a9d6f3bbeb080230e729f53d8792"
+    },
+    "assets/materials/sandstone_paving/thumb.webp": {
+      "bytes": 7790,
+      "sha256": "4141c21485302c94124d35f30f72e0b8f162bc91b89b5c4d3412574a64a2895d"
+    },
+    "assets/materials/slate_dark/color_1k.webp": {
+      "bytes": 256052,
+      "sha256": "8f4e9e8141c1b2d0a66536c4a887122cb22619c1a9a02c7cb7efb17d9c17c834"
+    },
+    "assets/materials/slate_dark/color_2k.webp": {
+      "bytes": 608456,
+      "sha256": "b8865242f467349d1dfa252f4f6497ec0b22fa09d0e76b2d04cf693898945328"
+    },
+    "assets/materials/slate_dark/normal_1k.webp": {
+      "bytes": 582728,
+      "sha256": "931585e6e0e00c4711a7e0f039720af8974461ef792bb1a78e3456b6d13d43d8"
+    },
+    "assets/materials/slate_dark/normal_2k.webp": {
+      "bytes": 1849230,
+      "sha256": "17d12c83f24a3346eaba17e61e651d9d162079fcf15cf532177ae848730c6042"
+    },
+    "assets/materials/slate_dark/orm_1k.webp": {
+      "bytes": 267098,
+      "sha256": "96246ae90226a96dfe641bb39ca570cbea5c746087604bdbbda764c28fb1a0fc"
+    },
+    "assets/materials/slate_dark/thumb.webp": {
+      "bytes": 7538,
+      "sha256": "b2fa1169e6211ade9e6aa1f447e196f64d2358328b420a71a0f44a7ef96ca2b1"
+    },
+    "assets/materials/slatwall_oak/color_1k.webp": {
+      "bytes": 91752,
+      "sha256": "16cf943ec26dca514223dbdab731b02b99b29f93995c6a6bd576d46c0b97f722"
+    },
+    "assets/materials/slatwall_oak/color_2k.webp": {
+      "bytes": 276014,
+      "sha256": "592c24a8a5e1ee272d0ba538b510116b37394559dec1303dfc3c572c989a42f8"
+    },
+    "assets/materials/slatwall_oak/normal_1k.webp": {
+      "bytes": 185834,
+      "sha256": "c64d357e46cd41b53ed2ca97c22aaa90a792d4d3e3a2f163f6faa423af942127"
+    },
+    "assets/materials/slatwall_oak/normal_2k.webp": {
+      "bytes": 622044,
+      "sha256": "65b4b13faf3b5e64c10513b6403969586ab4d4a08c6c625fa68f5a0d6382506b"
+    },
+    "assets/materials/slatwall_oak/orm_1k.webp": {
+      "bytes": 47146,
+      "sha256": "10b190f4361057f79947fa7935f5b43b7dfb8fd3449702a2aeb96d378ccf2831"
+    },
+    "assets/materials/slatwall_oak/thumb.webp": {
+      "bytes": 9630,
+      "sha256": "a0407115c77c0877bcea7750798a5dba8e2c55a49e974b1bed99e8460d5f2000"
+    },
+    "assets/materials/subway_white/color_1k.webp": {
+      "bytes": 21696,
+      "sha256": "59b881e180aafc7bfc01f04fcfb7880beea3d586b3abb8af4496e9d1100d3889"
+    },
+    "assets/materials/subway_white/color_2k.webp": {
+      "bytes": 46720,
+      "sha256": "15d5d00dc6db451e6f7eb65997f56cfecdcb403cb22220320f068932ac7da18b"
+    },
+    "assets/materials/subway_white/normal_1k.webp": {
+      "bytes": 45228,
+      "sha256": "210dd065301313d3318528c6d09fc120a2d4cb69a040eb7cfdfb64a8476e7c76"
+    },
+    "assets/materials/subway_white/normal_2k.webp": {
+      "bytes": 116444,
+      "sha256": "aa69c42fd52fe4a5dc07bef0af8ce5098f19675b43ea4c34af41fa205ce50b2a"
+    },
+    "assets/materials/subway_white/orm_1k.webp": {
+      "bytes": 30766,
+      "sha256": "c79a3211cc22ced04336f235c1c46b0d8958ca974ce4016284c71df4b74c61a2"
+    },
+    "assets/materials/subway_white/thumb.webp": {
+      "bytes": 5998,
+      "sha256": "65d9de9917c25a67250042c24c19a8a1a32b6055e88e57c723b0d820296e1b9a"
+    },
+    "assets/materials/teak_rustic/color_1k.webp": {
+      "bytes": 184340,
+      "sha256": "42bbeaf6a20c4da09b47594368836400efe7c6bdd2137ac973043785f69116c9"
+    },
+    "assets/materials/teak_rustic/color_2k.webp": {
+      "bytes": 507024,
+      "sha256": "9440d8e0835ac1fda20eb3d61f5e10629dff6c9dde999aaf7ce7f98775bbb503"
+    },
+    "assets/materials/teak_rustic/normal_1k.webp": {
+      "bytes": 451076,
+      "sha256": "f480691cad5e15deb065ab05fbe33fa17a4562d9987e3db82dd7f7704e0a22ef"
+    },
+    "assets/materials/teak_rustic/normal_2k.webp": {
+      "bytes": 1400900,
+      "sha256": "c95ddd8b2fe28397b616ba356aaab85e36cad2facaa8ea8f31b40de33de39bd2"
+    },
+    "assets/materials/teak_rustic/orm_1k.webp": {
+      "bytes": 193964,
+      "sha256": "975a2b50c4b611aa79b90cef8a43d3270a4aab15af6c262fe3afa2e7479487fb"
+    },
+    "assets/materials/teak_rustic/thumb.webp": {
+      "bytes": 10160,
+      "sha256": "52834d53536da249927a5c603f7c4630614e40d87e418095f86672d8bfbb8446"
+    },
+    "assets/materials/terracotta_rustic/color_1k.webp": {
+      "bytes": 147062,
+      "sha256": "e6e65b233e48084c1001322ab59eab2b5abc3c5d7b4014c807bb4fa7eac1a336"
+    },
+    "assets/materials/terracotta_rustic/color_2k.webp": {
+      "bytes": 402116,
+      "sha256": "c84ea667461771e635835b9c269e58466720dd56f991f14747454307673542d7"
+    },
+    "assets/materials/terracotta_rustic/normal_1k.webp": {
+      "bytes": 478632,
+      "sha256": "341402aba645e4c2958601f2676e63e48ae271719d968d9bb72e3bec31b35260"
+    },
+    "assets/materials/terracotta_rustic/normal_2k.webp": {
+      "bytes": 1499938,
+      "sha256": "3c3bdc7c78b3edaa0ea12aada805905ae2c6d1f80b5793678945ef73c53ec1a4"
+    },
+    "assets/materials/terracotta_rustic/orm_1k.webp": {
+      "bytes": 182812,
+      "sha256": "f524ff673d49be924e690240acb373df5741ca4860700c3e627e01a8911780bc"
+    },
+    "assets/materials/terracotta_rustic/thumb.webp": {
+      "bytes": 8772,
+      "sha256": "42995afa7f50662fed8e84fda68b7e6ca93bb9f6aea9d5d66e02ebf42540c77d"
+    },
+    "assets/materials/terrazzo_speckled/color_1k.webp": {
+      "bytes": 280162,
+      "sha256": "f0d999443ea7e242902e97e6e68712a9ae5464393e301590121456b42b5cbe2c"
+    },
+    "assets/materials/terrazzo_speckled/color_2k.webp": {
+      "bytes": 576670,
+      "sha256": "1d5905fc31e149a00332b1368e3465c6bd154a4d8f4b30cdd126051c61a49ede"
+    },
+    "assets/materials/terrazzo_speckled/normal_1k.webp": {
+      "bytes": 504340,
+      "sha256": "4a0faf8e12355b779c3ec0b3b96913eb7d607c62b822637787c8f5f0236dcabe"
+    },
+    "assets/materials/terrazzo_speckled/normal_2k.webp": {
+      "bytes": 1404914,
+      "sha256": "fc9765574b1070c40eb127f1fb95df6a0d97294ade26d21fadd8919e910a3ca4"
+    },
+    "assets/materials/terrazzo_speckled/orm_1k.webp": {
+      "bytes": 226090,
+      "sha256": "a84c8201a5ff0a41f5e825e39071e8f5fb747dac3f1497de09e5051daf067195"
+    },
+    "assets/materials/terrazzo_speckled/thumb.webp": {
+      "bytes": 10122,
+      "sha256": "c1f304d3911f283064f1b3786f6f4ff30c0b68f89c1d9ce3dcf3aa9ddf07ff78"
+    },
+    "assets/materials/travertine_beige/color_1k.webp": {
+      "bytes": 289992,
+      "sha256": "3df3654d03cec6b6bc6155f07ee3fd33c3471a231cd21ba518cac2200bc4392d"
+    },
+    "assets/materials/travertine_beige/color_2k.webp": {
+      "bytes": 686188,
+      "sha256": "28bed6d300f6c36cfb7314daeee052312749929daddd4200c6779f7cd0176525"
+    },
+    "assets/materials/travertine_beige/normal_1k.webp": {
+      "bytes": 579944,
+      "sha256": "f815583c979b15d431ba169f700184296978bc7770c10a88554adb210a8c480a"
+    },
+    "assets/materials/travertine_beige/normal_2k.webp": {
+      "bytes": 1837480,
+      "sha256": "04e9d82f69d02680ca0802fbbd6116c00fb8bd187f4f8cedb95dd6dc504363bd"
+    },
+    "assets/materials/travertine_beige/orm_1k.webp": {
+      "bytes": 272466,
+      "sha256": "8a6e08de19f68213edc25b23895f055b0451fd684ee326b54b7d8cdf267a0e31"
+    },
+    "assets/materials/travertine_beige/thumb.webp": {
+      "bytes": 9688,
+      "sha256": "905f974c874cce244ed22ccd1cc1d7f305ac039787352136240fecc216ffb173"
+    },
+    "assets/materials/tufted_velvet_navy/color_1k.webp": {
+      "bytes": 285970,
+      "sha256": "64ab2f3ad9cb8453ac99a6b15d0daa05279863e5bb098521e5623ecb5b89980f"
+    },
+    "assets/materials/tufted_velvet_navy/color_2k.webp": {
+      "bytes": 687160,
+      "sha256": "1e39035921f7a3460b94ae117fcca1503824e7a517806fead33d791c4217e0e7"
+    },
+    "assets/materials/tufted_velvet_navy/normal_1k.webp": {
+      "bytes": 667910,
+      "sha256": "c6ab94f10d8c348a655339d2b54ae7dd8f1ae78b82b37537e64d440700371d9d"
+    },
+    "assets/materials/tufted_velvet_navy/normal_2k.webp": {
+      "bytes": 2211348,
+      "sha256": "026c8f107d25ff1a33fa5d1418da0aa36f4a2c3b69ae17042f0f1782fbcf0646"
+    },
+    "assets/materials/tufted_velvet_navy/orm_1k.webp": {
+      "bytes": 311012,
+      "sha256": "663305211214eb29cb9a883f2bcdd995ff0b35f84e9c9931498d0b7230d26627"
+    },
+    "assets/materials/tufted_velvet_navy/thumb.webp": {
+      "bytes": 4992,
+      "sha256": "9efbed9d6954630729ab2e4af97c200f0a974b6c00d5f979dd6b402a7701622c"
+    },
+    "assets/materials/veneer_birch/color_1k.webp": {
+      "bytes": 39224,
+      "sha256": "0385b7f0a889f60dfc67f15530245774cefb046f2edfce0a1da790348b47a681"
+    },
+    "assets/materials/veneer_birch/color_2k.webp": {
+      "bytes": 123198,
+      "sha256": "2f0c6f009d5776530bd1452b4d93920e014179b1b819e1d60aafaed2a88e26d9"
+    },
+    "assets/materials/veneer_birch/normal_1k.webp": {
+      "bytes": 453552,
+      "sha256": "d6762aa649dbb5e13ec5c5d4cb9ea169b628054fcd5e084fa12ec27e10041659"
+    },
+    "assets/materials/veneer_birch/normal_2k.webp": {
+      "bytes": 1402826,
+      "sha256": "948878d7be5b4a8647982567eaf645377b69ffb2871db83d4f9ae98b3209be08"
+    },
+    "assets/materials/veneer_birch/orm_1k.webp": {
+      "bytes": 216888,
+      "sha256": "cd96e523ffd6c5d63670520ff7c6dc4f95f0ddbc1ad054e75c1b359baa45122c"
+    },
+    "assets/materials/veneer_birch/thumb.webp": {
+      "bytes": 5286,
+      "sha256": "d3c56987fdca578340f3b77fd62524881c457e27927cf7ad4f69cde4320b730a"
+    },
+    "assets/materials/veneer_oak/color_1k.webp": {
+      "bytes": 112264,
+      "sha256": "d663a6cce8452ac567d384a64c90b1e3028ab087d5f01ce065ac5570302b3744"
+    },
+    "assets/materials/veneer_oak/color_2k.webp": {
+      "bytes": 277026,
+      "sha256": "b154f99ac7b8f22fa5e8f2bc33c38c877ff4c30936edee70450d505c0a38d430"
+    },
+    "assets/materials/veneer_oak/normal_1k.webp": {
+      "bytes": 424876,
+      "sha256": "1a4a18c16f9ec267e7573a362fd26daa3f89c3211c89dbdf211bbc3194215ef7"
+    },
+    "assets/materials/veneer_oak/normal_2k.webp": {
+      "bytes": 1275276,
+      "sha256": "e69e24fc1abc3f7b12998837b5160f01d70257fa23d467e2f20a460f8c961113"
+    },
+    "assets/materials/veneer_oak/orm_1k.webp": {
+      "bytes": 208790,
+      "sha256": "89fd4b80c17f8b5310cd5d910ff97665843c0f19860248f85b118682188214c2"
+    },
+    "assets/materials/veneer_oak/thumb.webp": {
+      "bytes": 6422,
+      "sha256": "4dc1f81989548df415caa373e5a3f7d6862a406223712efc63f56f67b1977ec3"
+    },
+    "assets/materials/veneer_walnut/color_1k.webp": {
+      "bytes": 95944,
+      "sha256": "e99c2128756efcfe72328051ccb1fe26fcae4bd74da064fdd78c0feb86d617f3"
+    },
+    "assets/materials/veneer_walnut/color_2k.webp": {
+      "bytes": 276018,
+      "sha256": "c2df3892a746820f93d7f86f87ef953180ddc52bd36ed5da47d1a2444e687984"
+    },
+    "assets/materials/veneer_walnut/normal_1k.webp": {
+      "bytes": 482836,
+      "sha256": "617dee2cea13fa7baed528caeb9debcbd305f8b6e6e08a05eba1e36358136f89"
+    },
+    "assets/materials/veneer_walnut/normal_2k.webp": {
+      "bytes": 1544132,
+      "sha256": "01333f2be1a9d88c46edee3116b76e17cbb25fa05e77923dc7bbeeb10e9e5a18"
+    },
+    "assets/materials/veneer_walnut/orm_1k.webp": {
+      "bytes": 217570,
+      "sha256": "59fe6fb8943ab1a35a0463f76fc6ce719f3b7ac667e62157589d276e30b7dc11"
+    },
+    "assets/materials/veneer_walnut/thumb.webp": {
+      "bytes": 6296,
+      "sha256": "4eadebd4f31841151877f16158882c4594cfe41d8332635befb525d57cbea6da"
+    },
+    "assets/materials/venetian_plaster_white/color_1k.webp": {
+      "bytes": 75844,
+      "sha256": "086c3ac214c83af96b902a473ef058a36dbe4fe1b7bde962e72093a8b4a1141f"
+    },
+    "assets/materials/venetian_plaster_white/color_2k.webp": {
+      "bytes": 244734,
+      "sha256": "5eebd62503bb467cc5b17af168c03643143b2de0433d0f672d9f7e5a0a6233fb"
+    },
+    "assets/materials/venetian_plaster_white/normal_1k.webp": {
+      "bytes": 27826,
+      "sha256": "8a6c3bafccf44d30f0710ec8f088de5a64fdffd8d5b35c4c5464093e2158e39c"
+    },
+    "assets/materials/venetian_plaster_white/normal_2k.webp": {
+      "bytes": 212942,
+      "sha256": "3cdb1695831bce7628e97470a203937082db3a5110ae42fb15bbb09d12d3de22"
+    },
+    "assets/materials/venetian_plaster_white/orm_1k.webp": {
+      "bytes": 56554,
+      "sha256": "3d5716998746bf84d09c83b29acff220e4a4c0d5348a2f67c7fe6281a2da75d0"
+    },
+    "assets/materials/venetian_plaster_white/thumb.webp": {
+      "bytes": 3730,
+      "sha256": "5f4b4de938fe987c6c071934fed1c4079387a29585a2615e72680734df624043"
+    },
+    "assets/materials/walnut_dark/color_1k.webp": {
+      "bytes": 77158,
+      "sha256": "8133b9fafe64e5251f20572347ae804b500a1dcc6da759e3c2933daf37736ffa"
+    },
+    "assets/materials/walnut_dark/color_2k.webp": {
+      "bytes": 223252,
+      "sha256": "6a03d53b473eff0aaed281e47472a9effd69e3b4f47f4e3406cdb3a8ffeaafd2"
+    },
+    "assets/materials/walnut_dark/normal_1k.webp": {
+      "bytes": 420876,
+      "sha256": "008dad74560f021afa3bcbe2db098af5c12dedfa2623385c3bc12a5855a03a55"
+    },
+    "assets/materials/walnut_dark/normal_2k.webp": {
+      "bytes": 1280652,
+      "sha256": "03bedb5bf60a6306e0b0cb2b456413392357296d726ff7b3098b14d9cdf9880c"
+    },
+    "assets/materials/walnut_dark/orm_1k.webp": {
+      "bytes": 162272,
+      "sha256": "17bab41d051133bb7b6d9ddefd0353942016a865b0f9fa1792882b4f78e72bda"
+    },
+    "assets/materials/walnut_dark/thumb.webp": {
+      "bytes": 6404,
+      "sha256": "b0bbdfb8e431a6a32597bc574915408e64cd9d5284358b6e12a1ed41a7e9197e"
+    },
+    "assets/materials/white_ash/color_1k.webp": {
+      "bytes": 119132,
+      "sha256": "1f4811583fa8fa0293a53d11fa80e9f9199391ef289ebfb4edb10fe7a3385d72"
+    },
+    "assets/materials/white_ash/color_2k.webp": {
+      "bytes": 313008,
+      "sha256": "c5b6668fbb55300c2abe52c667761c3fcc89825b0eaf7ad715f17c4cc9d87e5f"
+    },
+    "assets/materials/white_ash/normal_1k.webp": {
+      "bytes": 429232,
+      "sha256": "fbb9d83d0212609fefb35b89a42531f90927ddc044d7d9d3fb82ea2c292dea30"
+    },
+    "assets/materials/white_ash/normal_2k.webp": {
+      "bytes": 1305750,
+      "sha256": "cf0309920dce7e6a51aba94dc251029ff0b286a7dc09662a89a51783167e2a40"
+    },
+    "assets/materials/white_ash/orm_1k.webp": {
+      "bytes": 199744,
+      "sha256": "ed04cdeec920b464140653fdefa296800304ef310c5a00a07297a9c41a9f5f0d"
+    },
+    "assets/materials/white_ash/thumb.webp": {
+      "bytes": 5788,
+      "sha256": "7cb1f86f4cbd53309291aa35387b6e02dd89a98ebc4d1a72d8bda6317ee4b325"
+    },
+    "assets/materials/whitewashed_brick/color_1k.webp": {
+      "bytes": 181362,
+      "sha256": "135bc787d63e155c88d415296ca1ae51ea184368f1d19de2f8dccd211bbff1f1"
+    },
+    "assets/materials/whitewashed_brick/color_2k.webp": {
+      "bytes": 466434,
+      "sha256": "9978ce47045ef8624e6a87ffd82c55100d91eb6fff6c730af33194dcf65c91b8"
+    },
+    "assets/materials/whitewashed_brick/normal_1k.webp": {
+      "bytes": 435138,
+      "sha256": "2b3877f6d95cd5c994c077c6ee5c39d2c88b1ddbd34c9c04ad0686c3d761da49"
+    },
+    "assets/materials/whitewashed_brick/normal_2k.webp": {
+      "bytes": 1385538,
+      "sha256": "ec2c39048f54fe59fc73aae61bf0df49b279a187f91864a0d0e02e991458a57c"
+    },
+    "assets/materials/whitewashed_brick/orm_1k.webp": {
+      "bytes": 165880,
+      "sha256": "bcedc7e0c9d0239feca2b6795af7df4abbed7408ecb96dd0db1d48d680c55c65"
+    },
+    "assets/materials/whitewashed_brick/thumb.webp": {
+      "bytes": 7460,
+      "sha256": "aafb05310af099d1d89f2d62456df2b3b3efbe640d9ce586791a898bceeb0426"
+    },
+    "assets/materials/worktop_butcher_block/color_1k.webp": {
+      "bytes": 177774,
+      "sha256": "2f520683a37e9e3fadb7ac637dfe5c0c51b1da92b93b7947321a87c8ec815b53"
+    },
+    "assets/materials/worktop_butcher_block/color_2k.webp": {
+      "bytes": 443660,
+      "sha256": "28720c80d9e7cd813d7d445b8f1d0fc7706be07f9ce3ed9ad042d4372deeee12"
+    },
+    "assets/materials/worktop_butcher_block/normal_1k.webp": {
+      "bytes": 448102,
+      "sha256": "7e2f042f070d5fe5a2dfa62af5f13353018c66c18e7cd75632898fcab743dc19"
+    },
+    "assets/materials/worktop_butcher_block/normal_2k.webp": {
+      "bytes": 1363962,
+      "sha256": "0eee2567e1e17f28e7e004eb75cce6bc765769df5766af0d8cd179a72335fa7f"
+    },
+    "assets/materials/worktop_butcher_block/orm_1k.webp": {
+      "bytes": 196996,
+      "sha256": "c3b5c378b8db37843f84d27ce1a2bf75d32d883451981725e8bb4f5b63356297"
+    },
+    "assets/materials/worktop_butcher_block/thumb.webp": {
+      "bytes": 8096,
+      "sha256": "359a610bd4ec35bbf4967d0aa28a6cedf1db00aad970e504ebf1534df68a8fc6"
+    },
+    "assets/materials/worktop_concrete/color_1k.webp": {
+      "bytes": 243168,
+      "sha256": "ce22dcdefc077d10fceccd3e97c56b034ce75799daf4815c8ae9b36f61118686"
+    },
+    "assets/materials/worktop_concrete/color_2k.webp": {
+      "bytes": 627988,
+      "sha256": "f0027cef23072000314f5cbcd70acc10d2ac000f2abd65f80030a2423dfbcb5c"
+    },
+    "assets/materials/worktop_concrete/normal_1k.webp": {
+      "bytes": 625912,
+      "sha256": "21afed888cd8e987a37b940a76629f087484915d37fedea378b71395e2bb2049"
+    },
+    "assets/materials/worktop_concrete/normal_2k.webp": {
+      "bytes": 2137276,
+      "sha256": "b3cd28e53820bbacf9aabdc0a340f0da7f041abad51fc660d25cc2e1186a2c64"
+    },
+    "assets/materials/worktop_concrete/orm_1k.webp": {
+      "bytes": 321140,
+      "sha256": "2f9ecc7d0f3778fd0dd79621b0e66e15397cc994312f93f51fbd43c86a793428"
+    },
+    "assets/materials/worktop_concrete/thumb.webp": {
+      "bytes": 5518,
+      "sha256": "9f38b8aa5f09c1bfce6365888c75c227e172c9a4f1b9e747fc7175ad2a2cf34a"
+    },
+    "assets/materials/worktop_granite_black/color_1k.webp": {
+      "bytes": 315662,
+      "sha256": "e3de84a1694bb87bed8ffe9665cb136c81912f0470d90e5e8088daea4970a2c1"
+    },
+    "assets/materials/worktop_granite_black/color_2k.webp": {
+      "bytes": 707968,
+      "sha256": "b055625d35697a513ada584a4ad55803190d1a8dd2117f072bb6b996201af836"
+    },
+    "assets/materials/worktop_granite_black/normal_1k.webp": {
+      "bytes": 15968,
+      "sha256": "efcee718f06e0f8a1222654cadb8eb65cf710dfffeb7fe8ccd9d7b216cfb9e5a"
+    },
+    "assets/materials/worktop_granite_black/normal_2k.webp": {
+      "bytes": 82238,
+      "sha256": "ec215c4d1cc173bb3642695427dedcbf3f7b140458eded9e20194f97d9a3819a"
+    },
+    "assets/materials/worktop_granite_black/orm_1k.webp": {
+      "bytes": 39018,
+      "sha256": "a15d035b73a8101c19b5cfd56b8834ef57610cd8d6e965ad4c6ac51e57f09462"
+    },
+    "assets/materials/worktop_granite_black/thumb.webp": {
+      "bytes": 9184,
+      "sha256": "36b87fd4ed22f594b5cf1273028cf0b8b772e82a29fa63e011aa1b60504a3e91"
+    },
+    "assets/materials/worktop_quartz_light/color_1k.webp": {
+      "bytes": 221698,
+      "sha256": "4e9946866c4c1c633eafa38caad2e691cda7abc501f1ac4ccb149c90aaffe96e"
+    },
+    "assets/materials/worktop_quartz_light/color_2k.webp": {
+      "bytes": 478042,
+      "sha256": "fb8797549c6bd744e313ca6a9aadcae4107a1d55548605e13b611ad61d843261"
+    },
+    "assets/materials/worktop_quartz_light/normal_1k.webp": {
+      "bytes": 21510,
+      "sha256": "74a174581d55fb36a8aa943f013f1987952aea5895a99f93a2ff864a4cf4185c"
+    },
+    "assets/materials/worktop_quartz_light/normal_2k.webp": {
+      "bytes": 144106,
+      "sha256": "f05be8763ed0a74302d55520e2f33a7d81f143dbf56be6216d63f05cf5151dae"
+    },
+    "assets/materials/worktop_quartz_light/orm_1k.webp": {
+      "bytes": 39914,
+      "sha256": "7adbff273dd8ded83484c8d2a9d85e6a4762699bc3891f4626ca7efc8190e473"
+    },
+    "assets/materials/worktop_quartz_light/thumb.webp": {
+      "bytes": 3868,
+      "sha256": "742df7a6b4f273ff2ba52a2d1b5d028d72d7295056d0f03d4a4e5ce96689fded"
+    }
+  }
+}

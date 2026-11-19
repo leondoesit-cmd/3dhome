@@ -436,15 +436,19 @@ export function checkGraph({
 
 export function checkRepo(root = REPO_ROOT) {
   const htmlPath = path.join(root, "index.html");
-  const cssPath = path.join(root, "css", "styles.css");
   const html = fs.readFileSync(htmlPath, "utf8");
-  const css = fs.existsSync(cssPath) ? fs.readFileSync(cssPath, "utf8") : "";
+  // the planner stylesheet is css/styles_NN_<area>.css pieces, linked from index.html
+  const cssFiles = [...html.matchAll(/<link\b[^>]*\bhref="(css\/styles_\d+_[a-z0-9_]+\.css)(?:\?[^"]*)?"/g)].map((m) => m[1]);
   const errors = [];
 
   for (const url of remoteBootUrls(html))
     errors.push({ file: "index.html", message: `remote boot URL ${url}` });
-  for (const url of remoteBootUrls(css))
-    errors.push({ file: "css/styles.css", message: `remote stylesheet URL ${url}` });
+  for (const file of cssFiles) {
+    const cssPath = path.join(root, file);
+    const css = fs.existsSync(cssPath) ? fs.readFileSync(cssPath, "utf8") : "";
+    for (const url of remoteBootUrls(css))
+      errors.push({ file, message: `remote stylesheet URL ${url}` });
+  }
   for (const extra of ["vendor/fonts/fonts.css", "vendor/phosphor/style.css"]) {
     const p = path.join(root, extra);
     if (!fs.existsSync(p)) continue;

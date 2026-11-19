@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { addSmartDimension, currentMeasure } from '../js/sketch_dimensions.js';
@@ -50,7 +51,7 @@ test('changing the line-pair dimension to 3.100 in moves the lines to 7.874 cm a
 
 test('the Dimension tool keeps a first line pick pending instead of dimensioning its length at once', async () => {
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+  const src = modelerSource();
   const branch = src.slice(src.indexOf('if (E.tool === "dim") {'), src.indexOf('var dtarget = dimensionTarget(dhit, uv);'));
   assert.match(branch, /E\.dimPick = \[\{ kind: "line", id: dhit\.id \}\]/);
   assert.match(branch, /type: "lines", a: pendingLine\.id, b: dhit\.id/);

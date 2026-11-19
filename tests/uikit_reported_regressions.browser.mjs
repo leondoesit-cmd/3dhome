@@ -128,7 +128,7 @@ test('Enter commits coordinate inputs before confirming a precision session',opt
     const input=document.querySelector('.touch-refine-coordinates input');input.focus();input.value='125';
     input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
     return {confirmed,closed:!document.querySelector('.touch-precision-session')};
-  }),{confirmed:{x:125,y:30},closed:true});
+  }),{confirmed:{x:125,y:30,exactModel:{x:125,y:30}},closed:true});
 });
 
 test('viewport swap restores a late parent or its original detached state',opts,async()=>{

@@ -41,6 +41,8 @@ test('gear form refuses undercut and creates the validated requested blank',chro
    document.querySelector('[data-command="stdgear"]').click();
    const set=(key,value)=>{const input=document.querySelector('#mdQuickSettings [data-parameter="'+key+'"] input');input.value=String(value);input.dispatchEvent(new Event('input',{bubbles:true}));};
    set('teeth',10);document.querySelector('#mdQuickSettings .md-quick-apply').click();const failure=document.querySelector('#mdHint').textContent;
+   // A real second click occurs after the asynchronous Apply handler releases.
+   await new Promise(requestAnimationFrame);
    window.gearCompletionHints=[];
    const hint=document.querySelector('#mdHint');
    window.gearCompletionObserver=new MutationObserver(()=>window.gearCompletionHints.push(hint.textContent));

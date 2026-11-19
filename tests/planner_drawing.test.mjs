@@ -261,3 +261,18 @@ test('a wall hover measures its declared run and height, not the mitred mesh box
   assert.deepEqual([drawing.hover.min.x, drawing.hover.max.x, drawing.hover.max.y, drawing.hover.max.z], [0, 300, 260, 10]);
   drawing.dispose();
 });
+
+test('wall outlines follow the height the wall is drawn at, so a dollhouse cut shows cut outlines', () => {
+  // a 270 cm wall built to the 160 cm Walls: Down cut (site_cutaway clipBelow)
+  const root = new THREE.Group();
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(300, 160, 10).translate(0, 80, 0), new THREE.MeshStandardMaterial());
+  wall.userData.wall = { height: 270 };
+  root.add(wall);
+  const drawing = createPlannerDrawing(THREE);
+  drawing.sync([root]);
+  const pos = drawing.group.children[0].geometry.attributes.position;
+  let top = -Infinity;
+  for (let i = 0; i < pos.count; i++) top = Math.max(top, pos.getY(i));
+  assert.equal(top, 160);
+  drawing.dispose();
+});

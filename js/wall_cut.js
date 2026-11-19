@@ -95,6 +95,54 @@ export function cutHeightFor(cutaway, opts) {
   return Math.max(CUT_MIN, h);
 }
 
+/* ---- the near-side cut of 3D edit mode (view3d.js updateSeeThrough) ----
+
+   Which walls step out of the way so the camera can see what it is looking
+   at. The first rule only cut a wall that crossed the ONE ray from the camera
+   to the orbit target, so while orbiting, the near walls off to either side of
+   that ray kept standing in front of the rooms behind them, and walls popped
+   in and out one at a time as the ray swept across their ends. This rule cuts
+   the whole near side at once, the way a dollhouse view is drawn:
+
+     - the wall's line runs between the camera and the target (it is on the
+       near side, not behind what you are looking at);
+     - some part of the wall is nearer the camera than the target, measured
+       along the view, so a far wall whose line happens to slant across the
+       view stays up;
+     - it is turned towards the camera: a wall seen edge-on hides almost
+       nothing and is what tells you where the rooms are, so it stays;
+     - the view is not looking (almost) straight down, where walls hide next to
+       nothing and "near side" stops meaning anything.
+
+   Every threshold has a little hysteresis (`was`: the wall is cut now), so a
+   camera resting on a boundary does not make a wall flicker.
+
+   `w` is { ax, az, ux, uz, L, half }: the wall's start point, unit direction,
+   length and half thickness. `cam` and `tgt` are { x, y, z }. */
+export const NEAR_FACING_CUT = 0.42; // |cos| between wall normal and view: cut at or above
+export const NEAR_FACING_KEEP = 0.3; // ...and a cut wall comes back below this
+var NEAR_MARGIN = 15; // cm
+
+export function nearSideWall(w, cam, tgt, was) {
+  if (!w || !cam || !tgt || !(w.L > 0)) return false;
+  var vx = tgt.x - cam.x, vz = tgt.z - cam.z, hd = Math.hypot(vx, vz);
+  if (hd < 1) return false;
+  var rise = (cam.y || 0) - (tgt.y || 0);
+  if (rise > 0 && hd < rise * (was ? 0.22 : 0.3)) return false; // within ~17° of straight down
+  vx /= hd;
+  vz /= hd;
+  var nx = -w.uz, nz = w.ux;
+  if (Math.abs(nx * vx + nz * vz) < (was ? NEAR_FACING_KEEP : NEAR_FACING_CUT)) return false;
+  var dc = (cam.x - w.ax) * nx + (cam.z - w.az) * nz,
+    dt = (tgt.x - w.ax) * nx + (tgt.z - w.az) * nz;
+  if (Math.abs(dc) <= (w.half || 0)) return false; // the camera is in the wall itself
+  var beyond = dc > 0 ? -dt : dt; // how far past the wall the target lies, from the camera's side
+  if (beyond < (was ? -NEAR_MARGIN : NEAR_MARGIN)) return false;
+  var ea = (w.ax - tgt.x) * vx + (w.az - tgt.z) * vz,
+    eb = (w.ax + w.ux * w.L - tgt.x) * vx + (w.az + w.uz * w.L - tgt.z) * vz;
+  return Math.min(ea, eb) < (was ? NEAR_MARGIN : 0);
+}
+
 export function normalizeCutaway(c) {
   c = c && typeof c === "object" ? c : {};
   var h = Number(c.height);

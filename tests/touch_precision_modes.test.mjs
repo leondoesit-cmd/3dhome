@@ -1,3 +1,6 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -12,9 +15,9 @@ const root = new URL("../", import.meta.url);
 const [ui, settings, interaction, modeler, css, i18n] = await Promise.all([
   readFile(new URL("js/touch_precision_ui.js", root), "utf8"),
   readFile(new URL("js/ui_site.js", root), "utf8"),
-  readFile(new URL("js/interaction.js", root), "utf8"),
-  readFile(new URL("js/modeler.js", root), "utf8"),
-  readFile(new URL("css/styles.css", root), "utf8"),
+  moduleSource("js/interaction.js"),
+  modelerSource(),
+  stylesSource(),
   readI18nSource(),
 ]);
 

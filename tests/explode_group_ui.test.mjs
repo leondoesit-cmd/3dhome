@@ -1,10 +1,12 @@
+import {registerQuickForm} from '../js/modeler_quick_form.js';
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {createExplodedView,addExplodeStep,applyExplodedView,explodeTargets} from '../js/cad_exploded_view.js';
 import {featureControlValue} from '../js/modeler_feature_form.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 
 test('Explode step seeds all selected components and authors a grouped step without changing mate poses',()=>{
  const components=[1,2,3].map(id=>({id,name:'Component '+id,transform:{x:id,y:0,z:0}}));
@@ -27,9 +29,9 @@ test('Explode step seeds all selected components and authors a grouped step with
 });
 
 test('quick form Apply reads component checkbox selections as an array rather than a text value',async()=>{
- const element=()=>({appendChild(){},addEventListener(){},focus(){},classList:{contains:()=>false}});
+ const element=()=>({appendChild(){},addEventListener(){},setAttribute(){},focus(){},classList:{contains:()=>false}});
  const host=element(),E={def:{},authoring:{}};let apply,received;
- const bindings={E,motionPlaybackCancel:null,root:{querySelector:()=>host},el:element,t:x=>x,featureField:()=>({getSeedIds:()=>['a','b']}),featureControlValue,modelLengthUnit:()=> 'mm',namedButton:x=>x,btn:(label,callback,style)=>{if(style==='md-quick-apply')apply=callback;return element();},validateFeatureInputs:()=>true,syncCommandManager:()=>{},document:{body:element()},requestAnimationFrame:fn=>fn(),closeFeaturePanel:()=>{},refreshAll:()=>{}};
+ const bindings={registerQuickForm,E,motionPlaybackCancel:null,root:{querySelector:()=>host},el:element,t:x=>x,featureField:()=>({getSeedIds:()=>['a','b']}),featureControlValue,modelLengthUnit:()=> 'mm',namedButton:x=>x,btn:(label,callback,style)=>{if(style==='md-quick-apply')apply=callback;return element();},validateFeatureInputs:()=>true,syncCommandManager:()=>{},document:{body:element()},requestAnimationFrame:fn=>fn(),closeFeaturePanel:()=>{},refreshAll:()=>{}};
  const spec={action:'explodestep',title:'Explode',fields:[{key:'components',type:'feature-seeds',value:['a']}],onApply:values=>{received=values;}};
  const fn=new Function(...Object.keys(bindings),sourceFunctionText(source,'openQuickForm')+';return openQuickForm;')(...Object.values(bindings));
  fn(spec);await apply();assert.deepEqual(received,{components:['a','b']});

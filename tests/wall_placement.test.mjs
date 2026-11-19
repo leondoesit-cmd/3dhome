@@ -1,17 +1,16 @@
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { S } from "../js/state.js";
 import { nearestWallLanding } from "../js/geometry.js";
 
-const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+const interaction = moduleSource("js/interaction.js");
 const state = await readFile(new URL("../js/state.js", import.meta.url), "utf8");
 
 test("committing a wall carries its endpoint into a continuous placement run", () => {
-  const body = interaction.slice(
-    interaction.indexOf("export function wallPoint(p)"),
-    interaction.indexOf("\nfunction splitCrossedByNewWall", interaction.indexOf("export function wallPoint(p)")),
-  );
+  const body = sourceFunctionText(interaction, "wallPoint");
 
   assert.match(body, /S\.drawFrom\s*=\s*nb/);
   assert.match(body, /S\.drawing\s*=\s*true/);
@@ -29,10 +28,7 @@ test("the first wall supports a drag-release commit without removing click-click
 });
 
 test("finishing a run clears every placement transient", () => {
-  const body = interaction.slice(
-    interaction.indexOf("export function finishDraw()"),
-    interaction.indexOf("export function wallPoint(p)"),
-  );
+  const body = sourceFunctionText(interaction, "finishDraw");
 
   for (const field of ["drawing", "drawFrom", "drawStart", "drawFromSplit", "drawWalls", "wallPress", "previewPt"])
     assert.match(body, new RegExp(`S\\.${field}\\s*=`));
@@ -93,10 +89,8 @@ test("a wall drawn off a jamb lands its face on the jamb, not its centreline", (
    win there, which made the one legal landing report "cannot connect inside an
    opening". Out of snapping range of a jamb it still wins, which is its job. */
 test("the jamb target outranks the blocked-opening warning it borders", () => {
-  const bonus = interaction.slice(
-    interaction.indexOf("const SNAP_BONUS"),
-    interaction.indexOf("function overrideKind"),
-  );
+  const at = interaction.indexOf("const SNAP_BONUS");
+  const bonus = interaction.slice(at, interaction.indexOf("\n};", at));
   const read = (k) => Number(new RegExp(`${k}:\\s*(\\d+)`).exec(bonus)[1]);
 
   assert.ok(read("jamb") > read("openingBlocked"));

@@ -22,12 +22,13 @@
  * Every one of these was invisible in the test suite and in the UI. They are
  * pinned at the source because the failure mode is silence.
  */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const read = (p) => readFile(new URL("../" + p, import.meta.url), "utf8");
-const modeler = await read("js/modeler.js");
+const modeler = modelerSource();
 const launch = await read("js/modeler_launch.js");
 
 test("a canonical document keeps the feature tree it arrived with", () => {

@@ -8,6 +8,7 @@ import * as THREE from "three";
 import { LUX } from "./gpu.js";
 import { D, SHADOW_HALF } from "./drive_state.js";
 import { setCarEnvMap, setCarMeshNightFn } from "./drive_car_mesh.js";
+import { prefilterInto } from "./sky_model.js";
 
 const hooks = {
   focusPos: () => ({ x: 0, z: 0 }),
@@ -288,13 +289,17 @@ export function buildEnv() {
   if (!D.renderer.initialized) return;
   try {
     if (!D.pmrem) D.pmrem = new THREE.PMREMGenerator(D.renderer);
-    const rt = D.pmrem.fromEquirectangular(D.envTex);
-    // Do NOT dispose the outgoing target here. WebGPU still has its cubeUv
-    // texture bound in bind groups that are in flight; destroying it in the
-    // same tick raises "Destroyed texture used in a submit" on every following
-    // frame and the picture freezes on the spot (pressing T at night did it
-    // every time). Retire it a beat later, once every material has been
-    // rebuilt against the new one.
+    /* Into the target the cars already hold (see prefilterInto): same
+       texture, new pixels. A new target per switch re-keyed every car
+       material, and three rebuilt their shaders on the next frame. */
+    const rt = prefilterInto(D.pmrem, D.envTex, D.envRT);
+    if (rt === D.envRT) return;
+    // A new target only when the size changed. Do NOT dispose the outgoing
+    // one here. WebGPU still has its cubeUv texture bound in bind groups that
+    // are in flight; destroying it in the same tick raises "Destroyed texture
+    // used in a submit" on every following frame and the picture freezes on
+    // the spot (pressing T at night did it every time). Retire it a beat
+    // later, once every material has been rebuilt against the new one.
     if (D.envRT) envRetire.push({ rt: D.envRT, at: performance.now(), frame: D.frameNo || 0 });
     D.envRT = rt;
     setCarEnvMap(D.envRT);

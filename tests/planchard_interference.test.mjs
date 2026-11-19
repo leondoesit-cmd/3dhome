@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -29,7 +30,7 @@ test("exact interference reports measured material volume", async () => {
 });
 
 test("Evaluate rebuilds and places exact component bodies before checking", async () => {
-  const source=await readFile(new URL("../js/modeler.js",import.meta.url),"utf8");
+  const source=modelerSource();
   const start=source.indexOf("async function exactInterferenceBrep(");
   const end=source.indexOf("\n/* A general-arrangement sheet",start);
   const check=source.slice(start,end);

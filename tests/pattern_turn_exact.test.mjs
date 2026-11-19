@@ -15,6 +15,7 @@
  * the turn as well. Every assertion below is therefore on POSITION, of a shape
  * with no rotational symmetry whatsoever.
  */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -27,7 +28,7 @@ import { regenerateFeatures, releaseRegeneration } from "../js/cad_feature_tree.
 import { cloneData, exactBrepForPart, partPatternRotations, partPatternTransform, placePatternCopy } from "../js/modeler_part_geometry.js";
 import { disposeBrep, loadCadKernel, placeBrep } from "../js/cad_kernel.js";
 
-const modeler = (readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8")).replace(/\r\n/g,"\n");
+const modeler = (modelerSource()).replace(/\r\n/g,"\n");
 const tree = readFileSync(new URL("../js/cad_feature_tree.js", import.meta.url), "utf8");
 
 const centroid = async (brep) => {

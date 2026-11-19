@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import {meshDataBounds} from '../js/core/kernel_body.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {historyEntryRolled} from '../js/core/parametric_document.js';
 import {leavesInputStanding} from '../js/core/rebuild.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const record=()=>JSON.parse(readFileSync(new URL('./fixtures/q5_reactivated_body_branch.json',import.meta.url),'utf8'));
 const names=['cutTargetFeatureId','publishExactBodies'];
 const api=new Function('historyEntryRolled','leavesInputStanding','meshDataBounds',names.map(name=>sourceFunctionText(source,name)).join('\n')+';return {'+names.join(',')+'};')(historyEntryRolled,leavesInputStanding,meshDataBounds);

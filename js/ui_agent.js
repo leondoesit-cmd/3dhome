@@ -559,7 +559,7 @@ async function sendCurrent() {
 }
 
 export function openAgent() {
-  if (!dock) return;
+  if (!dock) initAgent(false);
   dock.classList.add("on");
   var launch = document.getElementById("agentBtn"); if (launch) launch.classList.remove("needs-attention");
   inputEl.focus();
@@ -724,8 +724,9 @@ export function buildAgentSettingsPane() {
   return root;
 }
 
-export function initAgent() {
-  installAgentBridge();
+export function initAgent(installBridge = true) {
+  if (dock) return;
+  if (installBridge) installAgentBridge();
   dock = el("aside", "agent-dock"); dock.id = "agent-dock";
   dock.innerHTML = '<header><div><i class="ph ph-robot"></i><strong>' + escapeHTML(t("agent_title")) + '</strong><span id="agentStatus">' + escapeHTML(t("agent_ready")) + '</span></div><button id="agentCancel" hidden title="' + escapeHTML(t("agent_cancel")) + '"><i class="ph ph-stop-circle"></i></button><button id="agentSettings" title="' + escapeHTML(t("settings_title")) + '"><i class="ph ph-gear"></i></button><button id="agentClear" title="' + escapeHTML(t("agent_clear")) + '"><i class="ph ph-trash"></i></button><button id="agentClose" title="' + escapeHTML(t("close")) + '"><i class="ph ph-x"></i></button></header><div id="agentProgress" class="agent-progress" role="status" aria-live="polite" hidden><span class="agent-progress-track"><span></span></span><span class="agent-progress-label"></span><span class="agent-progress-stats"></span></div><div id="agentMessages"></div><details class="agent-context-inspector"><summary><i class="ph ph-code"></i> ' + escapeHTML(t("agent_context_inspector")) + '</summary><pre></pre></details><div class="agent-input-row"><textarea id="agentInput" rows="2" placeholder="' + escapeHTML(t("agent_placeholder")) + '"></textarea><button id="agentSend" class="btn-accent"><i class="ph ph-paper-plane-right"></i></button></div>';
   document.body.appendChild(dock);
@@ -764,4 +765,5 @@ export function initAgent() {
     openAgent();
     proposalCard(event.detail);
   });
+  window.dispatchEvent(new Event('agent-panel-ready'));
 }

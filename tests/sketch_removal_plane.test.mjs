@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {removeSketch, ensureSketch} from '../js/sketch_solver.js';
 import {removeHistoryNode} from '../js/core/parametric_document.js';
-const source = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const source = modelerSource();
 function load(context) {
   const start = source.indexOf('function syncSketchAfterRemoval(');
   const end = source.indexOf('\n}', start) + 2;

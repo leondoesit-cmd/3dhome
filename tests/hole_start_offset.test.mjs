@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
 import {createPartDocument,createSketchDefinition,createFeatureDefinition} from '../js/core/parametric_document.js';
 import {compileKernelFeatureTree} from '../js/core/kernel_feature_adapter.js';
@@ -27,7 +28,7 @@ test('Hole exposes signed length start offset in shared create/edit catalog',()=
  const field=featureEditorGroups('hole').flatMap(g=>g.fields).find(f=>f.key==='offset');assert.equal(field.unit,'length');assert.equal(field.min,undefined);
 });
 test('native unattached support picker defaults to datum rather than first offered face',()=>{
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),a=source.indexOf('  if(supportSketch){',source.indexOf('function openFeatureEditor(')),b=source.indexOf('  var pendingFrame=',a);
+ const source=modelerSource(),a=source.indexOf('  if(supportSketch){',source.indexOf('function openFeatureEditor(')),b=source.indexOf('  var pendingFrame=',a);
  const node=()=>({children:[],appendChild(n){this.children.push(n);},setAttribute(){}}),feature={id:'h',inputs:['base']},sketch={plane:'front'},host=node();
  const env={supportSketch:sketch,E:{def:{features:[{id:'base'},feature]}},feature,host,dependencyReferenceId:x=>x,compileKernelFeatureTree:()=>({ok:true,features:[]}),verifiedExactTopology:()=>new Map(),holeSupportChoices:()=>[{key:'first-face',label:'Side face',entry:{}}],modelLengthUnit:()=> 'mm',el:node,document:{createElement:node},t:x=>x};
  const picker=new Function(...Object.keys(env),'var supportSelect,supportChoices;'+source.slice(a,b)+';return supportSelect;')(...Object.values(env));

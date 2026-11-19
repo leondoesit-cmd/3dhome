@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {openPage,findChrome} from '../tools/browser_harness.mjs';
+import {useCentimetres} from './helpers/planner_units.mjs';
 const opts=await findChrome()?{}:{skip:'no Chrome'};
 for(const lang of ['en','he'])test('exact resize is one undo step and preserves a captured baseline in '+lang,opts,async()=>{
  const page=await openPage({width:390,height:844,mobile:true,touch:true,lang});
  try{
+  await useCentimetres(page);
   const r=await page.eval(async()=>{
    const {S}=await import('/js/state.js');
    const {armRoomStamp,updateRoomGhost,commitRoomStamp}=await import('/js/interaction.js');
@@ -44,6 +46,7 @@ for(const lang of ['en','he'])test('exact resize is one undo step and preserves 
 for (const lang of ['en','he']) test('inspector uses exact interior sizes and transactional edits in '+lang,opts,async()=>{
  const page=await openPage({width:1280,height:900,lang});
  try {
+  await useCentimetres(page);
   const r=await page.eval(async()=>{
    const {S}=await import('/js/state.js');
    const {armRoomStamp,updateRoomGhost,commitRoomStamp}=await import('/js/interaction.js');

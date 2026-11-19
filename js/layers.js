@@ -28,6 +28,9 @@
    run over the graph, but a cycle here would be felt first as a module that
    loads with half its bindings still in the temporal dead zone. */
 import { S, LAYER_IDS, defaultLayers } from "./state.js";
+/* The one exception to the import rule above: user_layers.js imports
+   state.js and nothing else, so it cannot close a cycle through here. */
+import { refLocked } from "./user_layers.js";
 
 /* The layer TABLE and its defaults live in state.js, next to the rest of S, so
    that S is well-formed for a module that reads `S.layers` without importing
@@ -104,6 +107,80 @@ export function isLayerLocked(id) {
   return !!L && !!L.locked;
 }
 
+/* `autoLock` is the only field in the layer record that this module stores
+   but never reads — it is a UI policy, not a permission: a layer that opted in
+   is locked exactly while it is not the work set. Run on every work-set change,
+   including the ones the tool triggers. */
+export function applyAutoLock() {
+  LAYER_IDS.forEach(function (id) {
+    var L = layerState(id);
+    if (!L || !L.autoLock) return;
+    L.locked = !(S.workSet === id || S.workSet === "all");
+  });
+}
+
+/* Make `id` the work set. A hidden layer is shown on the way: editing a layer
+   you cannot see is never what was meant. A faded one stays faded — that is a
+   look the user chose, and faded layers still draw. */
+export function setWorkLayer(id) {
+  S.workSet = id;
+  var L = layerState(id);
+  if (L && L.vis === "hide") L.vis = "show";
+  applyAutoLock();
+}
+
+/* A new, empty storey starts with its walls: the pin is cleared and Structure
+   becomes the work set, whatever the last storey was being worked on. */
+export function workSetForNewFloor() {
+  S.workSetPinned = false;
+  setWorkLayer("structure");
+  saveLayers();
+}
+
+/* The status tag every row of the Layers list carries: "edit" for the layer
+   being worked on, otherwise its visibility ("show" / "ghost" / "hide"). With
+   the work set on every layer ("all") no single row is the editing one. */
+export function layerTagKind(id, workSet, vis) {
+  if (id && workSet === id) return "edit";
+  return vis === "ghost" || vis === "hide" ? vis : "show";
+}
+
+/* Is a storey's scene empty — nothing on any layer? Takes the live S or a
+   stored floor scene (sceneObject(false)), which share the field names. */
+export function floorSceneEmpty(scene) {
+  if (!scene || typeof scene !== "object") return true;
+  var n = function (a) { return Array.isArray(a) ? a.length : 0; };
+  var mep = scene.mep && typeof scene.mep === "object" ? scene.mep : {};
+  return !(
+    n(scene.walls) || n(scene.items) || n(scene.openings) || n(scene.markers) ||
+    n(scene.annotations) || n(scene.slabOpenings) || n(mep.nodes) || n(mep.runs)
+  );
+}
+
+/* Arriving on a storey (switched to or just added): an empty one starts with
+   its walls, so the work set resets to Structure whatever the storey before
+   was being worked on, pinned or not. A storey with content keeps it. */
+export function workSetOnFloorEntry(empty) {
+  return empty ? "structure" : null;
+}
+
+// Apply the decision above to S. True when the work set was reset.
+export function enterFloorWorkSet(scene) {
+  if (!workSetOnFloorEntry(floorSceneEmpty(scene))) return false;
+  workSetForNewFloor();
+  return true;
+}
+
+/* What is left of a selection once its layer may have been hidden: null when
+   it lives on a hidden layer, the selection itself otherwise. Only "hide"
+   drops it; a faded layer stays selectable by design. A multi-selection is one
+   kind, so it is on one layer. */
+export function selectionAfterHide(sel) {
+  if (!sel) return sel;
+  var id = layerOf(sel.kind);
+  return id && isLayerHidden(id) ? null : sel;
+}
+
 /* 0 focused / 1 visible-but-not-focused / Infinity unreachable.
 
    `pickOverride` is checked before anything else, in both directions: it is
@@ -133,14 +210,15 @@ function selfLocked(sel) {
     var meta = S.roomMeta && S.roomMeta[sel.ref];
     return !!(meta && meta.locked);
   }
+  // refLocked: its own pin, or the padlock of the user layer it is on
   if (Array.isArray(sel.refs))
     return (
       sel.refs.length > 0 &&
       sel.refs.every(function (r) {
-        return !!(r && r.locked);
+        return refLocked(r);
       })
     );
-  return !!(sel.ref && sel.ref.locked);
+  return refLocked(sel.ref);
 }
 
 /* May the AI helper move this? The owner's call: the AI is exempt from the

@@ -25,6 +25,23 @@ globalThis.document = {
 const { S } = await import("../js/state.js");
 const { executeAgentTool, installAgentBridge, runAgentTurn } = await import("../js/agent_runtime.js");
 
+test("AI cannot commit a new floor item inside another piece; a batch with a late collision rolls back", async () => {
+  const { executePlannerProposal } = await import("../js/interaction/wall_edit.js");
+  const before = structuredClone(S.items);
+  try {
+    S.items = [{ id: 801, type: "desk", x: 100, z: 100, w: 120, d: 60, h: 75, rot: 0 }];
+    const preview = x => executeAgentTool("preview_model_command",
+      { commandId: "item.place", params: { type: "chair", x, z: 100, rot: 0 } });
+    const clear = preview(300), clash = preview(100);
+    assert.ok(clear.ok);
+    if (clash.ok) {
+      const result = executePlannerProposal({ commands: [clear, clash] }, { ai: true });
+      assert.equal(result.ok, false, "collision must refuse the transaction");
+    }
+    assert.deepEqual(S.items.map(it => it.id), [801]);
+  } finally { S.items = before; }
+});
+
 function response(data, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => data };
 }

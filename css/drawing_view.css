@@ -1,0 +1,126 @@
+/* The Drawing view (js/ui_pro_drawing.js) and the view group's dropdown form
+   (js/view_modes.js).
+
+   Drawing sits over the maximized plan pane: #center-canvas.sheet-view hides
+   the plan's own chrome and the sheet pane fills the work area like the plan.
+   The group of views (Plan · 3D · Dollhouse · Split · Drawing) is one row of
+   buttons where it fits and one dropdown where it does not. */
+
+/* ---- the view ----------------------------------------------------------- */
+#center-canvas > #view-sheet { display: none; }
+#center-canvas.sheet-view > #view-sheet:not([hidden]) {
+  position: absolute; inset: 0; z-index: 60;
+  display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  background: var(--bg-panel, var(--bg-main));
+}
+#center-canvas.sheet-view > :not(#view-sheet) { visibility: hidden; }
+
+.sheet-toolbar {
+  display: flex; align-items: center; gap: 6px; flex: none;
+  min-height: 40px; padding: 4px 10px; box-sizing: border-box;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-panel, var(--bg-main)); color: var(--text-main);
+  flex-wrap: wrap; row-gap: 4px; white-space: nowrap;
+}
+.sheet-toolbar .sheet-field { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-muted); }
+.sheet-toolbar select {
+  /* the app's generic select rules squeeze controls; these read in full */
+  flex: none; width: auto !important; min-width: 5.5rem; max-width: 15rem !important;
+  height: 28px; padding: 0 22px 0 6px; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 7px;
+  background: var(--btn-bg); color: var(--text-main); font: inherit; font-size: 12.5px;
+}
+.sheet-toolbar .sheet-sep { width: 1px; align-self: stretch; margin: 4px 2px; background: var(--border-color); flex: none; }
+.sheet-toolbar .sheet-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: none;
+  height: 28px; min-width: 28px; padding: 0 6px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-main); font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.sheet-toolbar .sheet-btn i { font-size: 16px; }
+.sheet-toolbar .sheet-btn:hover { background: var(--btn-bg-hover); }
+.sheet-toolbar .sheet-btn.primary { background: var(--accent); color: var(--accent-contrast, #fff); padding: 0 10px; }
+.sheet-toolbar .sheet-zoom-label { min-width: 3.2em; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.sheet-toolbar .sheet-sources { position: relative; flex: none; font-size: 12px; }
+.sheet-toolbar .sheet-sources > summary { cursor: pointer; padding: 4px 6px; color: var(--text-muted); list-style-position: inside; }
+.sheet-toolbar .sheet-sources-body {
+  position: fixed; z-index: 80; inset-inline-end: 12px; width: min(26rem, 90vw); max-height: 60vh; overflow: auto;
+  margin-top: 4px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px;
+  background: var(--bg-panel, var(--bg-main)); box-shadow: 0 8px 24px rgba(16, 21, 34, 0.2);
+  white-space: normal; overflow-wrap: anywhere;
+}
+.sheet-toolbar .sheet-sources-body .sheet-note { margin: 0 0 8px; color: var(--text-muted); }
+
+/* a narrow work area: field names and button words go, the selects shrink;
+   on a phone the bar wraps to two rows rather than hiding Print off-screen */
+#view-sheet { container-type: inline-size; }
+@container (max-width: 760px) {
+  .sheet-toolbar .sheet-field > span,
+  .sheet-toolbar .sheet-btn.labelled > span { display: none; }
+  .sheet-toolbar select { max-width: 11rem !important; }
+  .sheet-toolbar .sheet-btn.primary { padding: 0 6px; }
+}
+@container (max-width: 520px) {
+  .sheet-toolbar { flex-wrap: wrap; row-gap: 4px; padding: 4px 6px; }
+  .sheet-toolbar select { max-width: 9rem !important; min-width: 4.5rem; }
+  .sheet-toolbar .sheet-sep { display: none; }
+}
+
+.sheet-viewport {
+  position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden;
+  background: color-mix(in srgb, var(--bg-canvas-2d, #e9ecf1) 80%, #808794);
+  touch-action: none; cursor: grab; outline: none;
+}
+.sheet-viewport.dragging { cursor: grabbing; }
+.sheet-viewport:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.sheet-page { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.sheet-page > svg { display: block; background: #fff; box-shadow: 0 2px 14px rgba(16, 21, 34, 0.28); }
+
+.sheet-toolbar .sheet-check { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--text-main); cursor: pointer; }
+.sheet-toolbar .sheet-check input { margin: 0; accent-color: var(--accent); }
+
+/* the title block's fields (js/ui_pro_drawing_info.js) */
+.sheet-info-pop {
+  position: absolute; z-index: 70; top: 44px; inset-inline-end: 10px; width: min(22rem, calc(100% - 20px));
+  display: grid; gap: 6px; padding: 12px; box-sizing: border-box;
+  border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-panel, var(--bg-main));
+  box-shadow: 0 10px 28px rgba(16, 21, 34, 0.24); color: var(--text-main);
+}
+.sheet-info-pop h3 { margin: 0 0 2px; font-size: 13px; }
+.sheet-info-pop label { display: grid; grid-template-columns: 6.5rem 1fr; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.sheet-info-pop input { height: 28px; min-width: 0; padding: 0 8px; border: 1px solid var(--border-color); border-radius: 7px; background: var(--btn-bg); color: var(--text-main); font: inherit; font-size: 12.5px; }
+.sheet-info-pop .sheet-info-rev { display: flex; gap: 6px; margin-top: 4px; }
+.sheet-info-pop .sheet-info-rev input { flex: 1; }
+.sheet-info-pop .sheet-info-rev button { height: 28px; padding: 0 10px; border: 0; border-radius: 7px; background: var(--accent); color: var(--accent-contrast, #fff); font-weight: 600; cursor: pointer; }
+
+/* a picked room or opening (tap on the sheet) */
+#view-sheet [data-picked] { fill: var(--accent); fill-opacity: 0.18; }
+.sheet-viewport [data-sel] { cursor: pointer; }
+
+/* in Drawing the plan's drawing and placing tools have nothing to work on */
+body.sheet-view-on .pr-tool:is([data-pro-bind^="tool:"]:not([data-pro-bind="tool:select"]), [data-pro-bind^="place:"]) { opacity: 0.38 !important; pointer-events: none; }
+body.sheet-view-on #plan-toolbar button[data-tool]:not([data-tool="select"]) { opacity: 0.38; pointer-events: none; }
+
+/* ---- the view group: buttons where they fit, a dropdown where not -------- */
+.view-mode-select {
+  display: none; height: 28px; max-width: 9.5rem; padding: 0 6px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--text-main);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+/* five labelled pills need room: the pro skin's fixed 200px pill grows */
+body.pro-skin #topbar #viewModePill { width: auto; }
+body.pro-skin #topbar #viewModePill > button[data-view-mode] { flex: 0 0 auto; padding: 0 10px; }
+@media (max-width: 1280px) {
+  #viewModePill > button[data-view-mode] { display: none !important; }
+  #viewModePill > .view-mode-select { display: block; }
+  body.pro-skin #topbar #viewModePill { width: auto; padding-inline: 2px; }
+}
+
+/* the phone's strip and header group */
+@media (max-width: 560px) {
+  .m-editor-strip .m-panes > button[data-view-mode],
+  .ps-view > button[data-view] { display: none !important; }
+  .m-editor-strip .m-panes > .view-mode-select,
+  .ps-view > .view-mode-select { display: block; height: 28px; }
+}
+/* Split needs a fold's width: a phone offers 2D, 3D, Dollhouse and Drawing */
+body.pro-compact:not(.dock-rail) .view-mode-select > option[value="split"] { display: none; }
+@media print { #view-sheet { display: none !important; } }

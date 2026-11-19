@@ -46,7 +46,10 @@ export const CREATABLE_ENTITY_INVENTORY = Object.freeze([
 // rejects both a new file and growth inside an existing boundary. Counts may
 // only move down as the remaining gesture/import commands land.
 export const DIRECT_CREATION_BOUNDARIES = Object.freeze([
-  { file: "js/interaction.js", maxDirectPushes: 6, reason: "offset/arc gestures plus wall split/materialization topology service" },
+  // interaction.js's six, after the split into js/interaction/
+  { file: "js/interaction/wall_edit.js", maxDirectPushes: 4, reason: "wall split/materialization topology service" },
+  { file: "js/interaction/mep_tools.js", maxDirectPushes: 1, reason: "offset-wall gesture (commitOffsetWall)" },
+  { file: "js/interaction/room_tools.js", maxDirectPushes: 1, reason: "arc-wall gesture (arcWallPoint)" },
   { file: "js/ui_room_scan.js", maxDirectPushes: 4, reason: "scan document merge/import boundary" },
   { file: "js/ui_site.js", maxDirectPushes: 2, reason: "site-footprint document import" },
   { file: "js/ui.js", maxDirectPushes: 1, reason: "temporary topology snapshot restoration" },

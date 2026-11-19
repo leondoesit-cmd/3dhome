@@ -73,7 +73,7 @@ async function openDesktopEditor(page) {
   await page.waitUntil(() => {
     const el = document.getElementById("modeler");
     return !!el && getComputedStyle(el).display !== "none";
-  }, { what: "the model editor to open" });
+  }, { ms: 45000, what: "the model editor to open" });
   await page.waitUntil(() => {
     const welcome = document.getElementById("mdWelcome");
     const welcomeOpen = welcome && !welcome.hidden && getComputedStyle(welcome).display !== "none";
@@ -86,6 +86,90 @@ async function openDesktopEditor(page) {
 }
 
 /* ---- Test Suite --------------------------------------------------------- */
+
+async function clickRoomPoint(page, { x, y }) {
+  for (const type of ["mousePressed", "mouseReleased"]) {
+    await page.send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
+  }
+}
+
+for (const [width, lang] of [[1440, "en"], [940, "he"]]) {
+  test(`room context stays reachable above the editor footer at ${width}px (${lang})`, opts, async () => {
+    const page = await ctx({ width, height: 800, lang });
+    const state = await page.eval(() => {
+      const box = document.querySelector("#mdContextBtn");
+      const label = box.labels[0];
+      const r = label.getBoundingClientRect();
+      const rect = selector => document.querySelector(selector).getBoundingClientRect();
+      const mid = rect("#modeler .md-mid");
+      const peers = ["#mdHintHelp", "#mdStatus", "#mdSelFilters", "#mdBreadcrumb", "#modeler .md-mid > .ps-cmdbar"];
+      const hits = peers.filter(selector => {
+        const p = rect(selector);
+        return p.width && p.height && p.left < r.right && p.right > r.left && p.top < r.bottom && p.bottom > r.top;
+      });
+      const points = [r.left + 3, r.right - 3].flatMap(x => [r.top + 3, r.bottom - 3].map(y => ({x, y})));
+      return { hits, checked: box.checked, point: points[3], height: r.height,
+        inside: r.left >= mid.left && r.right <= mid.right && r.top >= mid.top && r.bottom <= mid.bottom,
+        reachable: points.every(p => label.contains(document.elementFromPoint(p.x, p.y))) };
+    });
+    assert.deepEqual(state.hits, []);
+    assert.ok(state.inside && state.reachable && state.height >= 32, JSON.stringify(state));
+    await clickRoomPoint(page, state.point);
+    assert.equal(await page.eval(() => document.querySelector("#mdContextBtn").checked), !state.checked);
+    assert.equal(await page.eval(() => document.activeElement.id), "mdContextBtn");
+    for (const type of ["keyDown", "keyUp"]) {
+      await page.send("Input.dispatchKeyEvent", { type, key: " ", code: "Space", windowsVirtualKeyCode: 32 });
+    }
+    assert.equal(await page.eval(() => document.querySelector("#mdContextBtn").checked), state.checked);
+    await page.resize(width - 80, 720, { mobile: false, touch: false });
+    await page.waitUntil(() => {
+      const canvas = document.querySelector("#mdPrev").getBoundingClientRect();
+      const host = document.querySelector("#md3dHost").getBoundingClientRect();
+      const footer = document.querySelector("#modeler .md-mid > .ps-cmdbar").getBoundingClientRect();
+      return host.height > 0 && Math.abs(canvas.top - host.top) <= 1 &&
+        Math.abs(canvas.bottom - host.bottom) <= 1 && canvas.bottom <= footer.top + 1;
+    }, { what: "the resized preview to fit above the command bar" });
+    for (const mode of ["drawing", "split", "3d"]) {
+      await page.eval(`() => document.querySelector('#mdModes [data-mode="${mode}"]').click()`);
+      assert.equal(await page.eval(() => !!document.querySelector(".md-prev-wrap #mdContextBtn")), mode === "drawing", mode);
+    }
+  });
+}
+
+test("room context toggles from the compact View sheet", opts, async () => {
+  const page = await openPage({ width: 390, height: 844, touch: true, mobile: true });
+  try {
+    await openDesktopEditor(page);
+    assert.equal(await page.eval(() => document.querySelector("#mdContextBtn").getClientRects().length), 0);
+    await page.eval(() => document.querySelector("#modeler .ps-head-view").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true })));
+    // Larger system fonts can push Display onto the next page of the View sheet.
+    await page.eval(() => new Promise(resolve => requestAnimationFrame(resolve)));
+    await page.eval(() => {
+      const sheet = document.querySelector("#md-sheet");
+      const button = sheet.querySelector('button[aria-label="In the room"]');
+      const pages = [...sheet.querySelectorAll(".mobile-menu-page")];
+      const index = pages.indexOf(button.closest(".mobile-menu-page"));
+      if (index >= 0) sheet.querySelectorAll(".mobile-page-dot")[index].click();
+    });
+    await page.waitUntil(() => {
+      const button = document.querySelector('#md-sheet button[aria-label="In the room"]');
+      const r = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+    }, { what: "room context to receive pointer input in the View sheet" });
+    const point = await page.eval(() => {
+      const r = document.querySelector('#md-sheet button[aria-label="In the room"]').getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height };
+    });
+    assert.ok(point.w >= 44 && point.h >= 44, JSON.stringify(point));
+    for (const checked of [true, false]) {
+      await clickRoomPoint(page, point);
+      assert.equal(await page.eval(() => document.querySelector("#mdContextBtn").checked), checked);
+      assert.equal(await page.eval(() => document.querySelector('#md-sheet button[aria-label="In the room"]').getAttribute("aria-pressed")), String(checked));
+    }
+  } finally {
+    await page.close();
+  }
+});
 
 test("desktop model editor boots cleanly and exposes window.cadPreviewView", opts, async () => {
   const page = await ctx({ width: 1280, height: 800, lang: "en" });
@@ -581,9 +665,12 @@ test("desktop model editor: oblique rectangle preview matches the geometry commi
     const view=window.cadPreviewView,canvas=document.getElementById("mdCanvas");
     if(!view?.rr?.domElement||!canvas)return false;
     const host=view.rr.domElement.getBoundingClientRect(),overlay=canvas.getBoundingClientRect();
+    window.obliqueProjectionState={aspect:view.cam.aspect,big:view.big,host:{width:host.width,height:host.height,clientWidth:view.rr.domElement.clientWidth,clientHeight:view.rr.domElement.clientHeight},overlay:{width:overlay.width,height:overlay.height}};
     return host.width>4&&host.height>4&&Math.abs(host.width-overlay.width)<1&&Math.abs(host.height-overlay.height)<1
-      &&Math.abs(view.cam.aspect-host.width/host.height)<1e-6;
-  }, { what: "the oblique renderer and sketch overlay to share their current projection size" });
+      &&Math.abs(view.cam.aspect-view.rr.domElement.clientWidth/view.rr.domElement.clientHeight)<1e-6;
+  }, { what: "the oblique renderer and sketch overlay to share their current projection size" }).catch(async error=>{
+    throw new Error(error.message+': '+JSON.stringify(await page.eval(()=>window.obliqueProjectionState)));
+  });
 
   const result = await page.eval(async () => {
     const osnap=document.getElementById("mdOsnap");
@@ -1263,7 +1350,7 @@ test("desktop model editor: section controls and collapsible side panels are ope
   assert.equal(sectionClosed, true, "section controls did not close");
 });
 
-test("desktop model editor: interactive tutorial opens SolidWorks CAD track and navigates steps", opts, async () => {
+test("desktop model editor: interactive tutorial opens the first-part track and navigates steps", opts, async () => {
   const page = await ctx({ width: 1280, height: 800, lang: "en" });
   await page.eval(() => document.getElementById("mdGuide").click());
   await page.eval(() => new Promise((r) => setTimeout(r, 300)));
@@ -1277,10 +1364,10 @@ test("desktop model editor: interactive tutorial opens SolidWorks CAD track and 
     };
   });
   assert.equal(tourState.open, true, "tutorial layer did not open");
-  assert.ok(tourState.tracks.includes("solidworks"), "SolidWorks CAD track missing from tutorial tracks");
+  assert.deepEqual(tourState.tracks, ["first", "plate", "knob", "assembly", "screw"], "desktop tutorial tracks");
 
   await page.eval(() => {
-    const track = document.querySelector('[data-tour-track="solidworks"]');
+    const track = document.querySelector('[data-tour-track="first"]');
     if (track) track.click();
   });
   await page.eval(() => new Promise((r) => setTimeout(r, 300)));
@@ -1289,13 +1376,13 @@ test("desktop model editor: interactive tutorial opens SolidWorks CAD track and 
     const modeBtn = document.querySelector('[data-tour-mode="interactive"]') || document.querySelector('[data-tour-mode]');
     if (modeBtn) modeBtn.click();
   });
-  await page.eval(() => new Promise((r) => setTimeout(r, 300)));
+  await page.waitUntil(() => !document.getElementById("mdTourNext").disabled, { what: "the first tutorial step" });
 
   const step1 = await page.eval(() => ({
     count: document.getElementById("mdTourCount")?.textContent.trim(),
     hasNext: !document.getElementById("mdTourNext")?.disabled,
   }));
-  assert.match(step1.count, /1\s*(?:\/|of|מתוך)\s*16/);
+  assert.match(step1.count, /1\s*(?:\/|of|מתוך)\s*8/);
   assert.equal(step1.hasNext, true, "tutorial next button is disabled on step 1");
 
   await page.eval(() => document.getElementById("mdTourNext").click());
@@ -1304,7 +1391,11 @@ test("desktop model editor: interactive tutorial opens SolidWorks CAD track and 
   const step2 = await page.eval(() => ({
     count: document.getElementById("mdTourCount")?.textContent.trim(),
   }));
-  assert.match(step2.count, /2\s*(?:\/|of|מתוך)\s*16/);
+  assert.match(step2.count, /2\s*(?:\/|of|מתוך)\s*8/);
+  const step2Ring = await page.eval(() => document.querySelector(".md-tour-target")?.getAttribute("data-pro-bind"));
+  assert.equal(step2Ring, "mcmd:srect", "step 2 rings Rectangle on the ribbon");
+  const step2Next = await page.eval(() => document.getElementById("mdTourNext").disabled);
+  assert.equal(step2Next, true, "step 2 waits for the sketch before Next unlocks");
 
   await page.eval(() => document.getElementById("mdTourClose").click());
   await page.eval(() => new Promise((r) => setTimeout(r, 200)));
@@ -1320,7 +1411,7 @@ test("desktop model editor: Settings labels and header actions do not overlap", 
   const page = await ctx({ width: 1280, height: 800, lang: "en" });
   await page.eval(() => document.querySelector('#modeler [data-tab="set"]').click());
   const chrome = await page.eval(() => {
-    const name = document.querySelector("#modeler .md-field");
+    const name = document.getElementById('mdName').closest('.md-field');
     const label = name?.querySelector("span");
     const input = name?.querySelector("input");
     const save = document.getElementById("mdSave");
@@ -1374,7 +1465,7 @@ test("desktop model editor: Tree toggle does not cover view or zoom controls", o
 test("desktop model editor: room context and viewport help do not overlap", opts, async () => {
   const page = await ctx({ width: 1024, height: 768, lang: "en" });
   const hit = await page.eval(() => {
-    const room = document.querySelector(".md-3dhost .md-context-toggle").getBoundingClientRect();
+    const room = document.querySelector("#mdContextBtn").labels[0].getBoundingClientRect();
     const help = document.getElementById("mdHintHelp").getBoundingClientRect();
     const overlap = room.left < help.right - 1 && room.right > help.left + 1
       && room.top < help.bottom - 1 && room.bottom > help.top + 1;

@@ -181,12 +181,25 @@ test("item-move senders serialize full state for selected roots and carried desc
   const other = { id: 52, x: 300, z: 400, rot: 0 };
   assert.deepEqual(itemMovePlanOps([parent, child, other], [parent, child, other]), [
     { type: "itemMove", id: 50, x: 100, z: 200, rot: 90, elev: 15, on: null,
-      hold: { wall: 3, gap: 0, side: 1 }, rotUser: 1 },
+      hold: { wall: 3, gap: 0, side: 1 }, keep: null, rotUser: 1 },
     { type: "itemMove", id: 51, x: 110, z: 200, rot: 90, elev: 105, on: 50,
-      hold: null, rotUser: null },
+      hold: null, keep: null, rotUser: null },
     { type: "itemMove", id: 52, x: 300, z: 400, rot: 0, elev: null, on: null,
-      hold: null, rotUser: null },
+      hold: null, keep: null, rotUser: null },
   ]);
+});
+
+// kept distances (js/item_keep.js) travel with the move, and an op without them clears them
+test("item-move ops carry the piece's kept distances", () => {
+  const keep = [{ axis: { x: 0, z: -1 }, sign: 1, ref: { kind: "wall", id: 3, side: 1 }, value: 60 }];
+  const op = itemMovePlanOps([{ id: 60, x: 1, z: 2, rot: 0, keep }], [])[0];
+  assert.deepEqual(op.keep, keep);
+  assert.notEqual(op.keep, keep, "a copy, not the piece's own array");
+  const st = { items: [{ id: 60, x: 0, z: 0 }] };
+  assert.equal(applyPlanOp(op, st), true);
+  assert.deepEqual(st.items[0].keep, keep);
+  assert.equal(applyPlanOp(Object.assign({}, op, { keep: null }), st), true);
+  assert.equal(st.items[0].keep, undefined);
 });
 
 /* JSON.parse makes `__proto__` a real own enumerable key, so a blind

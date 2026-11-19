@@ -50,6 +50,7 @@ const dimText = (value, unit = 'cm') => `${formatDocumentLength(value, unit, 10)
    satisfy — the same object the constraint list shows, so editing a dimension
    and editing a constraint are one code path. */
 export function addSmartDimension(sketch, target, value) {
+  if (!sketch || !target) return null;
   if (!sketch.constraints) sketch.constraints = [];
   const id = "dim_" + Math.random().toString(36).slice(2, 9);
 
@@ -80,6 +81,7 @@ export function addSmartDimension(sketch, target, value) {
 /* The measurement a dimension would start from, so the prompt opens on the
    current size instead of an empty field. */
 export function currentMeasure(sketch, target) {
+  if (!sketch || !target) return 0;
   const points = new Map((sketch.points || []).map((p) => [p.id, p]));
   if (target.type === "line") {
     const l = lineData(sketchEntity(sketch, target.id), points);
@@ -151,6 +153,7 @@ export function distanceDimensionLayout(sketch, constraint, toPx) {
   if (!a || !b) return null;
 
   const p1 = toPx(a.x, a.y), p2 = toPx(b.x, b.y);
+  if (!p1 || !p2) return null;
   let nx = -(p2.y - p1.y), ny = p2.x - p1.x;
   const len = Math.hypot(nx, ny) || 1;
   nx /= len; ny /= len;
@@ -219,7 +222,7 @@ export function hitSketchDimensionHit(sketch, x, y, toPx, tolerance = 9, unit = 
     const shape = dimensionHitShape(sketch, constraint, toPx, points, entities, unit);
     if (!shape) continue;
     const box = shape.box;
-    const inLabel = x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1;
+    const inLabel = box ? x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1 : false;
     const distance = inLabel ? 0
       : shape.ring ? Math.abs(Math.hypot(x - shape.ring.x, y - shape.ring.y) - shape.ring.r)
       : pointSegmentDistance(x, y, shape.a, shape.b);

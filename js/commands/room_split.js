@@ -7,7 +7,9 @@ export const roomSplitCommand=Object.freeze({
   const state=env.state,room=env.services.detectRooms().find(r=>r.key===params.roomKey),m=roomMeasurements(state,room);
   if(!m?.interior)return fail('ROOM_NOT_RECT');
   if(state.workspace?.role==='viewer'||state.structLocked||state.layers?.structure?.locked||state.roomMeta[room.key]?.locked)return fail('ROOM_LOCKED');
-  if(state.items.length||state.wallCons?.length||state.roomCons?.length||state.mep?.nodes?.length||state.mep?.runs?.length||state.slabOpenings?.length)return fail('SPLIT_CONTENTS');
+  const inside=p=>pointInPolygon({x:p.x,z:p.z},room.pts),rWalls=new Set(room.key.split(','));
+  if(state.items.some(inside)||(state.slabOpenings||[]).some(inside)||(state.mep?.nodes||[]).some(inside)||
+     state.wallCons?.some(c=>rWalls.has(String(c.wall)))||state.roomCons?.some(c=>c.room===room.key))return fail('SPLIT_CONTENTS');
   const axis=params.axis==='z'?'z':'x',offset=Number(params.offset),size=axis==='x'?m.interior.width:m.interior.depth;
   if(!Number.isFinite(offset)||offset<20||offset>size-20)return fail('INVALID_SPLIT');
   const value=m.interiorBounds[axis+'0']+offset;
