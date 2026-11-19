@@ -469,6 +469,13 @@ function copyCpuSample(result){
   do{replayCopies(result.copies);repeats++;elapsed=cpuMilliseconds(start);}while(elapsed<250);
   return elapsed/(repeats*result.frames.length);
 }
+// What the frames actually copy, in serialized characters per frame: exact and
+// the same on every machine, unlike the CPU time those copies take.
+function copiedPerFrame(result){
+  let chars=0;
+  for(const {args} of result.copies)chars+=JSON.stringify(args[0])?.length||0;
+  return chars/result.frames.length;
+}
 function compareCopyCpu(baseline,optimized){
   const samples={before:[],after:[]};
   replayCopies(baseline.copies);replayCopies(optimized.copies);
@@ -517,7 +524,14 @@ test('all playback frames match the frozen implementation exactly; report per-fr
     assert.ok(optimized.totals.cpu<baseline.totals.cpu*2+2,`${fixture.name}: total CPU cost stays within the regression guard`);
     const copyCpu=compareCopyCpu(baseline,optimized);
     t.diagnostic(`${fixture.name} copy CPU ms/frame (median of 5 batches >=250 ms CPU): ${JSON.stringify(copyCpu)}`);
-    assert.ok(copyCpu.after<copyCpu.before*.8+.5,`${fixture.name}: copy cost falls with generous timing slack; CPU ${copyCpu.after} < ${copyCpu.before*.8+.5} ms/frame`);
+    const copied={before:copiedPerFrame(baseline),after:copiedPerFrame(optimized)};
+    t.diagnostic(`${fixture.name} copied chars/frame: ${JSON.stringify(copied)}`);
+    // The saving is asserted on what is copied (measured 0.50-0.63x of the
+    // frozen implementation), which is exact. CPU time only guards against a
+    // gross regression: on a shared 2-core CI runner a ~20% CPU saving drowned
+    // in noise, and the same commit passed in one run and failed in the next.
+    assert.ok(copied.after<copied.before*.75,`${fixture.name}: frames copy less; ${copied.after} < ${copied.before*.75} chars/frame`);
+    assert.ok(copyCpu.after<copyCpu.before*1.5+1,`${fixture.name}: copy CPU does not regress grossly; ${copyCpu.after} < ${copyCpu.before*1.5+1} ms/frame`);
   }
 });
 
